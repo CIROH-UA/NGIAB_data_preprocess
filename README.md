@@ -1,6 +1,6 @@
 This repository contains tools for preparing data to run a [next gen](https://github.com/NOAA-OWP/ngen) simulation using [NGIAB](https://github.com/CIROH-UA/NGIAB-CloudInfra). The tools allow you to select a catchment of interest on an interactive map, choose a date range, and prepare the data with just a few clicks!
 
-![map screenshot](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/map_app/static/resources/screenshot.png)
+![map screenshot](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/map_app/static/resources/screenshot.png)
 
 
 ## What does this tool do?
@@ -15,43 +15,47 @@ This tool prepares data to run a next gen simulation by creating a run package t
 
 `sudo apt install gdal-bin` will install gdal and ogr2ogr on ubuntu / wsl
 
-## Installation
+## Installation and running
 
-To install and run the tool, follow these steps:
+```bash
+#optional but encouraged: create a virtual environment
+python3 -m venv env
+source env/bin/activate
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/CIROH-UA/NGIAB_data_preprocess
-    cd NGIAB_data_preprocess
-    ```
-
-2. Create a virtual environment and activate it:
-    ```bash
-    python3 -m venv env
-    source env/bin/activate
-    ```
-
-3. Install the tool:
-    ```bash
-    pip install -e .
-    ```
-
-4. Run the map app:
-    ```bash
-    python -m map_app
-    ```
+# installing and running the tool
+pip install ngiab_data_preprocess
+python -m map_app
+```
 
 The first time you run this command, it will download the hydrofabric and model parameter files from Lynker Spatial. If you already have them, place `conus.gpkg` and `model_attributes.parquet` into `modules/data_sources/`.
 
-If step 4 does not work, run the following:
+## Development Installation
+<details>
+  <summary>Installation steps</summary>
+    To install and run the tool, follow these steps:
 
-```bash
-touch .dev
-python -m map_app
-```   
-    
-This .dev file in the root folder disables the automatic browser opening so you will need to manually open [http://localhost:5000](http://localhost:5000) after running the `python -m map_app` command.   
+    1. Clone the repository:
+        ```bash
+        git clone https://github.com/CIROH-UA/NGIAB_data_preprocess
+        cd NGIAB_data_preprocess
+        ```
 
+    2. Create a virtual environment and activate it:
+        ```bash
+        python3 -m venv env
+        source env/bin/activate
+        ```
+
+    3. Install the tool:
+        ```bash
+        pip install -e .
+        ```
+
+    4. Run the map app:
+        ```bash
+        python -m map_app
+        ```
+</details>
 
 ## Usage
 
