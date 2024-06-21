@@ -15,7 +15,7 @@ name = "ngiab_data_preprocess"
 #version = "0.0.1"
 dynamic = ["version"]
 authors = [{ name = "Josh Cunningham", email = "josh.cu@gmail.com" }]
-description = "A small example package"
+description = "Graphical Tools for creating Next Gen Water model input data."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
@@ -51,8 +51,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pypa/sampleproject"
-Issues = "https://github.com/pypa/sampleproject/issues"
+Homepage = "https://github.com/CIROH-UA/NGIAB_data_preprocess"
+Issues = "https://github.com/CIROH-UA/NGIAB_data_preprocess/issues"
 
 [build-system]
 # scm adds files tracked by git to the package
