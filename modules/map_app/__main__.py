@@ -11,18 +11,27 @@ from tqdm import tqdm
 import requests
 import webbrowser
 
+
 def download_file(url, save_path):
     response = requests.get(url, stream=True)
-    total_size = int(response.headers.get('content-length', 0))
+    total_size = int(response.headers.get("content-length", 0))
     bytes_downloaded = 0
     chunk_size = 1048576
     with open(save_path, "wb") as f:
-        for data in tqdm(response.iter_content(chunk_size=chunk_size), total=total_size/chunk_size, unit='MB', unit_scale=True):
+        for data in tqdm(
+            response.iter_content(chunk_size=chunk_size),
+            total=total_size / chunk_size,
+            unit="MB",
+            unit_scale=True,
+        ):
             bytes_downloaded += len(data)
             f.write(data)
 
+
 hydrofabric_url = "https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v20.1/conus.gpkg"
-model_attributes_url = "https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v20.1/model_attributes.parquet"
+model_attributes_url = (
+    "https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v20.1/model_attributes.parquet"
+)
 
 
 if not file_paths.conus_hydrofabric().is_file():
@@ -44,7 +53,19 @@ if not file_paths.model_attributes().is_file():
     else:
         print("Exiting...")
         exit()
-        
+
+if not file_paths.config_file.is_file():
+    # prompt the user to set the working directory
+    print(
+        "Output directory is not set. Would you like to set it now? Defaults to ~/ngiab_preprocess_output/ (y/N)"
+    )
+    response = input()
+    if response.lower() == "y":
+        response = input("Enter the path to the working directory: ")
+    if response == "" or response.lower() == "n":
+        response = "~/ngiab_preprocess_output/"
+    file_paths.set_working_dir(response)
+
 
 with open("app.log", "w") as f:
     f.write("")
@@ -72,12 +93,13 @@ formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
 console_handler.setFormatter(formatter)
 logging.getLogger("").addHandler(console_handler)
 
+
 def open_browser():
     webbrowser.open("http://localhost:5000")
 
 
 if __name__ == "__main__":
-    
+
     if file_paths.dev_file().is_file():
         with open("app.log", "a") as f:
             f.write("Running in debug mode\n")
