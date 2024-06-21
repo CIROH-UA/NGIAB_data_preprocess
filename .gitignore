@@ -1,4 +1,4 @@
-conus*.*
+modules/*/conus*.*
 *.parquet
 output/*
 !output/.gitkeep

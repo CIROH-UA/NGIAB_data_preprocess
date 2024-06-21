@@ -20,11 +20,28 @@ class file_paths:
         self.wb_id = wb_id
 
     @staticmethod
+    def get_working_dir() -> Path:
+        # check for the  .NGIAB_data_preprocessor file in ~ and read the working directory from it
+        # if it doesn't exist, return the current directory
+        try:
+            with open(file_paths.dev_file(), "r") as f:
+                return Path(f.readline().strip())
+        except FileNotFoundError:
+            return None
+
+    @staticmethod
+    def set_working_dir(self, working_dir: Path) -> None:
+        with open(file_paths.dev_file(), "w") as f:
+            f.write(str(working_dir))
+
+    @staticmethod
     def data_sources() -> Path:
         return Path(__file__).parent.parent / "data_sources"
 
     @staticmethod
     def root_output_dir() -> Path:
+        if file_paths.get_working_dir() is not None:
+            return file_paths.get_working_dir()
         return Path(__file__).parent.parent.parent / "output"
 
     @staticmethod
