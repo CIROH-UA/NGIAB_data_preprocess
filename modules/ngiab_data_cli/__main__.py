@@ -8,6 +8,8 @@ from data_processing.file_paths import file_paths
 from data_processing.subset import subset
 from data_processing.forcings import create_forcings
 from data_processing.create_realization import create_realization
+from data_sources.source_validation import validate_all
+
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"
@@ -150,4 +152,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    validate_all()
     main()
