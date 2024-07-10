@@ -2,6 +2,7 @@ import logging
 import multiprocessing
 import os
 import time
+import warnings
 from pathlib import Path
 from typing import Tuple
 from functools import partial, cache
@@ -20,16 +21,22 @@ from exactextract import exact_extract
 from data_processing.file_paths import file_paths
 
 logger = logging.getLogger(__name__)
+# Suppress the specific warning from numpy
+warnings.filterwarnings(
+    "ignore", message="'GeoDataFrame.swapaxes' is deprecated", category=FutureWarning
+)
+
 
 def open_s3_store(url: str) -> s3fs.S3Map:
     """Open an s3 store from a given url."""
     return s3fs.S3Map(url, s3=s3fs.S3FileSystem(anon=True))
 
+
 def load_zarr_datasets() -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
     # if a LocalCluster is not already running, start one
     if not Client(timeout="2s"):
-        cluster = LocalCluster()    
+        cluster = LocalCluster()
     forcing_vars = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]
     s3_urls = [
         f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/zarr/forcing/{var}.zarr"
@@ -59,7 +66,7 @@ def clip_dataset_to_bounds(
     return dataset
 
 
-def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:    
+def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     stores.to_netcdf(cached_nc_path)
     data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
     return data
@@ -91,10 +98,12 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     dataset["APCP_surface"] = (dataset["RAINRATE"] * 3600 * 1000) / 0.998
     return dataset
 
+
 def save_to_csv(catchment_ds, csv_path):
     catchment_df = catchment_ds.to_dataframe().drop(["catchment"], axis=1)
     catchment_df.to_csv(csv_path)
     return csv_path
+
 
 def compute_zonal_stats(
     gdf: gpd.GeoDataFrame, merged_data: xr.Dataset, forcings_dir: Path
@@ -178,7 +187,7 @@ def compute_zonal_stats(
         delayed_save = dask.delayed(save_to_csv)(catchment_ds, csv_path)
         delayed_saves.append(delayed_save)
     if not Client(timeout="2s"):
-        cluster = LocalCluster()    
+        cluster = LocalCluster()
     dask.compute(*delayed_saves)
 
     logger.info(
