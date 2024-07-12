@@ -191,7 +191,7 @@ def compute_zonal_stats(
     dask.compute(*delayed_saves)
 
     logger.info(
-        f"Forcing generation complete!\nZonal stats computed in {time.time() - timer_start} seconds"
+        f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start} seconds"
     )
 
 
@@ -206,10 +206,10 @@ def setup_directories(wb_id: str) -> file_paths:
 def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> None:
     forcing_paths = setup_directories(output_folder_name)
     projection = xr.open_dataset(forcing_paths.template_nc(), engine="h5netcdf").crs.esri_pe_string
-    logger.info("Got projection from grid file")
+    logger.debug("Got projection from grid file")
 
     gdf = load_geodataframe(forcing_paths.geopackage_path(), projection)
-    logger.info("Got gdf")
+    logger.debug("Got gdf")
 
     if type(start_time) == datetime:
         start_time = start_time.strftime("%Y-%m-%d %H:%M")
@@ -218,7 +218,7 @@ def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> 
 
     merged_data = None
     if os.path.exists(forcing_paths.cached_nc_file()):
-        logger.info("found cached nc file")
+        logger.info("Found cached nc file")
         # open the cached file and check that the time range is correct
         cached_data = xr.open_mfdataset(
             forcing_paths.cached_nc_file(), parallel=True, engine="h5netcdf"
@@ -227,26 +227,26 @@ def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> 
             -1
         ].values >= np.datetime64(end_time):
             logger.info("Time range is correct")
-            logger.info(f"Opened cached nc file: [{forcing_paths.cached_nc_file()}]")
+            logger.debug(f"Opened cached nc file: [{forcing_paths.cached_nc_file()}]")
             merged_data = clip_dataset_to_bounds(
                 cached_data, gdf.total_bounds, start_time, end_time
             )
-            logger.info("Clipped stores")
+            logger.debug("Clipped stores")
         else:
             logger.info("Time range is incorrect")
             os.remove(forcing_paths.cached_nc_file())
-            logger.info("Removed cached nc file")
+            logger.debug("Removed cached nc file")
 
     if merged_data is None:
         logger.info("Loading zarr stores, this may take a while.")
         lazy_store = load_zarr_datasets()
-        logger.info("Got zarr stores")
+        logger.debug("Got zarr stores")
 
         clipped_store = clip_dataset_to_bounds(lazy_store, gdf.total_bounds, start_time, end_time)
-        logger.info("Clipped stores")
+        logger.info("Clipped forcing data to bounds")
 
         merged_data = compute_store(clipped_store, forcing_paths.cached_nc_file())
-        logger.info("Computed store")
+        logger.info("Forcing data loaded and cached")
 
     logger.info("Computing zonal stats")
     compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir())

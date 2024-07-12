@@ -54,13 +54,14 @@ def subset_parquet(ids: List[str], paths: file_paths) -> None:
     parquet_path = paths.model_attributes()
     output_dir = paths.subset_dir()
     logger.debug(str(parquet_path))
-    logger.info("Reading parquet")
+    logger.debug("Reading parquet")
+    logger.info("Extracting model attributes")
     table = pa_parquet.read_table(parquet_path)
-    logger.info("Filtering parquet")
+    logger.debug("Filtering parquet")
     filtered_table = table.filter(
         pa_compute.is_in(table.column("divide_id"), value_set=pyarrow.array(cat_ids))
     )
-    logger.info("Writing parquet")
+    logger.debug("Writing parquet")
     pa_csv.write_csv(filtered_table, output_dir / "cfe_noahowp_attributes.csv")
 
 

@@ -177,7 +177,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: str, subset_gpkg_name:
     if table in ["divides", "flowpaths", "nexus", "hydrolocations", "lakes"]:
         copy_rTree_tables(table, ids, source_db, dest_db)
 
-    logger.info("Inserting final data")
+    logger.debug("Inserting final data")
 
     if table == "network":
         table = "flowpath_edge_list"

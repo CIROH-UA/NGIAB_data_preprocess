@@ -49,6 +49,7 @@ dependencies = [
     "flaskwebgui==1.1.0",
     "tqdm==4.66.4",
     "rich==13.7.1",
+    "colorama==0.4.6",
 ]
 
 [project.urls]

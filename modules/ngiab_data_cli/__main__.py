@@ -1,8 +1,11 @@
 import argparse
 import logging
-from typing import List, Optional
+from typing import List
 from datetime import datetime
 from pathlib import Path
+
+# Import colorama for cross-platform colored terminal text
+from colorama import Fore, Style, init
 
 from data_processing.file_paths import file_paths
 from data_processing.subset import subset
@@ -16,10 +19,27 @@ DATE_FORMAT = "%Y-%m-%d"
 SUPPORTED_FILE_TYPES = {".csv", ".txt"}
 WB_ID_PREFIX = "wb-"
 
+# Initialize colorama
+init(autoreset=True)
+
+class ColoredFormatter(logging.Formatter):
+    def format(self, record):
+        message = super().format(record)
+        if record.name == 'root':  # Only color messages from this script
+            return f"{Fore.GREEN}{message}{Style.RESET_ALL}"
+        return message
 
 def setup_logging() -> None:
-    """Set up logging configuration."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    """Set up logging configuration with green formatting."""
+    handler = logging.StreamHandler()
+    handler.setFormatter(ColoredFormatter("%(asctime)s - %(levelname)s - %(message)s"))
+    logging.basicConfig(level=logging.INFO, handlers=[handler])
+
+def set_logging_to_error_only() -> None:
+    """Set logging to ERROR level only."""
+    logging.getLogger().setLevel(logging.ERROR)
+    # Explicitly set Dask's logger to ERROR level
+    logging.getLogger("distributed").setLevel(logging.ERROR)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -143,11 +163,14 @@ def main() -> None:
             logging.info(f"Creating realization from {args.start_date} to {args.end_date}...")
             create_realization(wb_id_for_name, start_time=args.start_date, end_time=args.end_date)
             logging.info("Realization creation complete.")
-
+        
         logging.info("All requested operations completed successfully.")
+        # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
+        # that look like errors
+        set_logging_to_error_only()
 
     except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
+        logging.error(f"{Fore.RED}An error occurred: {str(e)}{Style.RESET_ALL}")
         raise
 
 
