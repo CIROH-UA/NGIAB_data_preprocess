@@ -233,6 +233,54 @@ function onMapClick(event) {
 
 }
 
+function select_by_lat_lon() {
+    lat = $('#lat_input').val();
+    lon = $('#lon_input').val();
+    fetch('/handle_map_interaction', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            coordinates: { lat: lat, lng: lon }
+        }),
+    })
+        .then(response => response.json())
+        .then(data => {
+            wb_id = data['wb_id'];
+            wb_id_dict[wb_id] = [lat, lon];
+            synchronizeUpdates();
+            $('#selected-basins').text(Object.keys(wb_id_dict));
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+$('#select-lat-lon-button').click(select_by_lat_lon);
+
+function select_by_id() {
+    wb_id_dict = {};
+    wb_ids = $('#wb_id_input').val();
+
+    wb_ids = wb_ids.split(',');
+    for (wb_id of wb_ids) {
+        wb_id_dict[wb_id] = [0, 0];
+    }
+    synchronizeUpdates();
+    $('#selected-basins').text(Object.keys(wb_id_dict));
+}
+
+$('#select-button').click(select_by_id);
+
+function clear_selection() {
+    wb_id_dict = {};
+    synchronizeUpdates();
+    $('#selected-basins').text(Object.keys(wb_id_dict));
+}
+
+$('#clear-button').click(clear_selection);
+
 // Initialize the map
 var map = L.map('map', { crs: L.CRS.EPSG3857 }).setView([40, -96], 5);
 
