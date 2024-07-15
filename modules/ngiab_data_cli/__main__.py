@@ -3,6 +3,7 @@ import logging
 from typing import List
 from datetime import datetime
 from pathlib import Path
+import pandas as pd
 
 # Import colorama for cross-platform colored terminal text
 from colorama import Fore, Style, init
@@ -22,18 +23,21 @@ WB_ID_PREFIX = "wb-"
 # Initialize colorama
 init(autoreset=True)
 
+
 class ColoredFormatter(logging.Formatter):
     def format(self, record):
         message = super().format(record)
-        if record.name == 'root':  # Only color messages from this script
+        if record.name == "root":  # Only color messages from this script
             return f"{Fore.GREEN}{message}{Style.RESET_ALL}"
         return message
+
 
 def setup_logging() -> None:
     """Set up logging configuration with green formatting."""
     handler = logging.StreamHandler()
     handler.setFormatter(ColoredFormatter("%(asctime)s - %(levelname)s - %(message)s"))
     logging.basicConfig(level=logging.INFO, handlers=[handler])
+
 
 def set_logging_to_error_only() -> None:
     """Set logging to ERROR level only."""
@@ -107,6 +111,38 @@ def validate_input(args: argparse.Namespace) -> None:
         )
 
 
+def read_csv(input_file: Path) -> List[str]:
+    """Read waterbody IDs from a CSV file."""
+    # read the first line of the csv file, if it contains a item starting wb_ then that's the column to use
+    # if not then look for a column named 'wb_id' or 'waterbody_id' or divide_id
+    # if not, then use the first column
+    df = pd.read_csv(input_file)
+    wb_id_col = None
+    for col in df.columns:
+        if col.startswith("wb_") and col.lower() != "wb_id":
+            wb_id_col = col
+            df = df.read_csv(input_file, header=None)
+            break
+    if wb_id_col is None:
+        for col in df.columns:
+            if col.lower() in ["wb_id", "waterbody_id", "divide_id"]:
+                wb_id_col = col
+                break
+    if wb_id_col is None:
+        raise ValueError(
+            "No waterbody IDs column found in the input file: \n\
+                         csv expects a single column of waterbody IDs  \n\
+                         or a column named 'wb_id' or 'waterbody_id' or 'divide_id'"
+        )
+
+    entries = df[wb_id_col].astype(str).tolist()
+
+    if len(entries) == 0:
+        raise ValueError("No waterbody IDs found in the input file")
+
+    return df[wb_id_col].astype(str).tolist()
+
+
 def read_waterbody_ids(input_file: Path) -> List[str]:
     """Read waterbody IDs from input file or return single ID."""
     if input_file.stem.startswith(WB_ID_PREFIX):
@@ -117,6 +153,9 @@ def read_waterbody_ids(input_file: Path) -> List[str]:
 
     if input_file.suffix not in SUPPORTED_FILE_TYPES:
         raise ValueError(f"Unsupported file type: {input_file.suffix}")
+
+    if input_file.suffix == ".csv":
+        return read_csv(input_file)
 
     with input_file.open("r") as f:
         return f.read().splitlines()
@@ -163,7 +202,7 @@ def main() -> None:
             logging.info(f"Creating realization from {args.start_date} to {args.end_date}...")
             create_realization(wb_id_for_name, start_time=args.start_date, end_time=args.end_date)
             logging.info("Realization creation complete.")
-        
+
         logging.info("All requested operations completed successfully.")
         # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
         # that look like errors
