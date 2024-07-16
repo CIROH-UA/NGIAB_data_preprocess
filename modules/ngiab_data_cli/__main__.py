@@ -55,7 +55,13 @@ def parse_arguments() -> argparse.Namespace:
         "-i",
         "--input_file",
         type=str,
-        help="Path to a csv or txt file containing a list of waterbody IDs",
+        help="Path to a csv or txt file containing a newline separated list of waterbody IDs, when used with -l, the file should contain lat/lon pairs",
+    )
+    parser.add_argument(
+        "-l",
+        "--lat_lon",
+        action="store_true",
+        help="Use Latitude and longitude of a waterbody ID",
     )
     parser.add_argument(
         "-s",
@@ -111,7 +117,7 @@ def validate_input(args: argparse.Namespace) -> None:
         )
 
 
-def read_csv(input_file: Path) -> List[str]:
+def read_csv(input_file: Path, use_lat_lon) -> List[str]:
     """Read waterbody IDs from a CSV file."""
     # read the first line of the csv file, if it contains a item starting wb_ then that's the column to use
     # if not then look for a column named 'wb_id' or 'waterbody_id' or divide_id
@@ -161,6 +167,22 @@ def read_waterbody_ids(input_file: Path) -> List[str]:
         return f.read().splitlines()
 
 
+def get_wb_ids_from_lat_lon(input_file: Path) -> List[str]:
+    """Read waterbody IDs from input file or return single ID."""
+    lat_lon_list = []
+    if input_file.stem.contains(","):
+        coords = input_file.stem.split(",")
+        lat_lon_list.append((coords[0], coords[1]))
+    if not input_file.exists():
+        raise FileNotFoundError(f"The file {input_file} does not exist")
+
+    if input_file.suffix not in SUPPORTED_FILE_TYPES:
+        raise ValueError(f"Unsupported file type: {input_file.suffix}")
+
+    if input_file.suffix == ".csv":
+        return read_csv(input_file, use_lat_lon=True)
+
+
 def main() -> None:
     setup_logging()
 
@@ -170,7 +192,10 @@ def main() -> None:
 
         if args.input_file:
             input_file = Path(args.input_file)
-            waterbody_ids = read_waterbody_ids(input_file)
+            if args.lat_lon:
+                waterbody_ids = get_wb_ids_from_lat_lon(input_file)
+            else:
+                waterbody_ids = read_waterbody_ids(input_file)
             logging.info(f"Read {len(waterbody_ids)} waterbody IDs from {input_file}")
         else:
             waterbody_ids = []
