@@ -65,41 +65,6 @@ def subset_parquet(ids: List[str], paths: file_paths) -> None:
     pa_csv.write_csv(filtered_table, output_dir / "cfe_noahowp_attributes.csv")
 
 
-def make_x_walk(hydrofabric: str, out_dir: str) -> None:
-    attributes = gpd.read_file(
-        hydrofabric, layer="flowpath_attributes", engine="pyogrio"
-    ).set_index("id")
-    x_walk = pd.Series(attributes[~attributes["rl_gages"].isna()]["rl_gages"])
-    data = {}
-    for wb, gage in x_walk.items():
-        data[wb] = {"Gage_no": [gage]}
-    with open(out_dir / "crosswalk.json", "w") as fp:
-        json.dump(data, fp, indent=2)
-
-
-def make_geojson(paths: file_paths) -> None:
-    hydrofabric = paths.geopackage_path()
-    out_dir = paths.subset_dir()
-    try:
-        catchments = gpd.read_file(hydrofabric, layer="divides", engine="pyogrio")
-        nexuses = gpd.read_file(hydrofabric, layer="nexus", engine="pyogrio")
-        flowpaths = gpd.read_file(hydrofabric, layer="flowpaths", engine="pyogrio")
-        edge_list = gpd.read_file(hydrofabric, layer="flowpath_edge_list", engine="pyogrio")
-
-        catchments = catchments.rename(columns={"id": "wb_id"})
-        catchments = catchments.rename(columns={"divide_id": "id"})
-
-        make_x_walk(hydrofabric, out_dir)
-        catchments.to_file(out_dir / "catchments.geojson")
-        nexuses.to_file(out_dir / "nexus.geojson")
-        flowpaths.to_file(out_dir / "flowpaths.geojson")
-        edge_list.to_json(out_dir / "flowpath_edge_list.json", orient="records", indent=2)
-    except Exception as e:
-        logger.error(f"Unable to use hydrofabric file {hydrofabric}")
-        logger.error(str(e))
-        raise e
-
-
 def subset(
     wb_ids: List[str], hydrofabric: str = file_paths.conus_hydrofabric(), subset_name: str = None
 ) -> str:
@@ -116,7 +81,6 @@ def subset(
     create_subset_gpkg(upstream_ids, hydrofabric, paths)
     convert_gpkg_to_temp(paths)
     subset_parquet(upstream_ids, paths)
-    make_geojson(paths)
     move_files_to_config_dir(paths.subset_dir())
     logger.info(f"Subset complete for {len(upstream_ids)} catchments")
     logger.debug(f"Subset complete for {upstream_ids} catchments")
