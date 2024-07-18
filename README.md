@@ -16,15 +16,14 @@ This repository contains tools for preparing data to run a [next gen](https://gi
    - [Examples](#examples)
    - [File Formats](#file-formats)
    - [Output](#output)
-   - [Error Handling](#error-handling)
 
 ## What does this tool do?
 
-This tool prepares data to run a next gen simulation by creating a run package that can be used with NGIAB. It picks default data sources, including the [v20.1 hydrofabric](https://www.lynker-spatial.com/data?path=hydrofabric%2Fv20.1%2F) and [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data.
+This tool prepares data to run a next gen simulation by creating a run package that can be used with NGIAB. It picks default data sources, the [v20.1 hydrofabric](https://www.lynker-spatial.com/data?path=hydrofabric%2Fv20.1%2F) and [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data.
 
 ## Requirements
 
-* This tool is officially supported on macOS or Ubuntu. To use it on Windows, please install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
+* This tool is officially supported on macOS or Ubuntu (tested on 22.04 & 24.04). To use it on Windows, please install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
 * GDAL needs to be installed.
 * The 'ogr2ogr' command needs to work in your terminal.
 `sudo apt install gdal-bin` will install gdal and ogr2ogr on ubuntu / wsl
@@ -85,60 +84,89 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 
 **Note:** When using the tool, the output will be stored in the `./output/<your-first-catchment>/` folder. There is no overwrite protection on the folders.
 
-## CLI Documentation
+# CLI Documentation
 
 <details>
   <summary>Click to expand CLI documentation</summary>
 
-### Arguments
+
+## Arguments
 
 - `-h`, `--help`: Show the help message and exit.
-- `-i INPUT_FILE`, `--input_file INPUT_FILE`: Path to a CSV or TXT file containing a list of waterbody IDs, or a single waterbody ID (e.g., `wb-5173`).
-- `-s`, `--subset`: Subset the hydrofabric to the given waterbody IDs.
-- `-f`, `--forcings`: Generate forcings for the given waterbody IDs.
-- `-r`, `--realization`: Create a realization for the given waterbody IDs.
+- `-i INPUT_FILE`, `--input_file INPUT_FILE`: Path to a CSV or TXT file containing a list of waterbody IDs or lat/lon pairs, or a single waterbody ID (e.g., `wb-5173`), or a single lat/lon pair.
+- `-l`, `--latlon`: Use latitude and longitude instead of waterbody IDs. When used with `-i`, the file should contain lat/lon pairs.
+- `-s`, `--subset`: Subset the hydrofabric to the given waterbody IDs or locations.
+- `-f`, `--forcings`: Generate forcings for the given waterbody IDs or locations.
+- `-r`, `--realization`: Create a realization for the given waterbody IDs or locations.
 - `--start_date START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the subset to be created (default is the first waterbody ID in the input file).
 
-### Examples
+## Examples
 
-1. Subset hydrofabric:
-   ```
-   python script_name.py -i waterbody_ids.txt -s
-   ```
+`-l -s -f -r` can be combinded like normal cli flags, e.g. to subset, generate forcings and a realization, you can add `-sfr` or `-s -f -r` 
 
-2. Generate forcings:
+1. Subset hydrofabric using waterbody IDs:
    ```
-   python script_name.py -i wb-5173 -f --start_date 2023-01-01 --end_date 2023-12-31
+   python -m ngiab_data_cli -i waterbody_ids.txt -s
    ```
 
-3. Create realization:
+2. Generate forcings using a single waterbody ID:
    ```
-   python script_name.py -i waterbody_ids.csv -r --start_date 2023-01-01 --end_date 2023-12-31 -o custom_output
-   ```
-
-4. Perform all operations:
-   ```
-   python script_name.py -i waterbody_ids.txt -s -f -r --start_date 2023-01-01 --end_date 2023-12-31
+   python -m ngiab_data_cli -i wb-5173 -f --start_date 2023-01-01 --end_date 2023-12-31
    ```
 
-### File Formats
+3. Create realization using lat/lon pairs from a CSV file:
+   ```
+   python -m ngiab_data_cli -i locations.csv -l -r --start_date 2023-01-01 --end_date 2023-12-31 -o custom_output
+   ```
 
-The input file can be either a CSV or TXT file containing a list of waterbody IDs, one per line. Alternatively, you can provide a single waterbody ID directly as an argument (e.g., `wb-5173`).
+4. Perform all operations using a single lat/lon pair:
+   ```
+   python -m ngiab_data_cli -i 54.33,-69.4 -l -s -f -r --start_date 2023-01-01 --end_date 2023-12-31
+   ```
 
-### Output
+## File Formats
 
-The script creates an output folder named after the first waterbody ID in the input file or the provided output name. This folder will contain the results of the subsetting, forcings generation, and realization creation operations.
+### 1. Waterbody ID input:
+- CSV file: A single column of waterbody IDs, or a column named 'wb_id', 'waterbody_id', or 'divide_id'.
+- TXT file: One waterbody ID per line.
 
-### Error Handling
+Example CSV (waterbody_ids.csv):
+```
+wb_id, soil_type
+wb-5173, some
+wb-5174, data
+wb-5175, here
+```
+Or:
+```
+wb-5173
+wb-5174
+wb-5175
+```
 
-The script includes error handling for common issues such as:
-- Missing required arguments
-- Invalid input file formats
-- Non-existent input files
-- Unsupported file types
+### 2. Lat/Lon input:
+- CSV file: Two columns named 'lat' and 'lon', or two unnamed columns in that order.
+- Single pair: Comma-separated values passed directly to the `-i` argument.
 
-If an error occurs, the script will log an error message and terminate.
+Example CSV (locations.csv):
+```
+lat,lon
+54.33,-69.4
+55.12,-68.9
+53.98,-70.1
+```
+
+Or:
+```
+54.33,-69.4
+55.12,-68.9
+53.98,-70.1
+```
+
+## Output
+
+The script creates an output folder named after the first waterbody ID in the input file, the provided output name, or derived from the first lat/lon pair. This folder will contain the results of the subsetting, forcings generation, and realization creation operations.
 
 </details>

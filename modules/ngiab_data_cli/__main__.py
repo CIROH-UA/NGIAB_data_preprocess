@@ -127,7 +127,7 @@ def read_csv(input_file: Path) -> List[str]:
     df = pd.read_csv(input_file)
     wb_id_col = None
     for col in df.columns:
-        if col.startswith("wb_") and col.lower() != "wb_id":
+        if col.startswith("wb-") and col.lower() != "wb-id":
             wb_id_col = col
             df = df.read_csv(input_file, header=None)
             break
