@@ -14,7 +14,12 @@ from shapely.ops import transform
 import pyproj
 import multiprocessing
 
-from data_processing.gpkg_utils import get_table_crs, blob_to_geometry, blob_to_centroid
+from data_processing.gpkg_utils import (
+    get_table_crs,
+    blob_to_geometry,
+    blob_to_centroid,
+    get_wbid_from_point,
+)
 from data_processing.create_realization import create_realization
 from data_processing.file_paths import file_paths
 from data_processing.forcings import create_forcings

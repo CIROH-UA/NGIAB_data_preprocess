@@ -6,6 +6,8 @@ from shapely.wkb import loads
 from shapely.geometry import Point, Polygon
 from typing import Union
 import struct
+import geopandas as gpd
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +95,29 @@ def blob_to_centroid(blob: bytes) -> Point:
     y = (miny + maxy) / 2
 
     return Point(x, y)
+
+
+def get_wbid_from_point(coords):
+    """
+    Retrieves the watershed boundary ID (wbid) of the watershed that contains the given point.
+
+    Args:
+        coords (dict): A dictionary containing the latitude and longitude coordinates of the point.
+            Example: {"lat": 40.7128, "lng": -74.0060}
+
+    Returns:
+        int: The watershed boundary ID (wbid) of the watershed containing the point.
+
+    Raises:
+        IndexError: If no watershed boundary is found for the given point.
+
+    """
+    logger.info(f"Getting wbid for {coords}")
+    q = file_paths.conus_hydrofabric()
+    d = {"col1": ["point"], "geometry": [Point(coords["lng"], coords["lat"])]}
+    point = gpd.GeoDataFrame(d, crs="EPSG:4326")
+    df = gpd.read_file(q, format="GPKG", layer="divides", mask=point)
+    return df["id"].values[0]
 
 
 def copy_rTree_tables(
