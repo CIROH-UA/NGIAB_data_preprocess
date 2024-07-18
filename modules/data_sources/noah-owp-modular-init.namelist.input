@@ -48,11 +48,11 @@
 /
 
 &structure
- isltyp           = 1       ! soil texture class
+ isltyp           = {ISLTYP}       ! soil texture class
  nsoil            = 4       ! number of soil levels
  nsnow            = 3       ! number of snow levels
  nveg             = 20      ! number of vegetation types
- vegtyp           = 1       ! vegetation type modis
+ vegtyp           = {IVGTYP}       ! vegetation type modis
  croptype         = 0       ! crop type (0 = no crops)
  sfctyp           = 1       ! land surface type, 1:soil, 2:lake
  soilcolor        = 4       ! soil color code

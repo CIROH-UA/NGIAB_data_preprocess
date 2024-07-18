@@ -134,10 +134,10 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 
 Example CSV (waterbody_ids.csv):
 ```
-wb_id, soil_type
-wb-5173, some
-wb-5174, data
-wb-5175, here
+wb_id,soil_type
+wb-5173,some
+wb-5174,data
+wb-5175,here
 ```
 Or:
 ```

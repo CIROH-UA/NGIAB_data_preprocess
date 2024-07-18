@@ -14,7 +14,7 @@ exclude = ["tests*"]
 name = "ngiab_data_preprocess"
 #version = "0.0.1"
 dynamic = ["version"]
-authors = [{ name = "Josh Cunningham", email = "josh.cu@gmail.com" }]
+authors = [{ name = "Josh Cunningham", email = "jcunningham8@ua.edu" }]
 description = "Graphical Tools for creating Next Gen Water model input data."
 readme = "README.md"
 requires-python = ">=3.10"
