@@ -124,6 +124,7 @@ def make_noahowp_config(
                     azimuth=divide_conf_df.loc[divide, "aspect_c_mean"],
                     ISLTYP=divide_conf_df.loc[divide, "ISLTYP"],
                     IVGTYP=divide_conf_df.loc[divide, "IVGTYP"],
+
                 )
             )
 
