@@ -123,7 +123,7 @@ def make_noahowp_config(
                     terrain_slope=divide_conf_df.loc[divide, "slope_mean"],
                     azimuth=divide_conf_df.loc[divide, "aspect_c_mean"],
                     ISLTYP=divide_conf_df.loc[divide, "ISLTYP"],
-                    IGVTYP=divide_conf_df.loc[divide, "IGVTYP"],
+                    IVGTYP=divide_conf_df.loc[divide, "IVGTYP"],
                 )
             )
 
