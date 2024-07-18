@@ -196,40 +196,7 @@ def create_realization(wb_id: str, start_time: datetime, end_time: datetime):
     # create the realization
     make_ngen_realization_json(paths.config_dir(), start_time, end_time, num_timesteps)
 
-    # create some partitions for parallelization
-    create_partitions(paths)
     paths.setup_run_folders()
-
-
-def create_partitions(paths: Path, num_partitions: int = None) -> None:
-    if num_partitions is None:
-        num_partitions = multiprocessing.cpu_count()
-
-    with open(paths.config_dir() / "catchments.geojson", "r") as f:
-        data = json.load(f)
-    nexus = defaultdict(list)
-    for feature in data["features"]:
-        nexus[feature["properties"]["toid"]].append(feature["properties"]["id"])
-
-    num_partitions = min(num_partitions, len(nexus))
-    partition_size = ceil(len(nexus) / num_partitions)
-    num_nexus = len(nexus)
-    nexus = list(nexus.items())
-    partitions = []
-    for i in range(0, num_nexus, partition_size):
-        part = {}
-        part["id"] = i // partition_size
-        part["cat-ids"] = []
-        part["nex-ids"] = []
-        part["remote-connections"] = []
-        for j in range(i, i + partition_size):
-            if j < num_nexus:
-                part["cat-ids"].extend(nexus[j][1])
-                part["nex-ids"].append(nexus[j][0])
-        partitions.append(part)
-
-    with open(paths.config_dir() / "partitions.json", "w") as f:
-        f.write(json.dumps({"partitions": partitions}))
 
 
 if __name__ == "__main__":
