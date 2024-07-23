@@ -281,9 +281,8 @@ function clear_selection() {
 
 $('#clear-button').click(clear_selection);
 
-function select_by_gage_id() {
-    gage_id = $('#gage_id_input').val();
-    fetch('/get_wbid_from_gage_id', {
+function get_wbid_from_gage_id(gage_id) {
+    return fetch('/get_wbid_from_gage_id', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -294,14 +293,24 @@ function select_by_gage_id() {
     })
         .then(response => response.json())
         .then(data => {
-            wb_id = data['wb_id'];
-            wb_id_dict[wb_id] = [0, 0];
-            synchronizeUpdates();
-            $('#selected-basins').text(Object.keys(wb_id_dict));
+            return data['wb_id'];
         })
         .catch(error => {
             console.error('Error:', error);
         });
+}
+
+function select_by_gage_id() {
+    gage_ids = $('#gage_id_input').val();
+    gage_ids = gage_ids.split(',');
+    for (gage_id of gage_ids) {
+        wb_id = get_wbid_from_gage_id(gage_id);
+        wb_id.then(function (result) {
+            wb_id_dict[result] = [0, 0];
+            $('#selected-basins').text(Object.keys(wb_id_dict));
+        });
+    }
+    synchronizeUpdates();
 }
 
 $('#select-gage-button').click(select_by_gage_id);
