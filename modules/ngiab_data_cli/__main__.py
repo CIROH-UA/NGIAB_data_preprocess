@@ -9,7 +9,7 @@ import pandas as pd
 from colorama import Fore, Style, init
 
 from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import get_wbid_from_point
+from data_processing.gpkg_utils import get_wbid_from_point, get_nex_from_gage_id
 from data_processing.subset import subset
 from data_processing.forcings import create_forcings
 from data_processing.create_realization import create_realization
@@ -66,6 +66,13 @@ def parse_arguments() -> argparse.Namespace:
             comma separated via the cli \n e.g. python -m ngiab_data_cli -i 54.33,-69.4 -l -s",
     )
     parser.add_argument(
+        "-g",
+        "--gage",
+        action="store_true",
+        help="Use gage ID instead of wbid, expects a csv with a column 'gage' or 'gage_id' or \
+            a single gage ID via the cli \n e.g. python -m ngiab_data_cli -i 01646500 -g -s",
+    )
+    parser.add_argument(
         "-s",
         "--subset",
         action="store_true",
@@ -110,13 +117,16 @@ def validate_input(args: argparse.Namespace) -> None:
 
     if args.subset and not args.input_file:
         raise ValueError(
-            "Input file or single wb-id is required for subsetting. e.g. -i wb_ids.txt or -i wb-5173"
+            "Input file or single wb-id/gage-id is required for subsetting. e.g. -i wb_ids.txt or -i wb-5173 or -i 01646500 -g"
         )
 
     if (args.forcings or args.realization) and not (args.start_date and args.end_date):
         raise ValueError(
             "Both --start_date and --end_date are required for forcings generation or realization creation."
         )
+
+    if args.latlon and args.gage:
+        raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
 
 def read_csv(input_file: Path) -> List[str]:
@@ -214,6 +224,43 @@ def get_wb_ids_from_lat_lon(input_file: Path) -> List[str]:
     return converted_coords
 
 
+def read_gage_ids(input_file: Path) -> List[str]:
+    """Read gage IDs from input file or return single ID."""
+    if input_file.stem.isdigit():
+        return [input_file.stem]
+
+    if not input_file.exists():
+        raise FileNotFoundError(f"The file {input_file} does not exist")
+
+    if input_file.suffix not in SUPPORTED_FILE_TYPES:
+        raise ValueError(f"Unsupported file type: {input_file.suffix}")
+
+    if input_file.suffix == ".csv":
+        df = pd.read_csv(input_file)
+        gage_col = None
+        for col in df.columns:
+            if col.lower() in ["gage", "gage_id"]:
+                gage_col = col
+                break
+        if gage_col is None:
+            raise ValueError("No gage ID column found in the input file")
+        return df[gage_col].astype(str).tolist()
+
+    with input_file.open("r") as f:
+        return f.read().splitlines()
+
+
+def get_wb_ids_from_gage_ids(input_file: Path) -> List[str]:
+    """Convert gage IDs to waterbody IDs."""
+    gage_ids = read_gage_ids(input_file)
+    wb_ids = []
+    for gage_id in gage_ids:
+        nex_id = get_nex_from_gage_id(gage_id)
+        wb_id = f"wb-{nex_id[4:]}"  # Replace 'nex-' with 'wb-'
+        wb_ids.append(wb_id)
+    return wb_ids
+
+
 def main() -> None:
     setup_logging()
 
@@ -225,6 +272,8 @@ def main() -> None:
             input_file = Path(args.input_file)
             if args.latlon:
                 waterbody_ids = get_wb_ids_from_lat_lon(input_file)
+            elif args.gage:
+                waterbody_ids = get_wb_ids_from_gage_ids(input_file)
             else:
                 waterbody_ids = read_waterbody_ids(input_file)
             logging.info(f"Read {len(waterbody_ids)} waterbody IDs from {input_file}")
