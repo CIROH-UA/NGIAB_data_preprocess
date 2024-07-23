@@ -22,6 +22,7 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric()) -> None:
         'CREATE INDEX "flaid" ON "flowpath_attributes" ( "id" ASC );',
         'CREATE INDEX "flid" ON "flowpaths" ( "id" ASC );',
         'CREATE INDEX "hyid" ON "hydrolocations" ( "id" ASC );',
+        'CREATE INDEX "gageid" ON "hydrolocations" ( "hl_uri" ASC );',
         #'CREATE INDEX "laid" ON "lakes" ( "id" ASC );',
         'CREATE INDEX "neid" ON "nexus" ( "id" ASC );',
         'CREATE INDEX "nid" ON "network" ( "id" ASC );',
@@ -267,3 +268,27 @@ def get_table_crs(gpkg: str, table: str) -> str:
     crs = con.execute(sql_query).fetchone()[0]
     con.close()
     return crs
+
+
+def get_nex_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric()) -> str:
+    """
+    Get the nexus id of associated with a gage id.
+
+    Args:
+        gage_id (str): The gage ID.
+
+    Returns:
+        str: The nexus id of the watershed containing the gage ID.
+
+    Raises:
+        IndexError: If nexus is found for the given gage ID.
+
+    """
+    gage_id = "".join([x for x in gage_id if x.isdigit()])
+    logger.info(f"Getting wbid for {gage_id}, in {gpkg}")
+    with sqlite3.connect(gpkg) as con:
+        sql_query = f"SELECT id FROM hydrolocations WHERE hl_uri = 'Gages-{gage_id}'"
+        nex_id = con.execute(sql_query).fetchone()[0]
+    if nex_id is None:
+        raise IndexError(f"No nexus found for gage ID {gage_id}")
+    return nex_id

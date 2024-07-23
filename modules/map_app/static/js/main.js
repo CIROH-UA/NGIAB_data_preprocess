@@ -281,6 +281,31 @@ function clear_selection() {
 
 $('#clear-button').click(clear_selection);
 
+function select_by_gage_id() {
+    gage_id = $('#gage_id_input').val();
+    fetch('/get_wbid_from_gage_id', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            gage_id: gage_id
+        }),
+    })
+        .then(response => response.json())
+        .then(data => {
+            wb_id = data['wb_id'];
+            wb_id_dict[wb_id] = [0, 0];
+            synchronizeUpdates();
+            $('#selected-basins').text(Object.keys(wb_id_dict));
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+$('#select-gage-button').click(select_by_gage_id);
+
 // Initialize the map
 var map = L.map('map', { crs: L.CRS.EPSG3857 }).setView([40, -96], 5);
 
