@@ -87,24 +87,24 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 # CLI Documentation
 
 <details>
-  <summary>Click to expand CLI documentation</summary>
-
+<summary>Click to expand CLI documentation</summary>
 
 ## Arguments
 
 - `-h`, `--help`: Show the help message and exit.
-- `-i INPUT_FILE`, `--input_file INPUT_FILE`: Path to a CSV or TXT file containing a list of waterbody IDs or lat/lon pairs, or a single waterbody ID (e.g., `wb-5173`), or a single lat/lon pair.
+- `-i INPUT_FILE`, `--input_file INPUT_FILE`: Path to a CSV or TXT file containing a list of waterbody IDs, lat/lon pairs, or gage IDs; or a single waterbody ID (e.g., `wb-5173`), a single lat/lon pair, or a single gage ID.
 - `-l`, `--latlon`: Use latitude and longitude instead of waterbody IDs. When used with `-i`, the file should contain lat/lon pairs.
-- `-s`, `--subset`: Subset the hydrofabric to the given waterbody IDs or locations.
-- `-f`, `--forcings`: Generate forcings for the given waterbody IDs or locations.
-- `-r`, `--realization`: Create a realization for the given waterbody IDs or locations.
+- `-g`, `--gage`: Use gage IDs instead of waterbody IDs. When used with `-i`, the file should contain gage IDs.
+- `-s`, `--subset`: Subset the hydrofabric to the given waterbody IDs, locations, or gage IDs.
+- `-f`, `--forcings`: Generate forcings for the given waterbody IDs, locations, or gage IDs.
+- `-r`, `--realization`: Create a realization for the given waterbody IDs, locations, or gage IDs.
 - `--start_date START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the subset to be created (default is the first waterbody ID in the input file).
 
 ## Examples
 
-`-l -s -f -r` can be combinded like normal cli flags, e.g. to subset, generate forcings and a realization, you can add `-sfr` or `-s -f -r` 
+`-l`, `-g`, `-s`, `-f`, `-r` can be combined like normal CLI flags. For example, to subset, generate forcings, and create a realization, you can use `-sfr` or `-s -f -r`.
 
 1. Subset hydrofabric using waterbody IDs:
    ```
@@ -124,6 +124,16 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 4. Perform all operations using a single lat/lon pair:
    ```
    python -m ngiab_data_cli -i 54.33,-69.4 -l -s -f -r --start_date 2023-01-01 --end_date 2023-12-31
+   ```
+
+5. Subset hydrofabric using gage IDs from a CSV file:
+   ```
+   python -m ngiab_data_cli -i gage_ids.csv -g -s
+   ```
+
+6. Generate forcings using a single gage ID:
+   ```
+   python -m ngiab_data_cli -i 01646500 -g -f --start_date 2023-01-01 --end_date 2023-12-31
    ```
 
 ## File Formats
@@ -157,7 +167,6 @@ lat,lon
 55.12,-68.9
 53.98,-70.1
 ```
-
 Or:
 ```
 54.33,-69.4
@@ -165,8 +174,27 @@ Or:
 53.98,-70.1
 ```
 
+### 3. Gage ID input:
+- CSV file: A single column of gage IDs, or a column named 'gage' or 'gage_id'.
+- TXT file: One gage ID per line.
+- Single gage ID: Passed directly to the `-i` argument.
+
+Example CSV (gage_ids.csv):
+```
+gage_id,station_name
+01646500,Potomac River
+01638500,Shenandoah River
+01578310,Susquehanna River
+```
+Or:
+```
+01646500
+01638500
+01578310
+```
+
 ## Output
 
-The script creates an output folder named after the first waterbody ID in the input file, the provided output name, or derived from the first lat/lon pair. This folder will contain the results of the subsetting, forcings generation, and realization creation operations.
+The script creates an output folder named after the first waterbody ID in the input file, the provided output name, or derived from the first lat/lon pair or gage ID. This folder will contain the results of the subsetting, forcings generation, and realization creation operations.
 
 </details>
