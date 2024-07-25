@@ -17,11 +17,15 @@ import pandas as pd
 import s3fs
 import xarray as xr
 from exactextract import exact_extract
+from multiprocessing import shared_memory
 
 from data_processing.file_paths import file_paths
 
 logger = logging.getLogger(__name__)
 # Suppress the specific warning from numpy
+warnings.filterwarnings(
+    "ignore", message="'DataFrame.swapaxes' is deprecated", category=FutureWarning
+)
 warnings.filterwarnings(
     "ignore", message="'GeoDataFrame.swapaxes' is deprecated", category=FutureWarning
 )
@@ -72,6 +76,24 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     return data
 
 
+def create_delayed_save(catchment, output_folder, final_ds):
+    csv_path = output_folder / f"{catchment}.csv"
+    catchment_ds = final_ds.sel(catchment=catchment)
+    return dask.delayed(save_to_csv)(catchment_ds, csv_path)
+
+
+def create_delayed_saves_pool(final_ds, output_folder):
+    all_catchments = final_ds.catchment.values
+    create_save = partial(create_delayed_save, output_folder=output_folder, final_ds=final_ds)
+    num_workers = multiprocessing.cpu_count()
+
+    with multiprocessing.Pool(num_workers) as pool:
+        delayed_saves = pool.map(create_save, all_catchments)
+
+    logger.debug("All delayed saves created")
+    return delayed_saves
+
+
 def weighted_sum_of_cells(flat_tensor, cell_ids, factors):
     # Create an output array initialized with zeros
     result = np.zeros(flat_tensor.shape[0])
@@ -103,7 +125,18 @@ def save_to_csv(catchment_ds, csv_path):
     return csv_path
 
 
-def process_chunk(variable, times, raster, chunk):
+def create_shared_memory(data):
+    shm = shared_memory.SharedMemory(create=True, size=data.nbytes)
+    shared_array = np.ndarray(data.shape, dtype=data.dtype, buffer=shm.buf)
+    shared_array[:] = data[:]
+    return shm, shared_array
+
+
+def process_chunk_shared(variable, times, shm_name, shape, dtype, chunk):
+    existing_shm = shared_memory.SharedMemory(name=shm_name)
+    raster = np.ndarray(shape, dtype=dtype, buffer=existing_shm.buf)
+
+    results = []
     for catchment in chunk.index.unique():
         cell_ids = chunk.loc[catchment]["cell_id"]
         weights = chunk.loc[catchment]["coverage"]
@@ -115,7 +148,10 @@ def process_chunk(variable, times, raster, chunk):
             name=f"{variable}_{catchment}",
         )
         temp_da = temp_da.assign_coords(catchment=catchment)
-    return temp_da
+        results.append(temp_da)
+
+    existing_shm.close()
+    return xr.concat(results, dim="catchment")
 
 
 def compute_zonal_stats(
@@ -130,8 +166,7 @@ def compute_zonal_stats(
         catchments = pool.starmap(get_cell_weights, args)
 
     catchments = pd.concat(catchments)
-    client = Client()
-    client.shutdown()
+
     variables = [
         "LWDOWN",
         "PSFC",
@@ -146,25 +181,37 @@ def compute_zonal_stats(
     results = []
 
     partitions = multiprocessing.cpu_count()
-    # try to keep ~500 catchments per chunk
-    if len(catchments) > 1000:
-        optimal_partitions = len(catchments) // 1000
-        partitions = min(optimal_partitions, partitions)
+    # if len(catchments) > 1000:
+    #     optimal_partitions = len(catchments) // 1000
+    #     partitions = min(optimal_partitions, partitions)
 
     for variable in variables:
-        variable_data = []
         raster = merged_data[variable].values.reshape(merged_data[variable].shape[0], -1)
-        # split the catchments into chunks to parallelize the computation
-        cat_chunks = np.array_split(catchments, partitions)
 
+        # Create shared memory for the raster
+        shm, shared_raster = create_shared_memory(raster)
+
+        cat_chunks = np.array_split(catchments, partitions)
         times = merged_data.time.values
-        partial_process_chunk = partial(process_chunk, variable, times, raster)
+
+        partial_process_chunk = partial(
+            process_chunk_shared,
+            variable,
+            times,
+            shm.name,
+            shared_raster.shape,
+            shared_raster.dtype,
+        )
+
         logger.debug(f"Processing variable: {variable}")
         with multiprocessing.Pool(partitions) as pool:
             variable_data = pool.map(partial_process_chunk, cat_chunks)
 
+        # Clean up the shared memory
+        shm.close()
+        shm.unlink()
+
         logger.debug(f"Processed variable: {variable}")
-        # Concatenate data arrays for each variable across all catchments
         concatenated_da = xr.concat(variable_data, dim="catchment")
         logger.debug(f"Concatenated variable: {variable}")
         results.append(concatenated_da.to_dataset(name=variable))
@@ -193,13 +240,8 @@ def compute_zonal_stats(
     final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
     logger.info("Saving to disk")
-    # Save to disk
-    delayed_saves = []
-    for catchment in final_ds.catchment.values:
-        catchment_ds = final_ds.sel(catchment=catchment)
-        csv_path = output_folder / f"{catchment}.csv"
-        delayed_save = dask.delayed(save_to_csv)(catchment_ds, csv_path)
-        delayed_saves.append(delayed_save)
+    delayed_saves = create_delayed_saves_pool(final_ds, output_folder)
+
     if not Client(timeout="2s"):
         cluster = LocalCluster()
     dask.compute(*delayed_saves)
