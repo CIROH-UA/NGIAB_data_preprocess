@@ -5,10 +5,10 @@ import time
 import warnings
 from pathlib import Path
 from typing import Tuple
-from functools import partial, cache
 from datetime import datetime
+from functools import partial
 
-import numba
+from tqdm.rich import tqdm
 import numpy as np
 import dask
 from dask.distributed import Client, LocalCluster
@@ -72,15 +72,13 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     return data
 
 
-@numba.njit(parallel=True)
-def compute_weighted_mean(data_array, cell_ids, weights):
-    mean_at_timestep = np.zeros(data_array.shape[0])
-    for time_step in numba.prange(data_array.shape[0]):
-        weighted_total = 0.0
-        for i in range(cell_ids.shape[0]):
-            weighted_total += data_array[time_step][cell_ids[i]] * weights[i]
-        mean_at_timestep[time_step] = weighted_total / weights.sum()
-    return mean_at_timestep
+def weighted_sum_of_cells(flat_tensor, cell_ids, factors):
+    # Create an output array initialized with zeros
+    result = np.zeros(flat_tensor.shape[0])
+    result = np.sum(flat_tensor[:, cell_ids] * factors, axis=1)
+    sum_of_weights = np.sum(factors)
+    result /= sum_of_weights
+    return result
 
 
 def get_cell_weights(raster, gdf):
@@ -95,7 +93,7 @@ def get_cell_weights(raster, gdf):
 
 
 def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
-    dataset["APCP_surface"] = (dataset["RAINRATE"] * 3600 * 1000) / 0.998
+    dataset["APCP_surface"] = (dataset["precip_rate"] * 3600 * 1000) / 0.9998
     return dataset
 
 
@@ -103,6 +101,21 @@ def save_to_csv(catchment_ds, csv_path):
     catchment_df = catchment_ds.to_dataframe().drop(["catchment"], axis=1)
     catchment_df.to_csv(csv_path)
     return csv_path
+
+
+def process_chunk(variable, times, raster, chunk):
+    for catchment in chunk.index.unique():
+        cell_ids = chunk.loc[catchment]["cell_id"]
+        weights = chunk.loc[catchment]["coverage"]
+        mean_at_timesteps = weighted_sum_of_cells(raster, cell_ids, weights)
+        temp_da = xr.DataArray(
+            mean_at_timesteps,
+            dims=["time"],
+            coords={"time": times},
+            name=f"{variable}_{catchment}",
+        )
+        temp_da = temp_da.assign_coords(catchment=catchment)
+    return temp_da
 
 
 def compute_zonal_stats(
@@ -117,10 +130,8 @@ def compute_zonal_stats(
         catchments = pool.starmap(get_cell_weights, args)
 
     catchments = pd.concat(catchments)
-
-    # adding APCP_SURFACE to the dataset, this is a hack and not a real APCP_SURFACE
-    merged_data["APCP_surface"] = (merged_data["RAINRATE"] * 3600 * 1000) / 0.998
-
+    client = Client()
+    client.shutdown()
     variables = [
         "LWDOWN",
         "PSFC",
@@ -130,30 +141,32 @@ def compute_zonal_stats(
         "T2D",
         "U2D",
         "V2D",
-        "APCP_surface",
     ]
 
     results = []
+
+    partitions = multiprocessing.cpu_count()
+    # try to keep ~500 catchments per chunk
+    if len(catchments) > 1000:
+        optimal_partitions = len(catchments) // 1000
+        partitions = min(optimal_partitions, partitions)
+
     for variable in variables:
         variable_data = []
         raster = merged_data[variable].values.reshape(merged_data[variable].shape[0], -1)
-        for catchment in catchments.index.unique():
-            cell_ids = catchments.loc[catchment]["cell_id"]
-            weights = catchments.loc[catchment]["coverage"]
+        # split the catchments into chunks to parallelize the computation
+        cat_chunks = np.array_split(catchments, partitions)
 
-            mean_at_timesteps = compute_weighted_mean(raster, cell_ids, weights)
+        times = merged_data.time.values
+        partial_process_chunk = partial(process_chunk, variable, times, raster)
+        logger.debug(f"Processing variable: {variable}")
+        with multiprocessing.Pool(partitions) as pool:
+            variable_data = pool.map(partial_process_chunk, cat_chunks)
 
-            temp_da = xr.DataArray(
-                mean_at_timesteps,
-                dims=["time"],
-                coords={"time": merged_data["time"].values},
-                name=f"{variable}_{catchment}",
-            )
-            temp_da = temp_da.assign_coords(catchment=catchment)
-            variable_data.append(temp_da)
-
+        logger.debug(f"Processed variable: {variable}")
         # Concatenate data arrays for each variable across all catchments
         concatenated_da = xr.concat(variable_data, dim="catchment")
+        logger.debug(f"Concatenated variable: {variable}")
         results.append(concatenated_da.to_dataset(name=variable))
 
     # Combine all variables into a single dataset
@@ -174,9 +187,10 @@ def compute_zonal_stats(
             "T2D": "TMP_2maboveground",
             "U2D": "UGRD_10maboveground",
             "V2D": "VGRD_10maboveground",
-            "APCP_surface": "APCP_surface",
         }
     )
+
+    final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
     logger.info("Saving to disk")
     # Save to disk
