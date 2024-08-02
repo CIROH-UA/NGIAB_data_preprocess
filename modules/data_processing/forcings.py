@@ -76,24 +76,6 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     return data
 
 
-def create_delayed_save(catchment, output_folder, final_ds):
-    csv_path = output_folder / f"{catchment}.csv"
-    catchment_ds = final_ds.sel(catchment=catchment)
-    return dask.delayed(save_to_csv)(catchment_ds, csv_path)
-
-
-def create_delayed_saves_pool(final_ds, output_folder):
-    all_catchments = final_ds.catchment.values
-    create_save = partial(create_delayed_save, output_folder=output_folder, final_ds=final_ds)
-    num_workers = multiprocessing.cpu_count()
-
-    with multiprocessing.Pool(num_workers) as pool:
-        delayed_saves = pool.map(create_save, all_catchments)
-
-    logger.debug("All delayed saves created")
-    return delayed_saves
-
-
 def weighted_sum_of_cells(flat_tensor, cell_ids, factors):
     # Create an output array initialized with zeros
     result = np.zeros(flat_tensor.shape[0])
@@ -240,8 +222,14 @@ def compute_zonal_stats(
     final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
     logger.info("Saving to disk")
-    delayed_saves = create_delayed_saves_pool(final_ds, output_folder)
-
+    # Save to disk
+    delayed_saves = []
+    for catchment in tqdm(final_ds.catchment.values):
+        catchment_ds = final_ds.sel(catchment=catchment)
+        csv_path = output_folder / f"{catchment}.csv"
+        delayed_save = dask.delayed(save_to_csv)(catchment_ds, csv_path)
+        delayed_saves.append(delayed_save)
+    logger.debug("Delayed saves created")
     if not Client(timeout="2s"):
         cluster = LocalCluster()
     dask.compute(*delayed_saves)
