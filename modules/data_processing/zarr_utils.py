@@ -4,19 +4,17 @@ from typing import Tuple
 import s3fs
 import xarray as xr
 import logging
-from dask.distributed import Client, LocalCluster
+from dask.distributed import Client, LocalCluster, progress
 import numpy as np
 import geopandas as gpd
 from data_processing.file_paths import file_paths
-
+import time
 
 logger = logging.getLogger(__name__)
-
 
 def open_s3_store(url: str) -> s3fs.S3Map:
     """Open an s3 store from a given url."""
     return s3fs.S3Map(url, s3=s3fs.S3FileSystem(anon=True))
-
 
 def load_zarr_datasets() -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
@@ -32,7 +30,6 @@ def load_zarr_datasets() -> xr.Dataset:
     dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr")
     return dataset
 
-
 def clip_dataset_to_bounds(
     dataset: xr.Dataset, bounds: Tuple[float, float, float, float], start_time: str, end_time: str
 ) -> xr.Dataset:
@@ -47,14 +44,22 @@ def clip_dataset_to_bounds(
 
 
 def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
-    stores.to_netcdf(cached_nc_path)
+    """Compute the store and save it to a cached netCDF file."""
+    logger.info("Downloading and caching forcing data, this may take a while")
+
+    client = Client.current()
+    future = client.compute(stores.to_netcdf(cached_nc_path, compute=False))
+    # Display progress bar
+    progress(future)
+    future.result()
+
     data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
     return data
 
 
 def get_forcing_data(
     forcing_paths: file_paths, start_time: str, end_time: str, gdf: gpd.GeoDataFrame
-) -> None:
+) -> xr.Dataset:
     merged_data = None
     if os.path.exists(forcing_paths.cached_nc_file()):
         logger.info("Found cached nc file")
@@ -77,13 +82,11 @@ def get_forcing_data(
             logger.debug("Removed cached nc file")
 
     if merged_data is None:
-        logger.info("Loading zarr stores, this may take a while.")
+        logger.info("Loading zarr stores")
         lazy_store = load_zarr_datasets()
         logger.debug("Got zarr stores")
-
         clipped_store = clip_dataset_to_bounds(lazy_store, gdf.total_bounds, start_time, end_time)
         logger.info("Clipped forcing data to bounds")
-
         merged_data = compute_store(clipped_store, forcing_paths.cached_nc_file())
         logger.info("Forcing data loaded and cached")
 
