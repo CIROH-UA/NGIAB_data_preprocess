@@ -94,6 +94,9 @@ def compute_zonal_stats(
 ) -> None:
     logger.info("Computing zonal stats in parallel for all timesteps")
     timer_start = time.time()
+    num_partitions = multiprocessing.cpu_count() - 1
+    if num_partitions > len(gdf):
+        num_partitions = len(gdf)
     gfd_chunks = np.array_split(gdf, multiprocessing.cpu_count() - 1)
     one_timestep = merged_data.isel(time=0).compute()
     with multiprocessing.Pool() as pool:
@@ -115,18 +118,13 @@ def compute_zonal_stats(
 
     results = []
 
-    partitions = multiprocessing.cpu_count()
-    # if len(catchments) > 1000:
-    #     optimal_partitions = len(catchments) // 1000
-    #     partitions = min(optimal_partitions, partitions)
-
     for variable in variables:
         raster = merged_data[variable].values.reshape(merged_data[variable].shape[0], -1)
 
         # Create shared memory for the raster
         shm, shared_raster = create_shared_memory(raster)
 
-        cat_chunks = np.array_split(catchments, partitions)
+        cat_chunks = np.array_split(catchments, num_partitions)
         times = merged_data.time.values
 
         partial_process_chunk = partial(
@@ -139,7 +137,7 @@ def compute_zonal_stats(
         )
 
         logger.debug(f"Processing variable: {variable}")
-        with multiprocessing.Pool(partitions) as pool:
+        with multiprocessing.Pool(num_partitions) as pool:
             variable_data = pool.map(partial_process_chunk, cat_chunks)
 
         # Clean up the shared memory
