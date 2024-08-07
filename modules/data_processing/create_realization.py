@@ -174,7 +174,7 @@ def make_ngen_realization_json(
     realization["time"]["nts"] = nts
 
     with open(config_dir / "realization.json", "w") as file:
-        json.dump(realization, file)
+        json.dump(realization, file, indent=4)
 
 
 def create_realization(wb_id: str, start_time: datetime, end_time: datetime):
