@@ -28,11 +28,12 @@ init(autoreset=True)
 class ColoredFormatter(logging.Formatter):
     def format(self, record):
         message = super().format(record)
-        if record.name == "root":  # Only color messages from this script
-            return f"{Fore.GREEN}{message}{Style.RESET_ALL}"
-        # if debug level, color the message blue
         if record.levelno == logging.DEBUG:
             return f"{Fore.BLUE}{message}{Style.RESET_ALL}"
+        if record.levelno == logging.WARNING:
+            return f"{Fore.YELLOW}{message}{Style.RESET_ALL}"
+        if record.name == "root":  # Only color info messages from this script green
+            return f"{Fore.GREEN}{message}{Style.RESET_ALL}"
         return message
 
 
@@ -122,6 +123,12 @@ def validate_input(args: argparse.Namespace) -> None:
     """Validate input arguments."""
     if not any([args.subset, args.forcings, args.realization]):
         raise ValueError("At least one of --subset, --forcings, or --realization must be set.")
+
+    if not args.subset and (args.forcings or args.realization):
+        logging.warning(
+            "Forcings and realization creation require subsetting at least once. Automatically enabling subset for this run."
+        )
+        args.subset = True
 
     if args.subset and not args.input_file:
         raise ValueError(
@@ -271,6 +278,12 @@ def get_wb_ids_from_gage_ids(input_file: Path) -> List[str]:
         wb_id = f"wb-{nex_id[4:]}"  # Replace 'nex-' with 'wb-'
         wb_ids.append(wb_id)
     return wb_ids
+
+
+def validate_subset_present(Path: Path) -> None:
+    """Validate that the subset is present."""
+    if not Path.exists():
+        raise FileNotFoundError(f"The subset {Path} does not exist")
 
 
 def main() -> None:
