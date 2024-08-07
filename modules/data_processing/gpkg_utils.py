@@ -118,6 +118,8 @@ def get_wbid_from_point(coords):
     d = {"col1": ["point"], "geometry": [Point(coords["lng"], coords["lat"])]}
     point = gpd.GeoDataFrame(d, crs="EPSG:4326")
     df = gpd.read_file(q, format="GPKG", layer="divides", mask=point)
+    if df.empty:
+        raise IndexError(f"No watershed boundary found for {coords}")
     return df["id"].values[0]
 
 
