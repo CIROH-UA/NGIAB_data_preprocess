@@ -124,15 +124,9 @@ def validate_input(args: argparse.Namespace) -> None:
     if not any([args.subset, args.forcings, args.realization]):
         raise ValueError("At least one of --subset, --forcings, or --realization must be set.")
 
-    if not args.subset and (args.forcings or args.realization):
-        logging.warning(
-            "Forcings and realization creation require subsetting at least once. Automatically enabling subset for this run."
-        )
-        args.subset = True
-
-    if args.subset and not args.input_file:
+    if not args.input_file:
         raise ValueError(
-            "Input file or single wb-id/gage-id is required for subsetting. e.g. -i wb_ids.txt or -i wb-5173 or -i 01646500 -g"
+            "Input file or single wb-id/gage-id is required. e.g. -i wb_ids.txt or -i wb-5173 or -i 01646500 -g"
         )
 
     if (args.forcings or args.realization) and not (args.start_date and args.end_date):
@@ -142,6 +136,27 @@ def validate_input(args: argparse.Namespace) -> None:
 
     if args.latlon and args.gage:
         raise ValueError("Cannot use both --latlon and --gage options at the same time.")
+
+    input_file = Path(args.input_file)
+    if args.latlon:
+        waterbody_ids = get_wb_ids_from_lat_lon(input_file)
+    elif args.gage:
+        waterbody_ids = get_wb_ids_from_gage_ids(input_file)
+    else:
+        waterbody_ids = read_waterbody_ids(input_file)
+    logging.info(f"Read {len(waterbody_ids)} waterbody IDs from {input_file}")
+
+    wb_id_for_name = args.output_name or (waterbody_ids[0] if waterbody_ids else None)
+    if not wb_id_for_name:
+        raise ValueError("No waterbody input file or output folder provided.")
+
+    if not args.subset and (args.forcings or args.realization):
+        if not file_paths(wb_id_for_name).subset_dir().exists():
+            logging.warning(
+                "Forcings and realization creation require subsetting at least once. Automatically enabling subset for this run."
+            )
+            args.subset = True
+    return wb_id_for_name, waterbody_ids
 
 
 def read_csv(input_file: Path) -> List[str]:
@@ -280,42 +295,19 @@ def get_wb_ids_from_gage_ids(input_file: Path) -> List[str]:
     return wb_ids
 
 
-def validate_subset_present(Path: Path) -> None:
-    """Validate that the subset is present."""
-    if not Path.exists():
-        raise FileNotFoundError(f"The subset {Path} does not exist")
-
-
 def main() -> None:
     setup_logging()
 
     try:
         args = parse_arguments()
-        validate_input(args)
-
-        if args.debug:
-            logging.getLogger("data_processing").setLevel(logging.DEBUG)
-
-        if args.input_file:
-            input_file = Path(args.input_file)
-            if args.latlon:
-                waterbody_ids = get_wb_ids_from_lat_lon(input_file)
-            elif args.gage:
-                waterbody_ids = get_wb_ids_from_gage_ids(input_file)
-            else:
-                waterbody_ids = read_waterbody_ids(input_file)
-            logging.info(f"Read {len(waterbody_ids)} waterbody IDs from {input_file}")
-        else:
-            waterbody_ids = []
-
-        wb_id_for_name = args.output_name or (waterbody_ids[0] if waterbody_ids else None)
-        if not wb_id_for_name:
-            raise ValueError("No waterbody input file or output folder provided.")
-
+        wb_id_for_name, waterbody_ids = validate_input(args)
         paths = file_paths(wb_id_for_name)
         output_folder = paths.subset_dir()
         output_folder.mkdir(parents=True, exist_ok=True)
         logging.info(f"Using output folder: {output_folder}")
+
+        if args.debug:
+            logging.getLogger("data_processing").setLevel(logging.DEBUG)
 
         if args.subset:
             logging.info(f"Subsetting hydrofabric for {len(waterbody_ids)} waterbody IDs...")
