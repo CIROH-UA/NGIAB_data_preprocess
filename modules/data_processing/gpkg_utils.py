@@ -39,6 +39,29 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric()) -> None:
     con.close()
 
 
+def create_empty_gpkg(gpkg: str) -> None:
+    """
+    Create an empty geopackage with the necessary tables and indices.
+    """
+    with open(file_paths.template_sql()) as f:
+        sql_script = f.read()
+
+    with sqlite3.connect(gpkg) as conn:
+        conn.executescript(sql_script)
+
+
+def add_triggers_to_gpkg(gpkg: str) -> None:
+    """
+    Adds geopackage triggers required to maintain spatial index integrity
+    """
+    with open(file_paths.triggers_sql()) as f:
+        triggers = f.read()
+    with sqlite3.connect(gpkg) as conn:
+        conn.executescript(triggers)
+
+    logger.debug(f"Added triggers to subset gpkg {gpkg}")
+
+
 # whenever this is imported, check if the indices are correct
 if file_paths.conus_hydrofabric().is_file():
     verify_indices()
@@ -123,6 +146,20 @@ def get_wbid_from_point(coords):
     return df["id"].values[0]
 
 
+def create_rTree_table(table: str, con: sqlite3.Connection) -> None:
+    """
+    Create an rTree table for the specified table.
+
+    Args:
+        table (str): The table name.
+        con (sqlite3.Connection): The database connection.
+    """
+    con.execute(
+        f'CREATE VIRTUAL TABLE "rtree_{table}_geom" USING rtree("id", "minx", "maxx", "miny", "maxy")'
+    )
+    con.commit()
+
+
 def copy_rTree_tables(
     table: str, ids: List[str], source_db: sqlite3.Connection, dest_db: sqlite3.Connection
 ) -> None:
@@ -136,24 +173,14 @@ def copy_rTree_tables(
         source_db (sqlite3.Connection): The source database connection.
         dest_db (sqlite3.Connection): The destination database connection.
     """
-    rTree_tables = [f"rtree_{table}_geom{suffix}" for suffix in ["", "_rowid", "_node", "_parent"]]
+    rTree_table = f"rtree_{table}_geom"
 
-    rowid_data = source_db.execute(
-        f"SELECT * FROM {rTree_tables[1]} WHERE rowid in ({','.join(ids)})"
+    create_rTree_table(table, dest_db)
+
+    geom_data = source_db.execute(
+        f"SELECT * FROM {rTree_table} WHERE id in ({','.join(ids)})"
     ).fetchall()
-
-    node_ids = [str(x[1]) for x in rowid_data]
-    node_data = source_db.execute(
-        f"SELECT * FROM {rTree_tables[2]} WHERE nodeno in ({','.join(node_ids)})"
-    ).fetchall()
-
-    parent_data = source_db.execute(
-        f"SELECT * FROM {rTree_tables[3]} WHERE nodeno in ({','.join(node_ids)})"
-    ).fetchall()
-
-    insert_data(dest_db, rTree_tables[2], node_data)
-    insert_data(dest_db, rTree_tables[1], rowid_data)
-    insert_data(dest_db, rTree_tables[3], parent_data)
+    insert_data(dest_db, rTree_table, geom_data)
 
 
 def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> None:
@@ -172,6 +199,43 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
     placeholders = ",".join("?" * len(contents[0]))
     con.executemany(f"INSERT INTO {table} VALUES ({placeholders})", contents)
     con.commit()
+
+
+def update_geopackage_metadata(gpkg: str) -> None:
+    """
+    Update the contents of the gpkg_contents table in the specified geopackage.
+    """
+    # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
+    tables = ["nexus", "flowpaths", "divides", "hydrolocations"]
+    con = sqlite3.connect(gpkg)
+    for table in tables:
+        min_x = con.execute(f"SELECT MIN(minx) FROM rtree_{table}_geom").fetchone()[0]
+        min_y = con.execute(f"SELECT MIN(miny) FROM rtree_{table}_geom").fetchone()[0]
+        max_x = con.execute(f"SELECT MAX(maxx) FROM rtree_{table}_geom").fetchone()[0]
+        max_y = con.execute(f"SELECT MAX(maxy) FROM rtree_{table}_geom").fetchone()[0]
+        srs_id = con.execute(
+            f"SELECT srs_id FROM gpkg_geometry_columns WHERE table_name = '{table}'"
+        ).fetchone()[0]
+        sql_command = f"INSERT INTO gpkg_contents (table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id) VALUES ('{table}', 'features', '{table}', '', datetime('now'), {min_x}, {min_y}, {max_x}, {max_y}, {srs_id})"
+        sql_command = sql_command.replace("None", "NULL")
+        con.execute(sql_command)
+    con.commit()
+
+    # do some gpkg spec updating
+    con.execute("PRAGMA application_id = '0x47504B47'")
+    con.execute("PRAGMA user_version = 10200")
+    con.commit()
+
+    # update the gpkg_ogr_contents table with table_name and number of features
+    tables.append("flowpath_attributes")
+    tables.append("flowpath_edge_list")
+    for table in tables:
+        num_features = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        con.execute(
+            f"INSERT INTO gpkg_ogr_contents (table_name, feature_count) VALUES ('{table}', {num_features})"
+        )
+
+    con.close()
 
 
 def subset_table(table: str, ids: List[str], hydrofabric: str, subset_gpkg_name: str) -> None:
@@ -202,56 +266,17 @@ def subset_table(table: str, ids: List[str], hydrofabric: str, subset_gpkg_name:
 
     ids = [str(x[0]) for x in contents]
 
-    if table in ["divides", "flowpaths", "nexus", "hydrolocations", "lakes"]:
-        copy_rTree_tables(table, ids, source_db, dest_db)
-
-    logger.debug("Inserting final data")
-
     if table == "network":
         table = "flowpath_edge_list"
 
     insert_data(dest_db, table, contents)
+
+    if table in ["divides", "flowpaths", "nexus", "hydrolocations", "lakes"]:
+        copy_rTree_tables(table, ids, source_db, dest_db)
+
     dest_db.commit()
     source_db.close()
     dest_db.close()
-
-
-def remove_triggers(dest_db: str) -> List[Tuple]:
-    """
-    Remove triggers from the specified database.
-    As they break any inserts we don't remove them.
-    Args:
-        dest_db (str): The path to the destination database.
-
-    Returns:
-        List[(t_name, t_sql)]: The list of triggers that were removed.
-    """
-    con = sqlite3.connect(dest_db)
-    triggers = con.execute("SELECT name, sql FROM sqlite_master WHERE type = 'trigger'").fetchall()
-
-    for trigger in triggers:
-        con.execute(f"DROP TRIGGER {trigger[0]}")
-
-    con.commit()
-    con.close()
-    return triggers
-
-
-def add_triggers(triggers: List[Tuple], dest_db: str) -> None:
-    """
-    Add triggers to the specified database.
-
-    Args:
-        triggers (List[Tuple]): The list of triggers to be added.
-        dest_db (str): The path to the destination database.
-    """
-    con = sqlite3.connect(dest_db)
-
-    for trigger in triggers:
-        con.execute(trigger[1])
-
-    con.commit()
-    con.close()
 
 
 def get_table_crs(gpkg: str, table: str) -> str:

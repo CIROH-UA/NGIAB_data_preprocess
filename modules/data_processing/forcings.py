@@ -203,6 +203,8 @@ def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> 
     logger.debug("Got projection from grid file")
 
     gdf = gpd.read_file(forcing_paths.geopackage_path(), layer="divides").to_crs(projection)
+    logger.debug(f"gdf  bounds: {gdf.total_bounds}")
+    logger.debug(gdf)
     logger.debug("Got gdf")
 
     if type(start_time) == datetime:

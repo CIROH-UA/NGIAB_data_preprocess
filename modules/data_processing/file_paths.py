@@ -61,6 +61,14 @@ class file_paths:
         return file_paths.data_sources() / "template.gpkg"
 
     @staticmethod
+    def template_sql() -> Path:
+        return file_paths.data_sources() / "template.sql"
+
+    @staticmethod
+    def triggers_sql() -> Path:
+        return file_paths.data_sources() / "triggers.sql"
+
+    @staticmethod
     def model_attributes() -> Path:
         return file_paths.data_sources() / "model_attributes.parquet"
 

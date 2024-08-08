@@ -1,16 +1,20 @@
-import json
 import os
-import shutil
 import logging
 from typing import List
 import geopandas as gpd
 import pandas as pd
 import pyarrow
+
 from pyarrow import csv as pa_csv, parquet as pa_parquet, compute as pa_compute
 
 from pathlib import Path
 from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import add_triggers, remove_triggers, subset_table
+from data_processing.gpkg_utils import (
+    create_empty_gpkg,
+    subset_table,
+    update_geopackage_metadata,
+    add_triggers_to_gpkg,
+)
 from data_processing.graph_utils import get_upstream_ids
 
 
@@ -24,12 +28,7 @@ def create_subset_gpkg(ids: List[str], hydrofabric: str, paths: file_paths) -> P
     if os.path.exists(subset_gpkg_name):
         os.remove(subset_gpkg_name)
 
-    template = paths.template_gpkg()
-    logger.info(f"Copying template {template} to {subset_gpkg_name}")
-    shutil.copy(template, subset_gpkg_name)
-
-    triggers = remove_triggers(subset_gpkg_name)
-    logger.debug(f"Removed triggers from subset gpkg {subset_gpkg_name}")
+    create_empty_gpkg(subset_gpkg_name)
 
     subset_tables = [
         "divides",
@@ -45,8 +44,9 @@ def create_subset_gpkg(ids: List[str], hydrofabric: str, paths: file_paths) -> P
     for table in subset_tables:
         subset_table(table, ids, hydrofabric, str(subset_gpkg_name.absolute()))
 
-    add_triggers(triggers, subset_gpkg_name)
-    logger.debug(f"Added triggers to subset gpkg {subset_gpkg_name}")
+    add_triggers_to_gpkg(subset_gpkg_name)
+
+    update_geopackage_metadata(subset_gpkg_name)
 
 
 def subset_parquet(ids: List[str], paths: file_paths) -> None:
@@ -79,7 +79,6 @@ def subset(
     paths = file_paths(subset_name)
     remove_existing_output_dir(paths.subset_dir())
     create_subset_gpkg(upstream_ids, hydrofabric, paths)
-    convert_gpkg_to_temp(paths)
     subset_parquet(upstream_ids, paths)
     move_files_to_config_dir(paths.subset_dir())
     logger.info(f"Subset complete for {len(upstream_ids)} catchments")
@@ -91,13 +90,6 @@ def remove_existing_output_dir(subset_output_dir: str) -> None:
     if subset_output_dir.exists():
         os.system(f"rm -rf {subset_output_dir / 'config'}")
         os.system(f"rm -rf {subset_output_dir / 'forcings'}")
-
-
-def convert_gpkg_to_temp(paths: file_paths) -> None:
-    output_gpkg = paths.geopackage_path()
-    subset_output_dir = paths.subset_dir()
-    os.system(f"ogr2ogr -f GPKG {subset_output_dir / 'temp.gpkg'} {output_gpkg}")
-    os.system(f"rm {output_gpkg}* && mv {subset_output_dir / 'temp.gpkg'} {output_gpkg}")
 
 
 def move_files_to_config_dir(subset_output_dir: str) -> None:
