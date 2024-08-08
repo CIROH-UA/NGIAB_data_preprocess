@@ -329,9 +329,9 @@ def main() -> None:
             logging.info("Realization creation complete.")
 
         logging.info("All requested operations completed successfully.")
+        logging.info(f"Output folder: {output_folder}")
         # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
         # that look like errors
-
         set_logging_to_critical_only()
 
     except Exception as e:
