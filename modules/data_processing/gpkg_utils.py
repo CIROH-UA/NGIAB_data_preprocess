@@ -297,7 +297,7 @@ def get_table_crs(gpkg: str, table: str) -> str:
     return crs
 
 
-def get_nex_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric()) -> str:
+def get_wb_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric()) -> str:
     """
     Get the nexus id of associated with a gage id.
 
@@ -316,6 +316,9 @@ def get_nex_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
     with sqlite3.connect(gpkg) as con:
         sql_query = f"SELECT id FROM hydrolocations WHERE hl_uri = 'Gages-{gage_id}'"
         nex_id = con.execute(sql_query).fetchone()[0]
+        sql_query = f"SELECT id FROM network WHERE toid = '{nex_id}'"
+        wb_id = con.execute(sql_query).fetchall()
+        wb_ids = [str(x[0]) for x in wb_id]
     if nex_id is None:
         raise IndexError(f"No nexus found for gage ID {gage_id}")
-    return nex_id
+    return wb_ids

@@ -9,7 +9,7 @@ import pandas as pd
 from colorama import Fore, Style, init
 
 from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import get_wbid_from_point, get_nex_from_gage_id
+from data_processing.gpkg_utils import get_wbid_from_point, get_wb_from_gage_id
 from data_processing.subset import subset
 from data_processing.forcings import create_forcings
 from data_processing.create_realization import create_realization
@@ -289,9 +289,9 @@ def get_wb_ids_from_gage_ids(input_file: Path) -> List[str]:
     gage_ids = read_gage_ids(input_file)
     wb_ids = []
     for gage_id in gage_ids:
-        nex_id = get_nex_from_gage_id(gage_id)
-        wb_id = f"wb-{nex_id[4:]}"  # Replace 'nex-' with 'wb-'
-        wb_ids.append(wb_id)
+        wb_id = get_wb_from_gage_id(gage_id)
+        wb_ids.extend(wb_id)
+    logging.info(f"Converted {len(gage_ids)} gage IDs to {len(wb_ids)} waterbody IDs")
     return wb_ids
 
 

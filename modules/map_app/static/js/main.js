@@ -293,7 +293,7 @@ function get_wbid_from_gage_id(gage_id) {
     })
         .then(response => response.json())
         .then(data => {
-            return data['wb_id'];
+            return data['wb_ids'];
         })
         .catch(error => {
             console.error('Error:', error);
@@ -304,9 +304,11 @@ function select_by_gage_id() {
     gage_ids = $('#gage_id_input').val();
     gage_ids = gage_ids.split(',');
     for (gage_id of gage_ids) {
-        wb_id = get_wbid_from_gage_id(gage_id);
-        wb_id.then(function (result) {
-            wb_id_dict[result] = [0, 0];
+        wb_ids = get_wbid_from_gage_id(gage_id);
+        wb_ids.then(function (result) {
+            for (result of result) {
+                wb_id_dict[result] = [0, 0];
+            }
             $('#selected-basins').text(Object.keys(wb_id_dict));
         });
     }
