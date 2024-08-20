@@ -315,10 +315,12 @@ def get_wb_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric(
     logger.info(f"Getting wbid for {gage_id}, in {gpkg}")
     with sqlite3.connect(gpkg) as con:
         sql_query = f"SELECT id FROM hydrolocations WHERE hl_uri = 'Gages-{gage_id}'"
+        result = con.execute(sql_query).fetchone()
+        if result is None:
+            raise IndexError(f"No nexus found for gage ID {gage_id}")
         nex_id = con.execute(sql_query).fetchone()[0]
         sql_query = f"SELECT id FROM network WHERE toid = '{nex_id}'"
         wb_id = con.execute(sql_query).fetchall()
         wb_ids = [str(x[0]) for x in wb_id]
-    if nex_id is None:
-        raise IndexError(f"No nexus found for gage ID {gage_id}")
+
     return wb_ids
