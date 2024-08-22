@@ -28,7 +28,7 @@ def get_from_to_id_pairs(
     sql_query = "SELECT id, toid FROM network WHERE id IS NOT NULL"
     if ids:
         ids = [f"'{x}'" for x in ids]
-        sql_query = f"{sql_query} AND id IN ({','.join(ids)})"
+        sql_query = f"{sql_query} AND id IN ({','.join(ids)}) AND toid IN ({','.join(ids)})"
     try:
         con = sqlite3.connect(str(hydrofabric.absolute()))
         edges = con.execute(sql_query).fetchall()
@@ -116,7 +116,7 @@ def get_outlet_id(wb_or_cat_id: str) -> str:
 
 def get_upstream_ids(names: Union[str, List[str]]) -> Set[str]:
     """
-    Retrieves IDs of all nodes upstream of the given nodes in the hydrological network.
+    Retrieves IDs of all nodes upstream of, and including, the given nodes in the hydrological network.
 
     Given one or more node names, this function identifies all upstream nodes in the network,
     effectively tracing the water flow back to its source(s).
@@ -125,7 +125,7 @@ def get_upstream_ids(names: Union[str, List[str]]) -> Set[str]:
         names (Union[str, List[str]]): A single node name or a list of node names.
 
     Returns:
-        Set[str]: A list of IDs for all nodes upstream of the specified node(s).
+        Set[str]: A list of IDs for all nodes upstream of the specified node(s). INCLUDING THE INPUT NODES.
     """
     graph = get_graph()
     if isinstance(names, str):

@@ -90,7 +90,7 @@ def blob_to_geometry(blob: bytes) -> Union[Point, Polygon]:
     return geometry
 
 
-def blob_to_centroid(blob: bytes) -> Point:
+def blob_to_centre_point(blob: bytes) -> Point:
     """
     Convert a blob to a geometry.
     from http://www.geopackage.org/spec/#gpb_format
