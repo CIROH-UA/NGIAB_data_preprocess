@@ -17,7 +17,6 @@ import multiprocessing
 from data_processing.gpkg_utils import (
     get_table_crs,
     blob_to_geometry,
-    blob_to_centre_point,
     get_catid_from_point,
     get_cat_from_gage_id,
 )
@@ -205,7 +204,12 @@ def get_flowlines_from_catids():
     all_ids = list(set([x for y in flow_lines for x in y]))
     geopackage = file_paths.conus_hydrofabric()
 
-    sql_query_divides = f"SELECT id, geom FROM divides WHERE id IN {tuple(all_ids)}"
+    sql_query_divides = f"""SELECT d.id,
+    (r.minx + r.maxx) / 2.0 AS center_x,
+    (r.miny + r.maxy) / 2.0 AS center_y
+    FROM divides AS d
+    JOIN rtree_divides_geom AS r ON d.fid = r.id
+    WHERE d.id IN {tuple(all_ids)};"""
     sql_query_nexus = f"SELECT id, geom FROM nexus WHERE id IN {tuple(all_ids)}"
     # remove the trailing comma from single element tuples
     sql_query_divides = sql_query_divides.replace(",)", ")")
@@ -218,7 +222,7 @@ def get_flowlines_from_catids():
     divide_geometries = {}
     nexus_geometries = {}
     for r in result_divides:
-        divide_geometries[r[0]] = blob_to_centre_point(r[1])
+        divide_geometries[r[0]] = Point(r[1], r[2])
     for r in result_nexus:
         nexus_geometries[r[0]] = blob_to_geometry(r[1])
 
