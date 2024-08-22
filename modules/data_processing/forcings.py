@@ -10,7 +10,7 @@ from functools import partial
 from tqdm.rich import tqdm
 import numpy as np
 import dask
-from dask.distributed import Client, LocalCluster
+from dask.distributed import Client, LocalCluster, progress
 import geopandas as gpd
 import pandas as pd
 import xarray as xr
@@ -175,19 +175,24 @@ def compute_zonal_stats(
     logger.info("Saving to disk")
     # Save to disk
     delayed_saves = []
-    for catchment in tqdm(final_ds.catchment.values):
+    for catchment in final_ds.catchment.values:
         catchment_ds = final_ds.sel(catchment=catchment)
         csv_path = output_folder / f"{catchment}.csv"
         delayed_save = dask.delayed(save_to_csv)(catchment_ds, csv_path)
         delayed_saves.append(delayed_save)
     logger.debug("Delayed saves created")
-    if not Client(timeout="2s"):
+    try:
+        client = Client.current()
+    except ValueError:
         cluster = LocalCluster()
+        client = Client(cluster)
+
     dask.compute(*delayed_saves)
 
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start} seconds"
     )
+    client.shutdown()
 
 
 def setup_directories(cat_id: str) -> file_paths:
