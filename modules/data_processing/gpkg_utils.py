@@ -316,7 +316,7 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
     with sqlite3.connect(gpkg) as con:
         sql_query = f"SELECT id FROM hydrolocations WHERE hl_uri = 'Gages-{gage_id}'"
         nex_id = con.execute(sql_query).fetchone()[0]
-        sql_query = f"SELECT id FROM network WHERE toid = '{nex_id}'"
+        sql_query = f"SELECT divide_id FROM network WHERE toid = '{nex_id}'"
         cat_id = con.execute(sql_query).fetchall()
         cat_ids = [str(x[0]) for x in cat_id]
     if nex_id is None:

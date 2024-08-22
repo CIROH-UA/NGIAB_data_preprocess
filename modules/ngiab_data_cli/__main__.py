@@ -147,6 +147,11 @@ def validate_input(args: argparse.Namespace) -> None:
     logging.info(f"Read {len(catchment_ids)} catchment IDs from {input_file}")
 
     cat_id_for_name = args.output_name or (catchment_ids[0] if catchment_ids else None)
+
+    # if the input is a single gage id and no output name is provided, use the gage id as the output name
+    if args.gage and not args.output_name and input_file.stem.isdigit():
+        cat_id_for_name = "gage-" + input_file.stem
+
     if not cat_id_for_name:
         raise ValueError("No catchment input file or output folder provided.")
 
