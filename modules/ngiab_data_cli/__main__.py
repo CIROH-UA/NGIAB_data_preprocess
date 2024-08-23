@@ -1,5 +1,6 @@
 import argparse
 import logging
+import time
 from typing import List
 from datetime import datetime
 from pathlib import Path
@@ -144,7 +145,7 @@ def validate_input(args: argparse.Namespace) -> None:
         catchment_ids = get_cat_ids_from_gage_ids(input_file)
     else:
         catchment_ids = read_catchment_ids(input_file)
-    logging.info(f"Read {len(catchment_ids)} catchment IDs from {input_file}")
+    logging.info(f"Found {len(catchment_ids)} catchment IDs from {input_file}")
 
     cat_id_for_name = args.output_name or (catchment_ids[0] if catchment_ids else None)
 
@@ -221,6 +222,13 @@ def read_lat_lon_csv(input_file: Path) -> List[str]:
 
 def read_catchment_ids(input_file: Path) -> List[str]:
     """Read catchment IDs from input file or return single ID."""
+    if input_file.stem.startswith("wb-"):
+        new_name = input_file.stem.replace("wb-", "cat-")
+        logging.warning("Waterbody IDs are no longer supported!")
+        logging.warning(f"Automatically converting {input_file.stem} to {new_name}")
+        time.sleep(2)
+        return [new_name]
+
     if input_file.stem.startswith(CAT_ID_PREFIX):
         return [input_file.stem]
 
