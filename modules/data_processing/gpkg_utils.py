@@ -312,16 +312,34 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
 
     """
     gage_id = "".join([x for x in gage_id if x.isdigit()])
+
+    if len(gage_id) < 8:
+        logger.warning(f"Gages in the hydrofabric are at least 8 digits {gage_id}")
+        old_gage_id = gage_id
+        gage_id = f"{int(gage_id):08d}"
+        logger.warning(f"Converted {old_gage_id} to {gage_id}")
+
     logger.info(f"Getting catid for {gage_id}, in {gpkg}")
+
+    # the hydrolocations table seems to have a bunch of errors in it
+    # use flowpath_attributes instead
+    # both have errors, cross reference them
     with sqlite3.connect(gpkg) as con:
-        sql_query = f"SELECT id FROM hydrolocations WHERE hl_uri = 'Gages-{gage_id}'"
-        result = con.execute(sql_query).fetchone()
-        if result is None:
-            raise IndexError(f"No nexus found for gage ID {gage_id}")
-        nex_id = con.execute(sql_query).fetchone()[0]
-        sql_query = f"SELECT divide_id FROM network WHERE toid = '{nex_id}'"
-        cat_id = con.execute(sql_query).fetchall()
-        cat_ids = [str(x[0]) for x in cat_id]
+        sql_query = f"""SELECT f.id 
+                        FROM flowpaths AS f 
+                        JOIN hydrolocations AS h ON f.toid = h.id
+                        JOIN flowpath_attributes AS fa ON f.id = fa.id
+                        WHERE h.hl_uri = 'Gages-{gage_id}' 
+                        AND fa.rl_gages LIKE '%{gage_id}%'"""
+        result = con.execute(sql_query).fetchall()
+        if len(result) == 0:
+            logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
+            raise IndexError(f"Could not find a waterbody for {gage_id}")
+        if len(result) > 1:
+            logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
+            raise IndexError(f"Could not find a unique waterbody for {gage_id}")
 
-    return cat_ids
+        wb_id = result[0][0]
+        cat_id = wb_id.replace("wb", "cat")
 
+    return cat_id
