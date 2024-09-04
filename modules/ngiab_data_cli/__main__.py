@@ -303,7 +303,7 @@ def get_cat_ids_from_gage_ids(input_file: Path) -> List[str]:
     cat_ids = []
     for gage_id in gage_ids:
         cat_id = get_cat_from_gage_id(gage_id)
-        cat_ids.extend(cat_id)
+        cat_ids.append(cat_id)
     logging.info(f"Converted {len(gage_ids)} gage IDs to {len(cat_ids)} catchment IDs")
     return cat_ids
 
