@@ -8,6 +8,8 @@ from typing import Union
 import struct
 import geopandas as gpd
 from pathlib import Path
+import pyproj
+from shapely.ops import transform
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,6 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric()) -> None:
             con.execute(index)
             con.commit()
     con.close()
-
 
 def create_empty_gpkg(gpkg: str) -> None:
     """
@@ -121,6 +122,19 @@ def blob_to_centre_point(blob: bytes) -> Point:
     return Point(x, y)
 
 
+def convert_to_5070(shapely_geometry):
+    # convert to web mercator
+    if shapely_geometry.is_empty:
+        return shapely_geometry
+    source_crs = pyproj.CRS("EPSG:4326")
+    target_crs = pyproj.CRS("EPSG:5070")
+    project = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True).transform
+    new_geometry = transform(project, shapely_geometry)
+    logger.debug(f" new geometry: {new_geometry}")
+    logger.debug(f"old geometry: {shapely_geometry}")
+    return new_geometry
+
+
 def get_catid_from_point(coords):
     """
     Retrieves the watershed boundary ID (catid) of the watershed that contains the given point.
@@ -138,12 +152,24 @@ def get_catid_from_point(coords):
     """
     logger.info(f"Getting catid for {coords}")
     q = file_paths.conus_hydrofabric()
-    d = {"col1": ["point"], "geometry": [Point(coords["lng"], coords["lat"])]}
-    point = gpd.GeoDataFrame(d, crs="EPSG:4326")
-    df = gpd.read_file(q, format="GPKG", layer="divides", mask=point)
-    if df.empty:
+    point = Point(coords["lng"], coords["lat"])
+    point = convert_to_5070(point)
+    with sqlite3.connect(q) as con:
+        sql = f"""SELECT DISTINCT d.divide_id, d.geom
+                FROM divides d
+                JOIN rtree_divides_geom r ON d.fid = r.id
+                WHERE r.minx <= {point.x} AND r.maxx >= {point.x}
+                AND r.miny <= {point.y} AND r.maxy >= {point.y}"""
+        results = con.execute(sql).fetchall()
+    if len(results) == 0:
         raise IndexError(f"No watershed boundary found for {coords}")
-    return df["id"].values[0]
+    if len(results) > 1:
+        # check the geometries to see which one contains the point
+        for result in results:
+            geom = blob_to_geometry(result[1])
+            if geom.contains(point):
+                return result[0]
+    return results[0][0]
 
 
 def create_rTree_table(table: str, con: sqlite3.Connection) -> None:

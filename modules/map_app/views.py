@@ -39,19 +39,6 @@ def index():
     return render_template("index.html")
 
 
-def get_catid_from_point(coords):
-    # inpute coords are EPSG:4326
-    logger.info(coords)
-    # takes a point and returns the catid of the watershed it is in
-    # create a geometry mask for the point
-    # load the watershed boundaries
-    q = Path(__file__).parent.parent / "data_sources" / "conus.gpkg"
-    d = {"col1": ["point"], "geometry": [Point(coords["lng"], coords["lat"])]}
-    point = gpd.GeoDataFrame(d, crs="EPSG:4326")
-    df = gpd.read_file(q, format="GPKG", layer="divides", mask=point)
-    return df["divide_id"].values[0]
-
-
 @main.route("/handle_map_interaction", methods=["POST"])
 def handle_map_interaction():
     data = request.get_json()
@@ -99,28 +86,20 @@ def get_map_data():
 
 
 def catids_to_geojson(cat_dict):
+    # if the cat id is added to the dict by clicking on the map, it will have coodinates
+    # if it was added using the select by cat_id box, the coordinates are 0 0
+    # if we just use the name this doesn't matter
     for k, v in cat_dict.items():
-        if v[0] != 0 and v[1] != 0:
-            # assuming this was called by clicking on the map
-            cat_dict[k] = Point(v[1], v[0])
-        else:
-            # this was called without knowing the coordinates
-            # use sql to get the geometry
-            conn = sqlite3.connect(file_paths.conus_hydrofabric())
-            c = conn.cursor()
-            c.execute(f"SELECT geom FROM divides WHERE id = '{k}'")
-            result = c.fetchone()
-            if result is not None:
-                cat_dict[k] = convert_to_4326(blob_to_geometry(result[0])).buffer(-0.0001)
-
-    d = {"col1": cat_dict.keys(), "geometry": cat_dict.values()}
-    points = gpd.GeoDataFrame(d, crs="EPSG:4326")
-    logger.debug(points)
-    q = Path(__file__).parent.parent / "data_sources" / "conus.gpkg"
-    df = gpd.read_file(q, format="GPKG", layer="divides", mask=points)
-    # convert crs to 4326
-    df = df.to_crs(epsg=4326)
-    return df.to_json()
+        # use sql to get the geometry
+        conn = sqlite3.connect(file_paths.conus_hydrofabric())
+        c = conn.cursor()
+        c.execute(f"SELECT geom FROM divides WHERE divide_id = '{k}'")
+        result = c.fetchone()
+        if result is not None:
+            cat_dict[k] = convert_to_4326(blob_to_geometry(result[0])).buffer(-0.0001)
+    df = {"col1": cat_dict.keys(), "geometry": cat_dict.values()}
+    gdf = gpd.GeoDataFrame(df, crs="EPSG:4326")
+    return gdf.to_json()
 
 
 @main.route("/get_geojson_from_catids", methods=["POST"])
