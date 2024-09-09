@@ -138,10 +138,6 @@ def main() -> None:
             create_realization(output_folder, start_time=args.start_date, end_time=args.end_date)
             logging.info("Realization creation complete.")
 
-        logging.info("All requested operations completed successfully.")
-        logging.info(f"Output folder: {paths.subset_dir}")
-        # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
-        # that look like errors
         if args.run:
             logging.info("Running Next Gen using NGIAB...")
             # open the partitions.json file and get the number of partitions
@@ -182,8 +178,11 @@ def main() -> None:
                 logging.error(
                     "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
                 )
+
         logging.info("All operations completed successfully.")
         logging.info(f"Output folder: {paths.subset_dir}")
+        # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
+        # that look like errors
         set_logging_to_critical_only()
 
     except Exception as e:

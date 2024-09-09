@@ -21,6 +21,7 @@ class file_paths:
     template_troute_config = data_sources / "ngen-routing-template.yaml"
     template_realization_config = data_sources / "ngen-realization-template.json"
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
+    template_cfe_config = data_sources / "cfe-template.ini"
 
     def __init__(self, folder_name: str):
         """
