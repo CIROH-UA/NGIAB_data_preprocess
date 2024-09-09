@@ -172,7 +172,8 @@ def main() -> None:
                 )
 
             try:
-                from ngiab_eval.__main__ import evaluate_folder
+                from ngiab_eval import evaluate_folder
+
                 if plot:
                     logging.info("Plotting enabled")
                 logging.info("Evaluating model performance...")
@@ -181,7 +182,8 @@ def main() -> None:
                 logging.error(
                     "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
                 )
-
+        logging.info("All operations completed successfully.")
+        logging.info(f"Output folder: {paths.subset_dir}")
         set_logging_to_critical_only()
 
     except Exception as e:
