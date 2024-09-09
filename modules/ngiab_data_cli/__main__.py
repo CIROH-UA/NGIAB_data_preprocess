@@ -112,15 +112,12 @@ def main() -> None:
     try:
         args = parse_arguments()
         if args.debug:
-            logging.getLogger().setLevel(logging.DEBUG)
+            logging.getLogger("data_processing").setLevel(logging.DEBUG)
         cat_to_subset, output_folder = validate_input(args)
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
 
         logging.info(f"Using output folder: {paths.subset_dir}")
-
-        if args.debug:
-            logging.getLogger("data_processing").setLevel(logging.DEBUG)
 
         if args.subset:
             logging.info(f"Subsetting hydrofabric")
