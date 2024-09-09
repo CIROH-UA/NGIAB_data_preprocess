@@ -180,7 +180,7 @@ def main() -> None:
                 )
 
         logging.info("All operations completed successfully.")
-        logging.info(f"Output folder: {paths.subset_dir}")
+        logging.info(f"Output folder: file:///{paths.subset_dir}")
         # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
         # that look like errors
         set_logging_to_critical_only()
