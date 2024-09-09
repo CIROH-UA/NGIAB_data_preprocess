@@ -91,7 +91,7 @@ def catids_to_geojson(cat_dict):
     # if we just use the name this doesn't matter
     for k, v in cat_dict.items():
         # use sql to get the geometry
-        conn = sqlite3.connect(file_paths.conus_hydrofabric())
+        conn = sqlite3.connect(file_paths.conus_hydrofabric)
         c = conn.cursor()
         c.execute(f"SELECT geom FROM divides WHERE divide_id = '{k}'")
         result = c.fetchone()
@@ -115,7 +115,7 @@ def get_geojson_from_catids():
 
 
 def get_upstream_geometry(upstream_ids):
-    geopackage = file_paths.conus_hydrofabric()
+    geopackage = file_paths.conus_hydrofabric
     sql_query = f"SELECT id, geom FROM divides WHERE id IN {tuple(upstream_ids)}"
     # remove the trailing comma from single element tuples
     sql_query = sql_query.replace(",)", ")")
@@ -144,7 +144,7 @@ def convert_to_4326(shapely_geometry):
     # convert to web mercator
     if shapely_geometry.is_empty:
         return shapely_geometry
-    geopkg_crs = get_table_crs(file_paths.conus_hydrofabric(), "divides")
+    geopkg_crs = get_table_crs(file_paths.conus_hydrofabric, "divides")
     source_crs = pyproj.CRS(geopkg_crs)
     logger.debug(f"source crs: {source_crs}")
     target_crs = pyproj.CRS("EPSG:4326")
@@ -181,7 +181,7 @@ def get_flowlines_from_catids():
     upstream_ids = get_upstream_ids(cat_id)
     flow_lines = get_from_to_id_pairs(ids=upstream_ids)
     all_ids = list(set([x for y in flow_lines for x in y]))
-    geopackage = file_paths.conus_hydrofabric()
+    geopackage = file_paths.conus_hydrofabric
 
     sql_query_divides = f"""SELECT d.id,
     (r.minx + r.maxx) / 2.0 AS center_x,
@@ -240,7 +240,7 @@ def subset_selection():
     cat_ids = list(json.loads(request.data.decode("utf-8")).keys())
     logger.info(cat_ids)
     subset_name = cat_ids[0]
-    subset_folder = subset(cat_ids, subset_name=subset_name)
+    subset_folder = subset(cat_ids, output_folder_name=subset_name)
     return subset_folder, 200
 
 
@@ -251,11 +251,11 @@ def subset_to_file():
     subset_name = cat_ids[0]
     total_subset = get_upstream_ids(cat_ids)
     subset_paths = file_paths(subset_name)
-    output_file = subset_paths.subset_dir() / "subset.txt"
+    output_file = subset_paths.subset_dir / "subset.txt"
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w") as f:
         f.write("\n".join(total_subset))
-    return str(subset_paths.subset_dir()), 200
+    return str(subset_paths.subset_dir), 200
 
 
 @main.route("/forcings", methods=["POST"])
@@ -304,7 +304,7 @@ def get_catids_from_vpu():
     # convert to crs 5070
     vpu = gpd.GeoDataFrame({"geometry": [vpu]}, crs="EPSG:4326")
     vpu = vpu.to_crs(epsg=5070)
-    cats = gpd.read_file(file_paths.data_sources() / "conus.gpkg", layer="divides", mask=vpu)
+    cats = gpd.read_file(file_paths.data_sources / "conus.gpkg", layer="divides", mask=vpu)
     cats = cats.to_crs(epsg=4326)
     cats = cats[cats["id"].notna()]
     # return dict[id: [lat, lon]]

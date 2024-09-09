@@ -198,16 +198,16 @@ def compute_zonal_stats(
 def setup_directories(cat_id: str) -> file_paths:
     forcing_paths = file_paths(cat_id)
     for folder in ["by_catchment", "temp"]:
-        os.makedirs(forcing_paths.forcings_dir() / folder, exist_ok=True)
+        os.makedirs(forcing_paths.forcings_dir / folder, exist_ok=True)
     return forcing_paths
 
 
 def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> None:
     forcing_paths = setup_directories(output_folder_name)
-    projection = xr.open_dataset(forcing_paths.template_nc(), engine="h5netcdf").crs.esri_pe_string
+    projection = xr.open_dataset(forcing_paths.template_nc, engine="h5netcdf").crs.esri_pe_string
     logger.debug("Got projection from grid file")
 
-    gdf = gpd.read_file(forcing_paths.geopackage_path(), layer="divides").to_crs(projection)
+    gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides").to_crs(projection)
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
     logger.debug(gdf)
     logger.debug("Got gdf")
@@ -218,7 +218,7 @@ def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> 
         end_time = end_time.strftime("%Y-%m-%d %H:%M")
 
     merged_data = get_forcing_data(forcing_paths, start_time, end_time, gdf)
-    compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir())
+    compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir)
 
 
 if __name__ == "__main__":

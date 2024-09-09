@@ -14,7 +14,7 @@ from shapely.ops import transform
 logger = logging.getLogger(__name__)
 
 
-def verify_indices(gpkg: str = file_paths.conus_hydrofabric()) -> None:
+def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     """
     Verify that the indices in the specified geopackage are correct.
     If they are not, create the correct indices.
@@ -40,11 +40,12 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric()) -> None:
             con.commit()
     con.close()
 
+
 def create_empty_gpkg(gpkg: str) -> None:
     """
     Create an empty geopackage with the necessary tables and indices.
     """
-    with open(file_paths.template_sql()) as f:
+    with open(file_paths.template_sql) as f:
         sql_script = f.read()
 
     with sqlite3.connect(gpkg) as conn:
@@ -55,7 +56,7 @@ def add_triggers_to_gpkg(gpkg: str) -> None:
     """
     Adds geopackage triggers required to maintain spatial index integrity
     """
-    with open(file_paths.triggers_sql()) as f:
+    with open(file_paths.triggers_sql) as f:
         triggers = f.read()
     with sqlite3.connect(gpkg) as conn:
         conn.executescript(triggers)
@@ -64,7 +65,7 @@ def add_triggers_to_gpkg(gpkg: str) -> None:
 
 
 # whenever this is imported, check if the indices are correct
-if file_paths.conus_hydrofabric().is_file():
+if file_paths.conus_hydrofabric.is_file():
     verify_indices()
 
 
@@ -151,7 +152,7 @@ def get_catid_from_point(coords):
 
     """
     logger.info(f"Getting catid for {coords}")
-    q = file_paths.conus_hydrofabric()
+    q = file_paths.conus_hydrofabric
     point = Point(coords["lng"], coords["lat"])
     point = convert_to_5070(point)
     with sqlite3.connect(q) as con:
@@ -323,7 +324,7 @@ def get_table_crs(gpkg: str, table: str) -> str:
     return crs
 
 
-def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric()) -> str:
+def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric) -> str:
     """
     Get the nexus id of associated with a gage id.
 
@@ -371,7 +372,7 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
     return cat_id
 
 
-def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric()) -> List[Tuple]:
+def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric) -> List[Tuple]:
     """
     Retrieves the from and to IDs from the specified hydrofabric.
 
@@ -379,7 +380,7 @@ def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric())
     The true network flows catchment to waterbody to nexus, this bypasses the waterbody and returns catchment to nexus.
 
     Args:
-        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to file_paths.conus_hydrofabric().
+        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to file_paths.conus_hydrofabric.
     Returns:
         List[tuple]: A list of tuples containing the from and to IDs.
     """

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def create_subset_gpkg(ids: List[str], hydrofabric: str, paths: file_paths) -> Path:
 
-    subset_gpkg_name = paths.geopackage_path()
+    subset_gpkg_name = paths.geopackage_path
     subset_gpkg_name.parent.mkdir(parents=True, exist_ok=True)
     if os.path.exists(subset_gpkg_name):
         os.remove(subset_gpkg_name)
@@ -51,8 +51,8 @@ def create_subset_gpkg(ids: List[str], hydrofabric: str, paths: file_paths) -> P
 
 def subset_parquet(ids: List[str], paths: file_paths) -> None:
     cat_ids = [x.replace("wb", "cat") for x in ids]
-    parquet_path = paths.model_attributes()
-    output_dir = paths.subset_dir()
+    parquet_path = paths.model_attributes
+    output_dir = paths.subset_dir
     logger.debug(str(parquet_path))
     logger.debug("Reading parquet")
     logger.info("Extracting model attributes")
@@ -66,30 +66,34 @@ def subset_parquet(ids: List[str], paths: file_paths) -> None:
 
 
 def subset(
-    cat_ids: List[str], hydrofabric: str = file_paths.conus_hydrofabric(), subset_name: str = None
+    cat_ids: List[str],
+    hydrofabric: str = file_paths.conus_hydrofabric,
+    output_folder_name: str = None,
 ) -> str:
 
     upstream_ids = get_upstream_ids(cat_ids)
 
-    if not subset_name:
+    if not output_folder_name:
         # if the name isn't provided, use the first upstream id
         upstream_ids = sorted(list(upstream_ids))
-        subset_name = upstream_ids[0]
+        output_folder_name = upstream_ids[0]
 
-    paths = file_paths(subset_name)
-    remove_existing_output_dir(paths.subset_dir())
+    paths = file_paths(output_folder_name)
+    remove_existing_output_dir(paths.subset_dir)
     create_subset_gpkg(upstream_ids, hydrofabric, paths)
     subset_parquet(upstream_ids, paths)
-    move_files_to_config_dir(paths.subset_dir())
+    move_files_to_config_dir(paths.subset_dir)
     logger.info(f"Subset complete for {len(upstream_ids)} catchments")
     logger.debug(f"Subset complete for {upstream_ids} catchments")
-    return str(paths.subset_dir())
+    return str(paths.subset_dir)
 
 
-def remove_existing_output_dir(subset_output_dir: str) -> None:
+def remove_existing_output_dir(subset_output_dir: Path) -> None:
     if subset_output_dir.exists():
         os.system(f"rm -rf {subset_output_dir / 'config'}")
         os.system(f"rm -rf {subset_output_dir / 'forcings'}")
+    else:
+        subset_output_dir.mkdir(parents=True, exist_ok=True)
 
 
 def move_files_to_config_dir(subset_output_dir: str) -> None:

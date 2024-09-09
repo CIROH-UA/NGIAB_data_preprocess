@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_from_to_id_pairs(
-    hydrofabric: Path = file_paths.conus_hydrofabric(), ids: Set = None
+    hydrofabric: Path = file_paths.conus_hydrofabric, ids: Set = None
 ) -> List[tuple]:
     """
     Retrieves the from and to IDs from the specified hydrofabric.
@@ -20,7 +20,7 @@ def get_from_to_id_pairs(
     This function reads the from and to IDs from the specified hydrofabric and returns them as a list of tuples.
 
     Args:
-        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to file_paths.conus_hydrofabric().
+        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to file_paths.conus_hydrofabric.
         ids (Set, optional): A set of IDs to filter the results. Defaults to None.
     Returns:
         List[tuple]: A list of tuples containing the from and to IDs.
@@ -68,10 +68,10 @@ def get_graph() -> ig.Graph:
     Returns:
         ig.Graph: The hydrological network graph.
     """
-    pickled_graph_path = file_paths.hydrofabric_graph()
+    pickled_graph_path = file_paths.hydrofabric_graph
     if not pickled_graph_path.exists():
         logger.debug("Graph pickle does not exist, creating a new graph.")
-        network_graph = create_graph_from_gpkg(file_paths.conus_hydrofabric())
+        network_graph = create_graph_from_gpkg(file_paths.conus_hydrofabric)
         network_graph.write_pickle(pickled_graph_path)
     else:
         try:

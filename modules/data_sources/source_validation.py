@@ -52,24 +52,24 @@ model_attributes_url = (
 
 
 def validate_hydrofabric():
-    if not file_paths.conus_hydrofabric().is_file():
+    if not file_paths.conus_hydrofabric.is_file():
         # alert the user that the hydrofabric is missing
         print("Hydrofabric is missing. Would you like to download it now? (Y/n)")
         response = input()
         if response == "" or response.lower() == "y":
-            download_file(hydrofabric_url, file_paths.conus_hydrofabric())
+            download_file(hydrofabric_url, file_paths.conus_hydrofabric)
         else:
             print("Exiting...")
             exit()
 
 
 def validate_model_attributes():
-    if not file_paths.model_attributes().is_file():
+    if not file_paths.model_attributes.is_file():
         # alert the user that the model attributes are missing
         print("Model attributes are missing. Would you like to download them now? (Y/n)")
         response = input()
         if response == "" or response.lower() == "y":
-            download_file(model_attributes_url, file_paths.model_attributes())
+            download_file(model_attributes_url, file_paths.model_attributes)
         else:
             print("Exiting...")
             exit()

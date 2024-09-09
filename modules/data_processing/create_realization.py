@@ -108,7 +108,7 @@ def make_noahowp_config(
     divide_conf_df.set_index("divide_id", inplace=True)
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
-    with open(file_paths.template_noahowp_config(), "r") as file:
+    with open(file_paths.template_noahowp_config, "r") as file:
         template = file.read()
 
     cat_config_dir = base_dir / "cat_config" / "NOAH-OWP-M"
@@ -134,7 +134,7 @@ def make_noahowp_config(
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
 ) -> int:
-    with open(file_paths.template_troute_config(), "r") as file:
+    with open(file_paths.template_troute_config, "r") as file:
         troute = yaml.safe_load(file)  # Use safe_load for loading
 
     time_step_size = troute["compute_parameters"]["forcing_parameters"]["dt"]
@@ -170,7 +170,7 @@ def configure_troute(
 def make_ngen_realization_json(
     config_dir: Path, start_time: datetime, end_time: datetime, nts: int
 ) -> None:
-    with open(file_paths.template_realization_config(), "r") as file:
+    with open(file_paths.template_realization_config, "r") as file:
         realization = json.load(file)
 
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -188,18 +188,18 @@ def create_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = file_paths(cat_id)
 
     # make cfe init config files
-    cfe_atts_path = paths.config_dir() / "cfe_noahowp_attributes.csv"
+    cfe_atts_path = paths.config_dir / "cfe_noahowp_attributes.csv"
     catchment_configs = parse_cfe_parameters(pandas.read_csv(cfe_atts_path))
-    make_catchment_configs(paths.config_dir(), catchment_configs)
+    make_catchment_configs(paths.config_dir, catchment_configs)
 
     # make NOAH-OWP-Modular config files
-    make_noahowp_config(paths.config_dir(), cfe_atts_path, start_time, end_time)
+    make_noahowp_config(paths.config_dir, cfe_atts_path, start_time, end_time)
 
     # make troute config files
-    num_timesteps = configure_troute(cat_id, paths.config_dir(), start_time, end_time)
+    num_timesteps = configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
     # create the realization
-    make_ngen_realization_json(paths.config_dir(), start_time, end_time, num_timesteps)
+    make_ngen_realization_json(paths.config_dir, start_time, end_time, num_timesteps)
 
     # create some partitions for parallelization
     paths.setup_run_folders()
@@ -210,7 +210,7 @@ def create_partitions(paths: Path, num_partitions: int = None) -> None:
     if num_partitions is None:
         num_partitions = multiprocessing.cpu_count()
 
-    cat_to_nex_pairs = get_cat_to_nex_flowpairs(hydrofabric=paths.geopackage_path())
+    cat_to_nex_pairs = get_cat_to_nex_flowpairs(hydrofabric=paths.geopackage_path)
     print(f"Creating {num_partitions} partitions for {len(cat_to_nex_pairs)} catchments.")
     nexus = defaultdict(list)
 
@@ -234,11 +234,11 @@ def create_partitions(paths: Path, num_partitions: int = None) -> None:
     #             part["nex-ids"].append(nexus[j][0])
     #     partitions.append(part)
 
-    # with open(paths.subset_dir() / f"partitions_{num_partitions}.json", "w") as f:
+    # with open(paths.subset_dir / f"partitions_{num_partitions}.json", "w") as f:
     #     f.write(json.dumps({"partitions": partitions}, indent=4))
 
     # write this to a metadata file to save on repeated file io to recalculate
-    with open(paths.metadata_dir() / "num_partitions", "w") as f:
+    with open(paths.metadata_dir / "num_partitions", "w") as f:
         f.write(str(num_partitions))
 
 

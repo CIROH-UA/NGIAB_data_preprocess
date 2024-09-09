@@ -1,128 +1,88 @@
 from pathlib import Path
 
-
 class file_paths:
     """
-    This class contains all of the file paths used in the NWM data processing
-    workflow. The file paths are organized into static methods and instance
-    methods. Static methods do not require a water body ID, while instance
-    methods do.
+    This class contains all of the file paths used in the data processing
+    workflow.
     """
-
     config_file = Path("~/.NGIAB_data_preprocess").expanduser()
+    data_sources = Path(__file__).parent.parent / "data_sources"
+    map_app_static = Path(__file__).parent.parent / "map_app" / "static"
+    tiles_tms = map_app_static / "tiles" / "tms"
+    tiles_vpu = map_app_static / "tiles" / "vpu"
+    template_gpkg = data_sources / "template.gpkg"
+    template_sql = data_sources / "template.sql"
+    triggers_sql = data_sources / "triggers.sql"
+    model_attributes = data_sources / "model_attributes.parquet"
+    conus_hydrofabric = data_sources / "conus.gpkg"
+    hydrofabric_graph = conus_hydrofabric.with_suffix(".gpickle")
+    template_nc = data_sources / "template.nc"
+    dev_file = Path(__file__).parent.parent.parent / ".dev"
+    template_troute_config = data_sources / "ngen-routing-template.yaml"
+    template_realization_config = data_sources / "ngen-realization-template.json"
+    template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
 
-    def __init__(self, cat_id: str):
+    def __init__(self, folder_name: str):
         """
-        Initialize the file_paths class with a water body ID.
-        The following functions require a water body ID:
-        config_dir, forcings_dir, geopackage_path, cached_nc_file
+        Initialize the file_paths class with a the name of the output subfolder.
+
         Args:
-            cat_id (str): Water body ID.
+            folder_name (str): Water body ID.
         """
-        self.cat_id = cat_id
+        self.cat_id = folder_name
 
-    @staticmethod
-    def get_working_dir() -> Path:
+    @classmethod
+    def get_working_dir(cls) -> Path:
         try:
-            with open(file_paths.config_file, "r") as f:
+            with open(cls.config_file, "r") as f:
                 return Path(f.readline().strip()).expanduser()
         except FileNotFoundError:
             return None
 
-    @staticmethod
-    def set_working_dir(working_dir: Path) -> None:
-        with open(file_paths.config_file, "w") as f:
+    @classmethod
+    def set_working_dir(cls, working_dir: Path) -> None:
+        with open(cls.config_file, "w") as f:
             f.write(str(working_dir))
 
-    @staticmethod
-    def data_sources() -> Path:
-        return Path(__file__).parent.parent / "data_sources"
-
-    @staticmethod
-    def map_app_static() -> Path:
-        return Path(__file__).parent.parent / "map_app" / "static"
-
-    @staticmethod
-    def tiles_tms() -> Path:
-        return file_paths.map_app_static() / "tiles" / "tms"
-
-    @staticmethod
-    def tiles_vpu() -> Path:
-        return file_paths.map_app_static() / "tiles" / "vpu"
-
-    @staticmethod
-    def root_output_dir() -> Path:
-        if file_paths.get_working_dir() is not None:
-            return file_paths.get_working_dir()
+    @classmethod
+    def root_output_dir(cls) -> Path:
+        if cls.get_working_dir() is not None:
+            return cls.get_working_dir()
         return Path(__file__).parent.parent.parent / "output"
 
-    @staticmethod
-    def template_gpkg() -> Path:
-        return file_paths.data_sources() / "template.gpkg"
-
-    @staticmethod
-    def template_sql() -> Path:
-        return file_paths.data_sources() / "template.sql"
-
-    @staticmethod
-    def triggers_sql() -> Path:
-        return file_paths.data_sources() / "triggers.sql"
-
-    @staticmethod
-    def model_attributes() -> Path:
-        return file_paths.data_sources() / "model_attributes.parquet"
-
-    @staticmethod
-    def conus_hydrofabric() -> Path:
-        return file_paths.data_sources() / "conus.gpkg"
-
-    @staticmethod
-    def hydrofabric_graph() -> Path:
-        return file_paths.conus_hydrofabric().with_suffix(".gpickle")
-
-    @staticmethod
-    def template_nc() -> Path:
-        return file_paths.data_sources() / "template.nc"
-
-    @staticmethod
-    def dev_file() -> Path:
-        return Path(__file__).parent.parent.parent / ".dev"
-
-    @staticmethod
-    def template_troute_config() -> Path:
-        return file_paths.data_sources() / "ngen-routing-template.yaml"
-
-    @staticmethod
-    def template_realization_config() -> Path:
-        return file_paths.data_sources() / "ngen-realization-template.json"
-
-    @staticmethod
-    def template_noahowp_config() -> Path:
-        return file_paths.data_sources() / "noah-owp-modular-init.namelist.input"
-
+    @property
     def subset_dir(self) -> Path:
-        return file_paths.root_output_dir() / self.cat_id
+        return self.root_output_dir() / self.cat_id
 
+    @property
     def config_dir(self) -> Path:
-        return file_paths.subset_dir(self) / "config"
+        return self.subset_dir / "config"
 
+    @property
     def forcings_dir(self) -> Path:
-        return file_paths.subset_dir(self) / "forcings"
+        return self.subset_dir / "forcings"
 
+    @property
     def metadata_dir(self) -> Path:
-        return file_paths.subset_dir(self) / "metadata"
+        return self.subset_dir / "metadata"
 
+    @property
     def geopackage_path(self) -> Path:
-        return self.config_dir() / f"{self.cat_id}_subset.gpkg"
+        return self.config_dir / f"{self.cat_id}_subset.gpkg"
 
+    @property
     def cached_nc_file(self) -> Path:
-        return file_paths.subset_dir(self) / "merged_data.nc"
+        return self.subset_dir / "merged_data.nc"
 
     def setup_run_folders(self) -> None:
-        Path(self.subset_dir() / "restart").mkdir(parents=True, exist_ok=True)
-        Path(self.subset_dir() / "lakeout").mkdir(parents=True, exist_ok=True)
-        Path(self.subset_dir() / "outputs").mkdir(parents=True, exist_ok=True)
-        Path(self.subset_dir() / "outputs" / "ngen").mkdir(parents=True, exist_ok=True)
-        Path(self.subset_dir() / "outputs" / "parquet").mkdir(parents=True, exist_ok=True)
-        Path(self.subset_dir() / "outputs" / "troute").mkdir(parents=True, exist_ok=True)
-        Path(self.subset_dir() / "metadata").mkdir(parents=True, exist_ok=True)
+        folders = [
+            "restart",
+            "lakeout",
+            "outputs",
+            "outputs/ngen",
+            "outputs/parquet",
+            "outputs/troute",
+            "metadata",
+        ]
+        for folder in folders:
+            Path(self.subset_dir / folder).mkdir(parents=True, exist_ok=True)
