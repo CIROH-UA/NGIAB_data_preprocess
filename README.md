@@ -35,8 +35,9 @@ This tool prepares data to run a next gen simulation by creating a run package t
 python3 -m venv env
 source env/bin/activate
 # installing and running the tool
-pip install ngiab_data_preprocess
+pip install ngiab_data_preprocess[plot] # [plot] needed to install the evaluation and plotting module
 python -m map_app
+# CLI instructions at the bottom of the README
 ```
 
 The first time you run this command, it will download the hydrofabric and model parameter files from Lynker Spatial. If you already have them, place `conus.gpkg` and `model_attributes.parquet` into `modules/data_sources/`.
@@ -104,7 +105,7 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 - `-D`, `--debug`: Enable debug logging.
 - `--run`: Automatically run Next Gen against the output folder.
 - `--validate`: Run every missing step required to run ngiab.
-- `--eval`: Evaluate performance of the model after running.
+- `--eval`: Evaluate performance of the model after running and plot streamflow at USGS gages.
 - `-a`, `--all`: Run all operations: subset, forcings, realization, run Next Gen, and evaluate.
 
 ## Usage Notes
@@ -148,7 +149,7 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
    python -m ngiab_data_cli -i 01646500 -g -f --start 2022-01-01 --end 2022-02-28
    ```
 
-7. Run all operations, including Next Gen and evaluation:
+7. Run all operations, including Next Gen and evaluation/plotting:
    ```bash
    python -m ngiab_data_cli -i cat-5173 -a --start 2022-01-01 --end 2022-02-28
    ```

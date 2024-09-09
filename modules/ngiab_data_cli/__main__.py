@@ -164,11 +164,22 @@ def main() -> None:
                 logging.error("Next Gen run failed.")
 
         if args.eval:
+            plot = False
+            try:
+                import seaborn, matplotlib
+
+                plot = True
+            except ImportError:
+                logging.info(
+                    "install ngiab_data_preprocess[plot] or ngiab_eval[plot] to enable plotting"
+                )
+
             try:
                 from ngiab_eval.__main__ import evaluate_folder
-
+                if plot:
+                    logging.info("Plotting enabled")
                 logging.info("Evaluating model performance...")
-                evaluate_folder(paths.subset_dir)
+                evaluate_folder(paths.subset_dir, plot=plot)
             except ImportError:
                 logging.error(
                     "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
