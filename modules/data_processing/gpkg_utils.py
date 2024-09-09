@@ -361,10 +361,10 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
         result = con.execute(sql_query).fetchall()
         if len(result) == 0:
             logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
-            raise IndexError(f"Could not find a waterbody for {gage_id}")
+            raise IndexError(f"Could not find a waterbody for gage {gage_id}")
         if len(result) > 1:
             logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
-            raise IndexError(f"Could not find a unique waterbody for {gage_id}")
+            raise IndexError(f"Could not find a unique waterbody for gage {gage_id}")
 
         wb_id = result[0][0]
         cat_id = wb_id.replace("wb", "cat")

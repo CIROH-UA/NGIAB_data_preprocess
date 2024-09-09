@@ -86,10 +86,18 @@ def get_forcing_data(
         cached_data = xr.open_mfdataset(
             forcing_paths.cached_nc_file, parallel=True, engine="h5netcdf"
         )
-        start_time, end_time = validate_time_range(cached_data, start_time, end_time)
-        if cached_data.time[0].values <= np.datetime64(start_time) and cached_data.time[
-            -1
-        ].values >= np.datetime64(end_time):
+        range_in_cache = cached_data.time[0].values <= np.datetime64(
+            start_time
+        ) and cached_data.time[-1].values >= np.datetime64(end_time)
+
+        if not range_in_cache:
+            # only do this if the time range is not in the cache as it is slow
+            # this catches cases where a user entered 2030 as the end on the first run and the cache only goes to 2023
+            # it will prevent the cache from being deleted and reloaded every time
+            lazy_store = load_zarr_datasets()
+            start_time, end_time = validate_time_range(lazy_store, start_time, end_time)
+
+        if range_in_cache:
             logger.info("Time range is within cached data")
             logger.debug(f"Opened cached nc file: [{forcing_paths.cached_nc_file}]")
             merged_data = clip_dataset_to_bounds(
