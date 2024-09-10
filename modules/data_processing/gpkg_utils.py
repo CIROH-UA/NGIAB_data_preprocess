@@ -394,3 +394,42 @@ def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric) -
         raise
     unique_edges = list(set(edges))
     return unique_edges
+
+
+def get_available_tables(gpkg: Path) -> List[str]:
+    """Takes a Path to a geopackage and returns a list of non-metadata tables. aka gpd.list_layers()"""
+    sql_query = "SELECT table_name from gpkg_contents"
+    with sqlite3.connect(gpkg) as conn:
+        tables = conn.execute(sql_query).fetchall()
+    tables = [i[0] for i in tables]
+    return tables
+
+
+def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> dict:
+
+    available_tables = get_available_tables(gpkg)
+    possible_tables = ["flowpath_edge_list", "network"]
+
+    # get the intersection, less clear than an if else, but allows for more possible_tables
+    tables = set(available_tables) & set(possible_tables)
+    if len(tables) > 1:
+        raise IndexError(f"More than one of the possible tables exists: {possible_tables}")
+    if len(tables) == 0:
+        raise IndexError(
+            f"No source data found for NHD ID in {available_tables}, expected one of {possible_tables}"
+        )
+
+    table_name = list(tables)[0]
+    sql_query = f"SELECT divide_id, hf_id FROM {table_name} WHERE divide_id IS NOT NULL AND hf_id IS NOT NULL"
+
+    with sqlite3.connect(gpkg) as conn:
+        result = conn.execute(sql_query).fetchall()
+
+    mapping = {}
+    print(result)
+    for cat, feature in result:
+        # the ids are stored as floats this converts to int to match nwm output
+        # numeric ids should be stored as strings.
+        mapping[cat] = int(feature)
+
+    return mapping

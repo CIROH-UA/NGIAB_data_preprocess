@@ -83,7 +83,10 @@ def subset(
     create_subset_gpkg(upstream_ids, hydrofabric, paths)
     subset_parquet(upstream_ids, paths)
     move_files_to_config_dir(paths.subset_dir)
-    logger.info(f"Subset complete for {len(upstream_ids)} catchments")
+    if len(upstream_ids) > 100000:
+        # don't do this slow list comprehension if there are a lot of upstreams
+        num_catchments = sum(1 for x in upstream_ids if x.startswith("wb"))
+        logger.info(f"Subset complete for {num_catchments} catchments")
     logger.debug(f"Subset complete for {upstream_ids} catchments")
     return str(paths.subset_dir)
 

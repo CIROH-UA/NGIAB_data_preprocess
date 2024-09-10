@@ -1,27 +1,50 @@
-#!/usr/bin/env python3
-
-import json
-import typing
-from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
+from collections import defaultdict
+from statistics import mean
 import multiprocessing
 import pandas
-from collections import defaultdict
-
+import json
+import s3fs
+import xarray as xr
 
 from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import get_cat_to_nex_flowpairs
+from data_processing.gpkg_utils import get_cat_to_nex_flowpairs, get_cat_to_nhd_feature_id
 
 
-def make_cfe_config(cfe_noahowp_attributes: pandas.DataFrame, files: file_paths) -> None:
+def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
+    # get the gw levels from the NWM output on a given start date
+    # this kind of works in place of warmstates for now
+    year = start_date.strftime("%Y")
+    formatted_dt = start_date.strftime("%Y%m%d%H%M")
+    cat_to_feature = get_cat_to_nhd_feature_id(paths.geopackage_path)
+
+    fs = s3fs.S3FileSystem(anon=True)
+    nc_url = f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/netcdf/GWOUT/{year}/{formatted_dt}.GWOUT_DOMAIN1"
+    with fs.open(nc_url) as file_obj:
+        ds = xr.open_dataset(file_obj)
+
+        water_levels = dict()
+        for cat, feature in cat_to_feature.items():
+            # this value is in CM, we need meters to match max_gw_depth
+            # xarray says it's in mm, with 0.1 scale factor. calling .values doesn't apply the scale
+            water_level = ds.sel(feature_id=feature).depth.values / 100
+            water_levels[cat] = water_level
+
+    return water_levels
+
+
+def make_cfe_config(
+    divide_conf_df: pandas.DataFrame, files: file_paths, water_levels: dict
+) -> None:
     """Parses parameters from NOAHOWP_CFE DataFrame and returns a dictionary of catchment configurations."""
     with open(file_paths.template_cfe_config, "r") as f:
         cfe_template = f.read()
     cat_config_dir = files.config_dir / "cat_config" / "CFE"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    for _, row in cfe_noahowp_attributes.iterrows():
+    for _, row in divide_conf_df.iterrows():
+        gw_storage_ratio = water_levels[row["divide_id"]] / row["gw_Zmax"]
         cat_config = cfe_template.format(
             bexp=row["bexp_soil_layers_stag=2"],
             dksat=row["dksat_soil_layers_stag=2"],
@@ -32,7 +55,7 @@ def make_cfe_config(cfe_noahowp_attributes: pandas.DataFrame, files: file_paths)
             max_gw_storage=row["gw_Zmax"] if row["gw_Zmax"] is not None else "0.011[m]",
             gw_Coeff=row["gw_Coeff"] if row["gw_Coeff"] is not None else "0.0018[m h-1]",
             gw_Expon=row["gw_Expon"],
-            gw_storage=0.007,  # hardcoded works as a pseudo warmstate, needs calculating
+            gw_storage="{:.5}".format(gw_storage_ratio),
             refkdt=row["refkdt"],
         )
         cat_ini_file = cat_config_dir / f"{row['divide_id']}.ini"
@@ -41,10 +64,9 @@ def make_cfe_config(cfe_noahowp_attributes: pandas.DataFrame, files: file_paths)
 
 
 def make_noahowp_config(
-    base_dir: Path, cfe_atts_path: Path, start_time: datetime, end_time: datetime
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
 
-    divide_conf_df = pandas.read_csv(cfe_atts_path)
     divide_conf_df.set_index("divide_id", inplace=True)
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
@@ -118,11 +140,13 @@ def create_realization(cat_id: str, start_time: datetime, end_time: datetime):
     # without having to refactor this whole thing
     paths = file_paths(cat_id)
 
-    # make cfe init config files
-    cfe_atts_path = paths.config_dir / "cfe_noahowp_attributes.csv"
-    make_cfe_config(pandas.read_csv(cfe_atts_path), paths)
+    # get approximate groundwater levels from nwm output
+    gw_levels = get_approximate_gw_storage(paths, start_time)
 
-    make_noahowp_config(paths.config_dir, cfe_atts_path, start_time, end_time)
+    conf_df = pandas.read_csv(paths.config_dir / "cfe_noahowp_attributes.csv")
+    make_cfe_config(conf_df, paths, gw_levels)
+
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
 
     num_timesteps = configure_troute(cat_id, paths.config_dir, start_time, end_time)
 

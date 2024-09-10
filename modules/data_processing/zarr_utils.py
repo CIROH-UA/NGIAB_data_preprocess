@@ -19,8 +19,11 @@ def open_s3_store(url: str) -> s3fs.S3Map:
 def load_zarr_datasets() -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
     # if a LocalCluster is not already running, start one
-    if not Client(timeout="2s"):
-        cluster = LocalCluster()
+    try:
+        client = Client.current()
+    except ValueError:
+        cluster = LocalCluster(n_workers=20, threads_per_worker=1)
+        client = Client(cluster)
     forcing_vars = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]
     s3_urls = [
         f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/zarr/forcing/{var}.zarr"
@@ -66,11 +69,18 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     """Compute the store and save it to a cached netCDF file."""
     logger.info("Downloading and caching forcing data, this may take a while")
 
+    # sort of terrible work around for half downloaded files
+    temp_path = cached_nc_path.with_suffix(".downloading.nc")
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+
     client = Client.current()
-    future = client.compute(stores.to_netcdf(cached_nc_path, compute=False))
+    future = client.compute(stores.to_netcdf(temp_path, compute=False))
     # Display progress bar
     progress(future)
     future.result()
+
+    os.rename(temp_path, cached_nc_path)
 
     data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
     return data
