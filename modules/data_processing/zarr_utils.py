@@ -22,7 +22,7 @@ def load_zarr_datasets() -> xr.Dataset:
     try:
         client = Client.current()
     except ValueError:
-        cluster = LocalCluster(n_workers=20, threads_per_worker=1)
+        cluster = LocalCluster()
         client = Client(cluster)
     forcing_vars = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]
     s3_urls = [
