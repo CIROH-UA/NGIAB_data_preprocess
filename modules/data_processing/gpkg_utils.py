@@ -352,11 +352,11 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
     # use flowpath_attributes instead
     # both have errors, cross reference them
     with sqlite3.connect(gpkg) as con:
-        sql_query = f"""SELECT f.id 
-                        FROM flowpaths AS f 
+        sql_query = f"""SELECT f.id
+                        FROM flowpaths AS f
                         JOIN hydrolocations AS h ON f.toid = h.id
                         JOIN flowpath_attributes AS fa ON f.id = fa.id
-                        WHERE h.hl_uri = 'Gages-{gage_id}' 
+                        WHERE h.hl_uri = 'Gages-{gage_id}'
                         AND fa.rl_gages LIKE '%{gage_id}%'"""
         result = con.execute(sql_query).fetchall()
         if len(result) == 0:
@@ -426,7 +426,6 @@ def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> dict
         result = conn.execute(sql_query).fetchall()
 
     mapping = {}
-    print(result)
     for cat, feature in result:
         # the ids are stored as floats this converts to int to match nwm output
         # numeric ids should be stored as strings.

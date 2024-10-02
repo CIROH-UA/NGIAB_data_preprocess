@@ -53,25 +53,45 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     dataset["APCP_surface"] = (dataset["precip_rate"] * 3600 * 1000) / 0.9998
     return dataset
 
+def get_index_chunks(data):
+    peak_memory_usage = data.nbytes * 1.3 # 30% overhead for safety
+    free_memory = psutil.virtual_memory().available
+    free_memory = 10000000
+    num_chunks = ceil(peak_memory_usage / free_memory)
+    max_index = data.shape[0]
+    stride = max_index // num_chunks
+    chunk_start = range(0, max_index, stride)
+    index_chunks = [(start, start + stride) for start in chunk_start]
+    return index_chunks
 
-def save_to_csv(catchment_ds, csv_path):
-    catchment_df = catchment_ds.to_dataframe().drop(["catchment"], axis=1)
-    catchment_df.to_csv(csv_path)
-    return csv_path
-
-
-def create_shared_memory(data):
-    shm = shared_memory.SharedMemory(create=True, size=data.nbytes)
-    shared_array = np.ndarray(data.shape, dtype=data.dtype, buffer=shm.buf)
-    shared_array[:] = data[:]
-    return shm, shared_array
+from memory_profiler import profile
+#@profile
+def create_shared_memory(lazy_array):
+    logger.warning(f"Creating shared memory size {lazy_array.nbytes/ 10**6} Mb.")
+    shm = shared_memory.SharedMemory(create=True, size=lazy_array.nbytes)
+    shared_array = np.ndarray(lazy_array.shape, dtype=np.float32, buffer=shm.buf)
+    # if your data is not float32, xarray will do an automatic conversion here
+    # which consumes 3x the size of nbytes, otherwise only nbytes is consumed
+    #np.copyto(shared_array, data)# = np.asarray(data)
+    for start, end in get_index_chunks(lazy_array):
+            shared_array[start:end] = lazy_array[start:end]
+    #del data
+    time, x, y = shared_array.shape
+    shared_array = shared_array.reshape(time, -1)
+    print(f"Shared array shape {shared_array.shape}")
+    print(f"Shared array sample {shared_array[0, 8000]}")
+    #shared_array.flags.writeable = False
+    return shm, shared_array.shape, shared_array.dtype
 
 
 def process_chunk_shared(variable, times, shm_name, shape, dtype, chunk):
     existing_shm = shared_memory.SharedMemory(name=shm_name)
     raster = np.ndarray(shape, dtype=dtype, buffer=existing_shm.buf)
-
+    #print(f"Raster shape {raster.shape}")
     results = []
+    if "cat-481888" in chunk.index.unique():
+        print(f"raster sample {raster[0, 8000]}")
+
     for catchment in chunk.index.unique():
         cell_ids = chunk.loc[catchment]["cell_id"]
         weights = chunk.loc[catchment]["coverage"]
@@ -84,10 +104,11 @@ def process_chunk_shared(variable, times, shm_name, shape, dtype, chunk):
         )
         temp_da = temp_da.assign_coords(catchment=catchment)
         results.append(temp_da)
-
     existing_shm.close()
     return xr.concat(results, dim="catchment")
 
+import psutil
+from math import ceil
 
 def compute_zonal_stats(
     gdf: gpd.GeoDataFrame, merged_data: xr.Dataset, forcings_dir: Path
@@ -97,103 +118,142 @@ def compute_zonal_stats(
     num_partitions = multiprocessing.cpu_count() - 1
     if num_partitions > len(gdf):
         num_partitions = len(gdf)
-    gfd_chunks = np.array_split(gdf, multiprocessing.cpu_count() - 1)
+    gdf_chunks = np.array_split(gdf, multiprocessing.cpu_count() - 1)
     one_timestep = merged_data.isel(time=0).compute()
     with multiprocessing.Pool() as pool:
-        args = [(one_timestep, gdf_chunk) for gdf_chunk in gfd_chunks]
+        args = [(one_timestep, gdf_chunk) for gdf_chunk in gdf_chunks]
         catchments = pool.starmap(get_cell_weights, args)
 
     catchments = pd.concat(catchments)
-
-    variables = [
-        "LWDOWN",
-        "PSFC",
-        "Q2D",
-        "RAINRATE",
-        "SWDOWN",
-        "T2D",
-        "U2D",
-        "V2D",
-    ]
+    variables = {
+                "LWDOWN": "DLWRF_surface",
+                "PSFC": "PRES_surface",
+                "Q2D": "SPFH_2maboveground",
+                "RAINRATE": "precip_rate",
+                "SWDOWN": "DSWRF_surface",
+                "T2D": "TMP_2maboveground",
+                "U2D": "UGRD_10maboveground",
+                "V2D": "VGRD_10maboveground",
+            }
 
     results = []
+    cat_chunks = np.array_split(catchments, num_partitions)
+    forcing_times = merged_data.time.values
 
-    for variable in variables:
-        raster = merged_data[variable].values.reshape(merged_data[variable].shape[0], -1)
+    for variable in variables.keys():
+        peak_memory_usage = merged_data[variable].nbytes * 1.3 # 30% overhead for safety
+        free_memory = psutil.virtual_memory().available
+        free_memory = 105312678.4
+        mem_chunks = 1
+        if peak_memory_usage > free_memory:
+            logger.warning(f"Variable {variable} requires {peak_memory_usage} bytes, but only {free_memory} bytes are available.")
+            mem_chunks = ceil(peak_memory_usage / free_memory)
+            logger.warning(f"Splitting variable {variable} into {mem_chunks} chunks.")
 
-        # Create shared memory for the raster
-        shm, shared_raster = create_shared_memory(raster)
+        timesteps_per_chunk = len(forcing_times) // mem_chunks
+        chunk_start = range(0, len(forcing_times), timesteps_per_chunk)
+        time_chunks = [(start, start + timesteps_per_chunk) for start in chunk_start]
+        logger.info(f" chunks {time_chunks}")
 
-        cat_chunks = np.array_split(catchments, num_partitions)
-        times = merged_data.time.values
+        for i, times in enumerate(time_chunks):
+            start = times[0]
+            end = times[1]
+            data_chunk = merged_data[variable].isel(time=slice(start,end))
+            shm, shape, dtype = create_shared_memory(data_chunk)
+            times = data_chunk.time.values
+            partial_process_chunk = partial(
+                process_chunk_shared,
+                variable,
+                times,
+                shm.name,
+                shape,
+                dtype,
+            )
+            logger.debug(f"Processing variable: {variable}")
+            with multiprocessing.Pool(num_partitions) as pool:
+                variable_data = pool.map(partial_process_chunk, cat_chunks)
+            del partial_process_chunk
+            # Clean up the shared memory
+            shm.close()
+            shm.unlink()
+            logger.debug(f"Processed variable: {variable}")
+            concatenated_da = xr.concat(variable_data, dim="catchment")
+            del variable_data
+            logger.debug(f"Concatenated variable: {variable}")
+            # write this to disk now to save memory
+            # xarray will monitor memory usage, but it doesn't account for the shared memory used to store the raster
+            # This reduces memory usage by about 60%
+            concatenated_da.to_dataset(name=variable).to_netcdf(forcings_dir/ "temp" / f"{variable}_{i}.nc")
+            # Merge the chunks back together
+        datasets = [xr.open_dataset(forcings_dir / "temp" / f"{variable}_{i}.nc") for i in range(mem_chunks)]
+        xr.concat(datasets, dim="time").to_netcdf(forcings_dir / f"{variable}.nc")
+        for file in forcings_dir.glob("temp/*.nc"):
+            file.unlink()
 
-        partial_process_chunk = partial(
-            process_chunk_shared,
-            variable,
-            times,
-            shm.name,
-            shared_raster.shape,
-            shared_raster.dtype,
-        )
-
-        logger.debug(f"Processing variable: {variable}")
-        with multiprocessing.Pool(num_partitions) as pool:
-            variable_data = pool.map(partial_process_chunk, cat_chunks)
-
-        # Clean up the shared memory
-        shm.close()
-        shm.unlink()
-
-        logger.debug(f"Processed variable: {variable}")
-        concatenated_da = xr.concat(variable_data, dim="catchment")
-        logger.debug(f"Concatenated variable: {variable}")
-        results.append(concatenated_da.to_dataset(name=variable))
 
     # Combine all variables into a single dataset
+    results = [xr.open_dataset(forcings_dir / f"{variable}.nc") for variable in variables.keys()]
     final_ds = xr.merge(results)
 
     output_folder = forcings_dir / "by_catchment"
-    # Clear out any existing files
-    for file in output_folder.glob("*.csv"):
-        file.unlink()
 
-    final_ds = final_ds.rename_vars(
-        {
-            "LWDOWN": "DLWRF_surface",
-            "PSFC": "PRES_surface",
-            "Q2D": "SPFH_2maboveground",
-            "RAINRATE": "precip_rate",
-            "SWDOWN": "DSWRF_surface",
-            "T2D": "TMP_2maboveground",
-            "U2D": "UGRD_10maboveground",
-            "V2D": "VGRD_10maboveground",
-        }
-    )
+    final_ds = final_ds.rename_vars(variables)
+    print(final_ds)
+    for variable in variables.values():
+        final_ds[variable] = final_ds[variable].astype(np.float32)
 
     final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
     logger.info("Saving to disk")
-    # Save to disk
-    delayed_saves = []
-    for catchment in final_ds.catchment.values:
-        catchment_ds = final_ds.sel(catchment=catchment)
-        csv_path = output_folder / f"{catchment}.csv"
-        delayed_save = dask.delayed(save_to_csv)(catchment_ds, csv_path)
-        delayed_saves.append(delayed_save)
-    logger.debug("Delayed saves created")
-    try:
-        client = Client.current()
-    except ValueError:
-        cluster = LocalCluster()
-        client = Client(cluster)
+    #rename catchment to ids
+    # required format ....
+    # >>> print(data)
+    # <xarray.Dataset> Size: 144kB
+    # Dimensions:              (catchment-id: 5, time: 720)
+    # Dimensions without coordinates: catchment-id, time
+    # Data variables:
+    #     ids                  (catchment-id) <U9 180B 'cat-11410' ... 'cat-11224'
+    #     Time                 (catchment-id, time) float64 29kB ...
+    #     precip_rate          (catchment-id, time) float32 14kB ...
+    #     TMP_2maboveground    (catchment-id, time) float32 14kB ...
+    #     SPFH_2maboveground   (catchment-id, time) float32 14kB ...
+    #     UGRD_10maboveground  (catchment-id, time) float32 14kB ...
+    #     VGRD_10maboveground  (catchment-id, time) float32 14kB ...
+    #     PRES_surface         (catchment-id, time) float32 14kB ...
+    #     DSWRF_surface        (catchment-id, time) float32 14kB ...
+    #     DLWRF_surface        (catchment-id, time) float32 14kB ...
+    # >>> print(data.ids.values)
+    # ['cat-11410' 'cat-11371' 'cat-11509' 'cat-11223' 'cat-11224']
+    # >>> print(data['catchment-id'].values)
+    # [0 1 2 3 4]
+    # >>>
+    # to force our data into this format, we need to delete the coordinates and add a data var with the catchment ids
 
-    dask.compute(*delayed_saves)
+    #
+    # TIME IS A 2D ARRAY OF THE SAME TIME FOR EVERY CATCHMENT !!!!!!!!!!!!!!!!!!!!!!
+    #drop all coords
+    final_ds["ids"] = final_ds["catchment"].astype(str)
+    # time needs to be a 2d array of the same time array as unix timestamps for every catchment
+    time_array = final_ds.time.astype('datetime64[s]').astype(np.int64).values//10**9
+    time_array = time_array.astype(np.int32)
+    #print(final_ds.head().time.astype('datetime64[s]').astype(np.int64).values//10**9)
+    final_ds = final_ds.drop_vars(["catchment", "time"])
+    final_ds = final_ds.rename_dims({"catchment": "catchment-id"})
+    final_ds["Time"] = (("catchment-id", "time"), [time_array for _ in range(len(final_ds["ids"]))])
+    # time is expected to be a 2d array of catchment id x time
+    # since time is the same for every catchment, we can save space by just repeating the time array
+    #final_ds["Time"] = ("time",time_array)
+    final_ds["Time"].attrs["units"] = "s"
+    final_ds["Time"].attrs["epoch_start"] = "01/01/1970 00:00:00" # not needed but suppresses the ngen warning
+    # lifted from ngen code good luck figuring out if it's mmddyyyy or ddmmyyyy. why is it not yyyymmdd...
+    #add catchment ids as a data var
+
+    final_ds.to_netcdf(output_folder / "forcings.nc", engine="netcdf4")
+    print(final_ds)
 
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start} seconds"
     )
-    client.shutdown()
-
 
 def setup_directories(cat_id: str) -> file_paths:
     forcing_paths = file_paths(cat_id)

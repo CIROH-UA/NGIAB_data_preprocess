@@ -9,10 +9,11 @@ import numpy as np
 import geopandas as gpd
 from data_processing.file_paths import file_paths
 import time
+from fsspec.mapping import FSMap
 
 logger = logging.getLogger(__name__)
 
-def open_s3_store(url: str) -> s3fs.S3Map:
+def open_s3_store(url: str) -> FSMap:
     """Open an s3 store from a given url."""
     return s3fs.S3Map(url, s3=s3fs.S3FileSystem(anon=True))
 
@@ -73,6 +74,14 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     temp_path = cached_nc_path.with_suffix(".downloading.nc")
     if os.path.exists(temp_path):
         os.remove(temp_path)
+
+    ## Drop crs that's included with one of the datasets
+    stores = stores.drop_vars("crs")
+
+    ## Cast every single variable to float32 to save space to save a lot of memory issues later
+    ## easier to do it now in this slow download step than later in the steps without dask
+    for var in stores.data_vars:
+        stores[var] = stores[var].astype("float32")
 
     client = Client.current()
     future = client.compute(stores.to_netcdf(temp_path, compute=False))
