@@ -11,3 +11,4 @@ dist
 **/tiles/tms*
 **/tiles/vpu*
 *.tar.gz
+*.dat
