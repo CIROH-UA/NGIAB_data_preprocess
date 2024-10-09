@@ -7,7 +7,8 @@ import pandas
 import json
 import s3fs
 import xarray as xr
-
+from tqdm.rich import tqdm
+from dask.distributed import Client, LocalCluster
 from data_processing.file_paths import file_paths
 from data_processing.gpkg_utils import get_cat_to_nex_flowpairs, get_cat_to_nhd_feature_id
 
@@ -21,11 +22,20 @@ def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
 
     fs = s3fs.S3FileSystem(anon=True)
     nc_url = f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/netcdf/GWOUT/{year}/{formatted_dt}.GWOUT_DOMAIN1"
+
+    # make sure there's a dask cluster running
+    try:
+        client = Client.current()
+    except ValueError:
+        cluster = LocalCluster()
+        client = Client(cluster)
+
+
     with fs.open(nc_url) as file_obj:
         ds = xr.open_dataset(file_obj)
 
         water_levels = dict()
-        for cat, feature in cat_to_feature.items():
+        for cat, feature in tqdm(cat_to_feature.items()):
             # this value is in CM, we need meters to match max_gw_depth
             # xarray says it's in mm, with 0.1 scale factor. calling .values doesn't apply the scale
             water_level = ds.sel(feature_id=feature).depth.values / 100
