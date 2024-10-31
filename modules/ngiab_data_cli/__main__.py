@@ -192,7 +192,7 @@ def main() -> None:
 
         if args.vis:
             try:
-                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana'
+                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:0.1.0'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
             except:
