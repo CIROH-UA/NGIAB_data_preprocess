@@ -12,7 +12,6 @@ from math import ceil
 from tqdm.rich import tqdm
 import numpy as np
 import dask
-from dask.distributed import Client, LocalCluster, progress
 import geopandas as gpd
 import pandas as pd
 import xarray as xr
@@ -54,7 +53,9 @@ def get_cell_weights(raster, gdf):
 
 
 def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
-    dataset["APCP_surface"] = (dataset["precip_rate"] * 3600 * 1000) / 0.9998
+    # precip rate is mm/s
+    # cfe says input m/h
+    dataset["APCP_surface"] = dataset["precip_rate"] * 3600 / 1000
     return dataset
 
 
@@ -146,6 +147,10 @@ def compute_zonal_stats(
 
     for variable in variables.keys():
 
+        if variable not in merged_data.data_vars:
+            logger.warning(f"Variable {variable} not in forcings, skipping")
+            continue
+
         # to make sure this fits in memory, we need to chunk the data
         time_chunks = get_index_chunks(merged_data[variable])
 
@@ -189,28 +194,37 @@ def compute_zonal_stats(
 def write_outputs(forcings_dir, variables):
 
     # Combine all variables into a single dataset
-    results = [xr.open_dataset(forcings_dir / f"{variable}.nc") for variable in variables.keys()]
+    results = [xr.open_dataset(file) for file in forcings_dir.glob("*.nc")]
     final_ds = xr.merge(results)
 
     output_folder = forcings_dir / "by_catchment"
 
-    final_ds = final_ds.rename_vars(variables)
+    rename_dict = {}
+    for key, value in variables.items():
+        if key in final_ds:
+            rename_dict[key] = value
+
+    final_ds = final_ds.rename_vars(rename_dict)
     final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
     # this step halves the storage size of the forcings
-    for variable in variables.values():        final_ds[variable] = final_ds[variable].astype(np.float32)
+    for var in final_ds.data_vars:
+        final_ds[var] = final_ds[var].astype(np.float32)
 
     logger.info("Saving to disk")
     # The format for the netcdf is to support a legacy format
     # which is why it's a little "unorthodox"
     # There are no coordinates, just dimensions, catchment ids are stored in a 1d data var
     # and time is stored in a 2d data var with the same time array for every catchment
-    # time is stored as unix timestamps, units has to be set
+    # time is stored as unix timestamps, units have to be set
 
     # add the catchment ids as a 1d data var
     final_ds["ids"] = final_ds["catchment"].astype(str)
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
-    time_array = final_ds.time.astype('datetime64[s]').astype(np.int64).values//10**9 ## convert from ns to s
+    with warnings.catch_warnings(action="ignore"):
+        time_array = (
+            final_ds.time.astype("datetime64[s]").astype(np.int64).values // 10**9
+        )  ## convert from ns to s
     time_array = time_array.astype(np.int32) ## convert to int32 to save space
     final_ds = final_ds.drop_vars(["catchment", "time"]) ## drop the original time and catchment vars
     final_ds = final_ds.rename_dims({"catchment": "catchment-id"}) # rename the catchment dimension
@@ -221,6 +235,9 @@ def write_outputs(forcings_dir, variables):
     final_ds["Time"].attrs["epoch_start"] = "01/01/1970 00:00:00" # not needed but suppresses the ngen warning
 
     final_ds.to_netcdf(output_folder / "forcings.nc", engine="netcdf4")
+    # delete the individual variable files
+    for file in forcings_dir.glob("*.nc"):
+        file.unlink()
 
 
 def setup_directories(cat_id: str) -> file_paths:
