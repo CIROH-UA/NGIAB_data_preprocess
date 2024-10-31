@@ -60,8 +60,8 @@ def validate_input(args: argparse.Namespace) -> None:
 
 def get_cat_id_from_lat_lon(input_feature: str) -> List[str]:
     """Read catchment IDs from input file or return single ID."""
-    if "," in input_feature.name:
-        coords = input_feature.name.split(",")
+    if "," in input_feature:
+        coords = input_feature.split(",")
         return get_catid_from_point({"lat": float(coords[0]), "lng": float(coords[1])})
     else:
         raise ValueError("Lat Lon input must be comma separated e.g. -l 54.33,-69.4")

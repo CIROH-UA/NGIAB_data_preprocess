@@ -56,6 +56,7 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # precip rate is mm/s
     # cfe says input m/h
     dataset["APCP_surface"] = dataset["precip_rate"] * 3600 / 1000
+    # technically should be kg/m^2/h, at 1kg = 1l it equates to mm/h
     return dataset
 
 
