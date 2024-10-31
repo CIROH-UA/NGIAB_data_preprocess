@@ -139,7 +139,6 @@ def make_ngen_realization_json(
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["output_interval"] = 3600
-    realization["time"]["nts"] = nts
 
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
