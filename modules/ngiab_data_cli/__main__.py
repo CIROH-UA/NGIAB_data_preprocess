@@ -4,6 +4,8 @@ import time
 from typing import List
 import subprocess
 
+from dask.distributed import Client
+
 from data_processing.file_paths import file_paths
 from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
 from data_processing.subset import subset
@@ -74,7 +76,7 @@ def set_dependent_flags(args, paths: file_paths):
 
     # realization and forcings require subset to have been run at least once
     if args.realization or args.forcings:
-        if not paths.subset_dir.exists():
+        if not paths.subset_dir.exists() and not args.subset:
             logging.warning(
                 "Subset required for forcings and realization generation, enabling subset."
             )
@@ -84,6 +86,7 @@ def set_dependent_flags(args, paths: file_paths):
         raise ValueError(
             "Both --start and --end are required for forcings generation or realization creation. YYYY-MM-DD"
         )
+
     return args
 
 
@@ -138,6 +141,14 @@ def main() -> None:
             create_realization(output_folder, start_time=args.start_date, end_time=args.end_date)
             logging.info("Realization creation complete.")
 
+        # check if the dask client is still running and close it
+        try:
+            client = Client().current()
+            client.close()
+        except ValueError:
+            # value error is raised if no client is running
+            pass
+
         if args.run:
             logging.info("Running Next Gen using NGIAB...")
             # open the partitions.json file and get the number of partitions
@@ -149,8 +160,7 @@ def main() -> None:
             except:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
-                # right now this expects a local hardcoded image name, while this is still a hidden feature it's fine
-                # command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngiab_datastream /ngen/ngen/data/ auto {num_partitions}'
+                # command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" prod_test /ngen/ngen/data/ auto {num_partitions}'
                 command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest-x86 /ngen/ngen/data/ auto {num_partitions}'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
@@ -174,11 +184,19 @@ def main() -> None:
                 if plot:
                     logging.info("Plotting enabled")
                 logging.info("Evaluating model performance...")
-                evaluate_folder(paths.subset_dir, plot=plot)
+                evaluate_folder(paths.subset_dir, plot=plot, debug=args.debug)
             except ImportError:
                 logging.error(
                     "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
                 )
+
+        if args.vis:
+            try:
+                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana'
+                subprocess.run(command, shell=True)
+                logging.info("Next Gen run complete.")
+            except:
+                logging.error("Next Gen run failed.")
 
         logging.info("All operations completed successfully.")
         logging.info(f"Output folder: file:///{paths.subset_dir}")

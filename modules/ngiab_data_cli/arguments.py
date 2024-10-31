@@ -84,6 +84,9 @@ def parse_arguments() -> argparse.Namespace:
         "--eval", action="store_true", help="Evaluate perforance of the model after running"
     )
     parser.add_argument(
+        "--vis", "--visualise", action="store_true", help="Visualize the model output"
+    )
+    parser.add_argument(
         "-a",
         "--all",
         action="store_true",
@@ -97,6 +100,10 @@ def parse_arguments() -> argparse.Namespace:
         args.forcings = True
         args.realization = True
         args.run = True
+        args.eval = True
+        args.vis = True
+
+    if args.vis:
         args.eval = True
 
     if args.run:
