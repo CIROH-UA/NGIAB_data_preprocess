@@ -304,7 +304,7 @@ def get_catids_from_vpu():
     # convert to crs 5070
     vpu = gpd.GeoDataFrame({"geometry": [vpu]}, crs="EPSG:4326")
     vpu = vpu.to_crs(epsg=5070)
-    cats = gpd.read_file(file_paths.data_sources / "conus.gpkg", layer="divides", mask=vpu)
+    cats = gpd.read_file(file_paths.conus_hydrofabric, layer="divides", mask=vpu)
     cats = cats.to_crs(epsg=4326)
     cats = cats[cats["id"].notna()]
     # return dict[id: [lat, lon]]

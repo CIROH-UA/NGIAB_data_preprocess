@@ -5,7 +5,10 @@ class file_paths:
     This class contains all of the file paths used in the data processing
     workflow.
     """
-    config_file = Path("~/.NGIAB_data_preprocess").expanduser()
+    config_file = Path("~/.ngiab/preprocessor").expanduser()
+    hydrofabric_dir = Path("~/.ngiab/hydrofabric/v2.2").expanduser()
+    cache_dir = Path("~/.ngiab/zarr_cache").expanduser()
+    output_dir = None
     data_sources = Path(__file__).parent.parent / "data_sources"
     map_app_static = Path(__file__).parent.parent / "map_app" / "static"
     tiles_tms = map_app_static / "tiles" / "tms"
@@ -13,24 +16,34 @@ class file_paths:
     template_gpkg = data_sources / "template.gpkg"
     template_sql = data_sources / "template.sql"
     triggers_sql = data_sources / "triggers.sql"
-    model_attributes = data_sources / "model_attributes.parquet"
-    conus_hydrofabric = data_sources / "conus.gpkg"
-    hydrofabric_graph = conus_hydrofabric.with_suffix(".gpickle")
-    template_nc = data_sources / "template.nc"
+    conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
+    hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
+    template_nc = data_sources / "forcing_template.nc"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
     template_realization_config = data_sources / "ngen-realization-template.json"
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
     template_cfe_config = data_sources / "cfe-template.ini"
 
-    def __init__(self, folder_name: str):
+    def __init__(self, folder_name: str = None, output_dir: Path = None):
         """
         Initialize the file_paths class with a the name of the output subfolder.
+        OR the path to the output folder you want to use.
+        use one or the other, not both
 
         Args:
             folder_name (str): Water body ID.
+            output_dir (Path): Path to the folder you want to output to
         """
-        self.cat_id = folder_name
+        if (not folder_name and not output_dir) or (folder_name and output_dir):
+            raise ValueError("please pass either folder_name or output_dir")
+        if folder_name:
+            self.folder_name = folder_name
+        if output_dir:
+            self.output_dir = output_dir
+            self.folder_name = str(output_dir.stem)
+
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def get_working_dir(cls) -> Path:
@@ -53,7 +66,11 @@ class file_paths:
 
     @property
     def subset_dir(self) -> Path:
-        return self.root_output_dir() / self.cat_id
+        if self.output_dir:
+            return self.output_dir
+        else:
+            self.output_dir = self.root_output_dir() / self.folder_name
+            return self.output_dir
 
     @property
     def config_dir(self) -> Path:
@@ -69,7 +86,7 @@ class file_paths:
 
     @property
     def geopackage_path(self) -> Path:
-        return self.config_dir / f"{self.cat_id}_subset.gpkg"
+        return self.config_dir / f"{self.folder_name}_subset.gpkg"
 
     @property
     def cached_nc_file(self) -> Path:
@@ -81,7 +98,6 @@ class file_paths:
             "lakeout",
             "outputs",
             "outputs/ngen",
-            "outputs/parquet",
             "outputs/troute",
             "metadata",
         ]

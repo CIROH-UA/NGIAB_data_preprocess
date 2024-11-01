@@ -52,6 +52,7 @@ def create_graph_from_gpkg(hydrofabric: Path) -> ig.Graph:
     Returns:
         ig.Graph: The hydrological network graph.
     """
+    logger.info("Building network graph")
     edges = get_from_to_id_pairs(hydrofabric)
     graph = ig.Graph.TupleList(edges, directed=True)
     return graph

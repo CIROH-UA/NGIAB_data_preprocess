@@ -19,7 +19,7 @@ This repository contains tools for preparing data to run a [next gen](https://gi
 
 ## What does this tool do?
 
-This tool prepares data to run a next gen simulation by creating a run package that can be used with NGIAB. It picks default data sources, the [v20.1 hydrofabric](https://www.lynker-spatial.com/data?path=hydrofabric%2Fv20.1%2F) and [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data.
+This tool prepares data to run a next gen simulation by creating a run package that can be used with NGIAB. It picks default data sources, the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) and [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data. To learn more about the hydrofabric, [here's a handy guide](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html)
 
 ## Requirements
 
@@ -37,7 +37,7 @@ python -m map_app
 # CLI instructions at the bottom of the README
 ```
 
-The first time you run this command, it will download the hydrofabric and model parameter files from Lynker Spatial. If you already have them, place `conus.gpkg` and `model_attributes.parquet` into `modules/data_sources/`.
+The first time you run this command, it will download the hydrofabric from Lynker Spatial. If you already have it, place `conus_nextgen.gpkg` into `modules/data_sources/`.
 
 ## Development Installation
 

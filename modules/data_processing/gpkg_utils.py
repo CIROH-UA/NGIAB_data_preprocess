@@ -6,7 +6,6 @@ from shapely.wkb import loads
 from shapely.geometry import Point, Polygon
 from typing import Union
 import struct
-import geopandas as gpd
 from pathlib import Path
 import pyproj
 from shapely.ops import transform
@@ -19,15 +18,24 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     Verify that the indices in the specified geopackage are correct.
     If they are not, create the correct indices.
     """
+    logger.info("Building database indices")
     new_indicies = [
-        'CREATE INDEX "diid" ON "divides" ( "id" ASC );',
-        'CREATE INDEX "flaid" ON "flowpath_attributes" ( "id" ASC );',
+        'CREATE INDEX "diid" ON "divides" ( "divide_id" ASC );',
+        'CREATE INDEX "ditid" ON "divides" ( "toid" ASC );',
+        'CREATE INDEX "diaid" ON "divide-attributes" ( "divide_id" ASC );',
+        'CREATE INDEX "flaid" ON "flowpath-attributes" ( "id" ASC );',
+        'CREATE INDEX "fla_gageid" ON "flowpath-attributes" ( "gage" ASC );',
+        'CREATE INDEX "fla_nex_to_gageid" ON "flowpath-attributes" ( "gage_nex_id" ASC );',
+        'CREATE INDEX "flamlid" ON "flowpath-attributes-ml" ( "id" ASC );',
         'CREATE INDEX "flid" ON "flowpaths" ( "id" ASC );',
-        'CREATE INDEX "hyid" ON "hydrolocations" ( "id" ASC );',
+        'CREATE INDEX "hlid" ON "hydrolocations" ( "id" ASC );',
         'CREATE INDEX "gageid" ON "hydrolocations" ( "hl_uri" ASC );',
-        #'CREATE INDEX "laid" ON "lakes" ( "id" ASC );',
+        'CREATE INDEX "laid" ON "lakes" ( "poi_id" ASC );',  # flowpaths.id->pois.id->pois.poi_id->lakes.poi_id
+        'CREATE INDEX "poid" ON "pois" ( "id" ASC )',
         'CREATE INDEX "neid" ON "nexus" ( "id" ASC );',
         'CREATE INDEX "nid" ON "network" ( "id" ASC );',
+        'CREATE INDEX "ntid" ON "network" ( "toid" ASC );',
+        # no vpu index because the 1s query execution is tiny compared to the next steps
     ]
     # check if the gpkg has the correct indices
     con = sqlite3.connect(gpkg)
@@ -38,6 +46,9 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
             logger.info(f"Creating index {index}")
             con.execute(index)
             con.commit()
+        # pragma optimize after creating the indices
+        con.execute("PRAGMA optimize;")
+        con.commit()
     con.close()
 
 
@@ -224,7 +235,7 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
 
     logger.debug(f"Inserting {table}")
     placeholders = ",".join("?" * len(contents[0]))
-    con.executemany(f"INSERT INTO {table} VALUES ({placeholders})", contents)
+    con.executemany(f"INSERT INTO '{table}' VALUES ({placeholders})", contents)
     con.commit()
 
 
@@ -233,7 +244,7 @@ def update_geopackage_metadata(gpkg: str) -> None:
     Update the contents of the gpkg_contents table in the specified geopackage.
     """
     # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
-    tables = ["nexus", "flowpaths", "divides", "hydrolocations"]
+    tables = get_feature_tables(file_paths.conus_hydrofabric)
     con = sqlite3.connect(gpkg)
     for table in tables:
         min_x = con.execute(f"SELECT MIN(minx) FROM rtree_{table}_geom").fetchone()[0]
@@ -254,10 +265,8 @@ def update_geopackage_metadata(gpkg: str) -> None:
     con.commit()
 
     # update the gpkg_ogr_contents table with table_name and number of features
-    tables.append("flowpath_attributes")
-    tables.append("flowpath_edge_list")
     for table in tables:
-        num_features = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        num_features = con.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[0]
         con.execute(
             f"INSERT INTO gpkg_ogr_contents (table_name, feature_count) VALUES ('{table}', {num_features})"
         )
@@ -275,31 +284,36 @@ def subset_table(table: str, ids: List[str], hydrofabric: str, subset_gpkg_name:
         hydrofabric (str): The path to the hydrofabric database.
         subset_gpkg_name (str): The name of the subset geopackage.
     """
-    if table == "flowpath_edge_list":
-        table = "network"
-
     logger.info(f"Subsetting {table} in {subset_gpkg_name}")
     source_db = sqlite3.connect(hydrofabric)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
-    if table == "nexus":
-        sql_query = f"SELECT toid FROM divides"
+    table_keys = {"divides": "toid", "divide-attributes": "divide_id", "lakes": "poi_id"}
+
+    if table == "lakes":
+        # lakes subset we get from the pois table which was already subset by water body id
+        sql_query = "SELECT poi_id FROM 'pois'"
+        contents = dest_db.execute(sql_query).fetchall()
+        ids = [str(x[0]) for x in contents]
+
+    if table == "divide-attributes":
+        # get the divide ids from the divides that have been subset already
+        sql_query = "SELECT divide_id FROM 'divides'"
         contents = dest_db.execute(sql_query).fetchall()
         ids = [str(x[0]) for x in contents]
 
     ids = [f"'{x}'" for x in ids]
-    sql_query = f"SELECT * FROM {table} WHERE id IN ({','.join(ids)})"
+    key_name = "id"
+    if table in table_keys:
+        key_name = table_keys[table]
+    sql_query = f"SELECT * FROM '{table}' WHERE {key_name} IN ({','.join(ids)})"
     contents = source_db.execute(sql_query).fetchall()
-
-    ids = [str(x[0]) for x in contents]
-
-    if table == "network":
-        table = "flowpath_edge_list"
+    fids = [str(x[0]) for x in contents]
 
     insert_data(dest_db, table, contents)
 
-    if table in ["divides", "flowpaths", "nexus", "hydrolocations", "lakes"]:
-        copy_rTree_tables(table, ids, source_db, dest_db)
+    if table in get_feature_tables(file_paths.conus_hydrofabric):
+        copy_rTree_tables(table, fids, source_db, dest_db)
 
     dest_db.commit()
     source_db.close()
@@ -352,12 +366,7 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
     # use flowpath_attributes instead
     # both have errors, cross reference them
     with sqlite3.connect(gpkg) as con:
-        sql_query = f"""SELECT f.id
-                        FROM flowpaths AS f
-                        JOIN hydrolocations AS h ON f.toid = h.id
-                        JOIN flowpath_attributes AS fa ON f.id = fa.id
-                        WHERE h.hl_uri = 'Gages-{gage_id}'
-                        AND fa.rl_gages LIKE '%{gage_id}%'"""
+        sql_query = f"SELECT id FROM 'flowpath-attributes' WHERE gage = '{gage_id}'"
         result = con.execute(sql_query).fetchall()
         if len(result) == 0:
             logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
@@ -396,9 +405,18 @@ def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric) -
     return unique_edges
 
 
+def get_feature_tables(gpkg: Path) -> List[str]:
+    """Takes a Path to a geopackage and returns a list of tables containing geometries."""
+    sql_query = "SELECT table_name FROM gpkg_contents WHERE data_type='features'"
+    with sqlite3.connect(gpkg) as conn:
+        tables = conn.execute(sql_query).fetchall()
+    tables = [i[0] for i in tables]
+    return tables
+
+
 def get_available_tables(gpkg: Path) -> List[str]:
     """Takes a Path to a geopackage and returns a list of non-metadata tables. aka gpd.list_layers()"""
-    sql_query = "SELECT table_name from gpkg_contents"
+    sql_query = "SELECT table_name FROM gpkg_contents"
     with sqlite3.connect(gpkg) as conn:
         tables = conn.execute(sql_query).fetchall()
     tables = [i[0] for i in tables]

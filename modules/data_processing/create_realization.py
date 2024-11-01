@@ -1,13 +1,13 @@
 from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
-from statistics import mean
 import multiprocessing
 import pandas
 import json
 import s3fs
 import xarray as xr
 from tqdm.rich import tqdm
+import fsspec
 from dask.distributed import Client, LocalCluster
 from data_processing.file_paths import file_paths
 from data_processing.gpkg_utils import get_cat_to_nex_flowpairs, get_cat_to_nhd_feature_id
@@ -29,7 +29,6 @@ def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
     except ValueError:
         cluster = LocalCluster()
         client = Client(cluster)
-
 
     with fs.open(nc_url) as file_obj:
         ds = xr.open_dataset(file_obj)
@@ -54,19 +53,19 @@ def make_cfe_config(
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in divide_conf_df.iterrows():
-        gw_storage_ratio = water_levels[row["divide_id"]] / row["gw_Zmax"]
+        gw_storage_ratio = water_levels[row["divide_id"]] / row["mean.Zmax"]
         cat_config = cfe_template.format(
-            bexp=row["bexp_soil_layers_stag=2"],
-            dksat=row["dksat_soil_layers_stag=2"],
-            psisat=row["psisat_soil_layers_stag=2"],
-            slope=row["slope"],
-            smcmax=row["smcmax_soil_layers_stag=2"],
-            smcwlt=row["smcwlt_soil_layers_stag=2"],
-            max_gw_storage=row["gw_Zmax"] if row["gw_Zmax"] is not None else "0.011[m]",
-            gw_Coeff=row["gw_Coeff"] if row["gw_Coeff"] is not None else "0.0018[m h-1]",
-            gw_Expon=row["gw_Expon"],
+            bexp=row["mode.bexp_soil_layers_stag=2"],
+            dksat=row["geom_mean.dksat_soil_layers_stag=2"],
+            psisat=row["geom_mean.psisat_soil_layers_stag=2"],
+            slope=row["mean.slope"],
+            smcmax=row["mean.smcmax_soil_layers_stag=2"],
+            smcwlt=row["mean.smcwlt_soil_layers_stag=2"],
+            max_gw_storage=row["mean.Zmax"] if row["mean.Zmax"] is not None else "0.011[m]",
+            gw_Coeff=row["mean.Coeff"] if row["mean.Coeff"] is not None else "0.0018[m h-1]",
+            gw_Expon=row["mode.Expon"],
             gw_storage="{:.5}".format(gw_storage_ratio),
-            refkdt=row["refkdt"],
+            refkdt=row["mean.refkdt"],
         )
         cat_ini_file = cat_config_dir / f"{row['divide_id']}.ini"
         with open(cat_ini_file, "w") as f:
@@ -92,12 +91,12 @@ def make_noahowp_config(
                 template.format(
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
-                    lat=divide_conf_df.loc[divide, "Y"],
-                    lon=divide_conf_df.loc[divide, "X"],
-                    terrain_slope=divide_conf_df.loc[divide, "slope_mean"],
-                    azimuth=divide_conf_df.loc[divide, "aspect_c_mean"],
-                    ISLTYP=divide_conf_df.loc[divide, "ISLTYP"],
-                    IVGTYP=divide_conf_df.loc[divide, "IVGTYP"],
+                    lat=divide_conf_df.loc[divide, "centroid_y"],
+                    lon=divide_conf_df.loc[divide, "centroid_x"],
+                    terrain_slope=divide_conf_df.loc[divide, "mean.slope"],
+                    azimuth=divide_conf_df.loc[divide, "circ_mean.aspect"],
+                    ISLTYP=int(divide_conf_df.loc[divide, "mode.ISLTYP"]),
+                    IVGTYP=int(divide_conf_df.loc[divide, "mode.IVGTYP"]),
                 )
             )
 
@@ -143,16 +142,17 @@ def make_ngen_realization_json(
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
 
+import sqlite3
+
 
 def create_realization(cat_id: str, start_time: datetime, end_time: datetime):
-    # quick wrapper to get the cfe realization working
-    # without having to refactor this whole thing
     paths = file_paths(cat_id)
 
     # get approximate groundwater levels from nwm output
-    gw_levels = get_approximate_gw_storage(paths, start_time)
 
-    conf_df = pandas.read_csv(paths.config_dir / "cfe_noahowp_attributes.csv")
+    with sqlite3.connect(paths.geopackage_path) as conn:
+        conf_df = pandas.read_sql_query("SELECT * FROM 'divide-attributes';", conn)
+    gw_levels = get_approximate_gw_storage(paths, start_time)
     make_cfe_config(conf_df, paths, gw_levels)
 
     make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)

@@ -8,7 +8,6 @@ from dask.distributed import Client, LocalCluster, progress
 import numpy as np
 import geopandas as gpd
 from data_processing.file_paths import file_paths
-import time
 from fsspec.mapping import FSMap
 
 logger = logging.getLogger(__name__)

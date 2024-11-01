@@ -143,8 +143,8 @@ def main() -> None:
 
         # check if the dask client is still running and close it
         try:
-            client = Client().current()
-            client.close()
+            client = Client.current()
+            client.shutdown()
         except ValueError:
             # value error is raised if no client is running
             pass
