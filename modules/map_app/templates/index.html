@@ -4,14 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <title>Map Application</title>
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" /> -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/legend.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 </head>
 
 <body>
@@ -105,6 +108,8 @@
             <button id="realization-button">Create Realization</button>
             <div id="realization-output-path"></div>
         </section>
+
+
     </main>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}">
     <div id="console" class="minimized">
@@ -113,15 +118,18 @@
         </div>
         <div id="logOutput"></div>
     </div>
-    <script src="{{ url_for('static', filename='js/console.js') }}"></script>
+    <!-- <script src="{{ url_for('static', filename='js/console.js') }}"></script> -->
+
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    <!-- <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="{{ url_for('static', filename='js/mbtiles.js' ) }}"></script>
+    <script src="https://unpkg.com/sql.js@0.3.2/js/sql.js"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.6.2/proj4.js"></script>
-    <script type="module" src="{{ url_for('static', filename='js/data_processing.js') }}"></script>
+    <!-- <script type="module" src="{{ url_for('static', filename='js/data_processing.js') }}"></script> -->
     <script src="{{ url_for('static', filename='js/main.js' ) }}"></script>
-    <script src="{{ url_for('static', filename='js/legend.js') }}"></script>
+    <!-- <script src="{{ url_for('static', filename='js/legend.js') }}"></script> -->
 
 </body>
 

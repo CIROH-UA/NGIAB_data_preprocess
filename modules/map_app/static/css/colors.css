@@ -12,6 +12,8 @@
     --nexus-outline: rgba(1, 1, 1, 0.5);
     --nexus-fill: rgba(79, 143, 222, 0.5);
 
+    --clear-fill: rgba(0,0,0,0)
+
 }
 
 .high-contrast {
@@ -26,4 +28,6 @@
 
     --nexus-outline: rgba(1, 1, 1, 0.5);
     --nexus-fill: rgba(79, 143, 222, 0.5);
+
+    --clear-fill: rgba(0,0,0,0)
 }

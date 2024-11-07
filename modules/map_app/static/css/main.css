@@ -21,13 +21,13 @@ h1 {
     margin-top: 20px;
 }
 
-/* Flex container for map and settings */
+/* Flex container for map and settings
 #flex_map {
     display: flex;
     justify-content: center;
     align-items: flex-start;
     margin: 20px;
-}
+} */
 
 
 /* Settings container styling */
