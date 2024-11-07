@@ -373,72 +373,63 @@ map.on('load', () => {
         'layout': {},
         'paint': {
             'line-color': colorDict.flowlineToNexusOutline,
-            //  'fill-outline-color': colorDict.flowlineToNexusOutline,
+            'line-width': { "stops": [[7, 1], [10, 2]] },
+            'line-opacity': { "stops": [[7, 0], [11, 1]] }
         }
     });
     map.addLayer({
-        'id': 'catchment',
+        'id': 'catchments',
+        'type': 'line',
+        'source': 'conus',
+        'source-layer': 'catchments',
+        'layout': {},
+        'paint': {
+            // 'fill-color': colorDict.clearFill,
+            // 'fill-outline-color': colorDict.nexusOutline,
+            'line-color': colorDict.nexusOutline,
+            'line-width': { "stops": [[7, 1], [13, 3]] },
+            'line-opacity': { "stops": [[7, 0], [11, 1]] }
+        }
+    });
+    map.addLayer({
+        'id': 'selected-flowpaths',
+        'type': 'line',
+        'source': 'conus',
+        'source-layer': 'flowpaths',
+        'layout': {},
+        'paint': {
+            'line-color': colorDict.flowlineToNexusOutline,
+            'line-width': { "stops": [[7, 1], [10, 2]] },
+            'line-opacity': { "stops": [[7, 0], [11, 1]] }
+        },
+        "filter": ["any",["in", "id", ""],]
+    });
+    map.addLayer({
+        'id': 'selected-catchments',
         'type': 'fill',
         'source': 'conus',
         'source-layer': 'catchments',
         'layout': {},
         'paint': {
-            'fill-color': colorDict.clearFill,
-            'fill-outline-color': colorDict.nexusOutline,
-        }
+            'fill-color': colorDict.selectedCatFill,
+            'fill-outline-color': colorDict.selectedCatOutline,
+            'fill-opacity': { "stops": [[7, 0], [11, 1]] }
+        },
+        "filter": ["any",["in", "divide_id", ""],]
+    });
+    map.addLayer({
+        'id': 'upstream-catchments',
+        'type': 'fill',
+        'source': 'conus',
+        'source-layer': 'catchments',
+        'layout': {},
+        'paint': {
+            'fill-color': colorDict.upstreamCatFill,
+            'fill-outline-color': colorDict.upstreamCatFill,
+            'fill-opacity': { "stops": [[7, 0], [11, 1]] }
+        },
+        "filter": ["any",["in", "divide_id", ""],]
     });
 });
-    // map.addLayer({
-    //     'id': 'selected',
-    //     'type': 'fill',
-    //     'source': 'conus',
-    //     'source-layer': 'catchments',
-    //     'layout': {},
-    //     'paint': {
-    //         'fill-color': colorDict.selectedCatFill,
-    //         'fill-outline-color': colorDict.selectedCatOutline,
-    //     }
-    // });
-    // map.addLayer({
-    //     'id': 'upstream',
-    //     'type': 'fill',
-    //     'source': { 'type': 'geojson', 'data': null },
-    //     'layout': {},
-    //     'paint': {
-    //         'fill-color': colorDict.selectedCatFill,
-    //         'fill-outline-color': colorDict.selectedCatOutline,
-    //     }
-    // });
-    // map.addLayer({
-    //     'id': 'flowlines',
-    //     'type': 'fill',
-    //     'source': { 'type': 'geojson', 'data': null },
-    //     'layout': {},
-    //     'paint': {
-    //         'fill-color': colorDict.selectedCatFill,
-    //         'fill-outline-color': colorDict.selectedCatOutline,
-    //     }
-    // });
-
-// map.on('load', () => {
-//     map.addSource('contours', {
-//         type: 'geojson',
-//         data: 'static/tiles/conus.geojson',
-//     });
-//     map.addLayer({
-//         'id': 'cats',
-//         'type': 'line',
-//         'source': 'contours',
-//         // 'source-layer': 'contour',
-//         // 'layout': {
-//         //     'line-join': 'round',
-//         //     'line-cap': 'round'
-//         // },
-//         // 'paint': {
-//         //     'line-color': '#ff69b4',
-//         //     'line-width': 1
-//         // }
-//     });
-// });
 map.on('click', onMapClick);
 
