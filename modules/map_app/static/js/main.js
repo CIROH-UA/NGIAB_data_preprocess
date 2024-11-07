@@ -344,7 +344,7 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 
 var map = new maplibregl.Map({
     container: 'map', // container id
-    style: 'https://demotiles.maplibre.org/style.json', // style URL
+    style: 'static/resources/style.json', // style URL
     center: [-96, 40], // starting position [lng, lat]
     zoom: 4 // starting zoom
 });
