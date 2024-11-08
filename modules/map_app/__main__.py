@@ -14,27 +14,6 @@ from data_sources.source_validation import download_file, decompress_gzip_tar, v
 
 validate_all()
 
-if not file_paths.tiles_tms.is_dir():
-    print("Downloading catchment boundary map")
-    download_file(
-        "https://www.hydroshare.org/resource/f37d4b10e28a4694825c30fc38e2a7a0/data/contents/tms8-11.tar.gz",
-        "temp/tms.tar.gz",
-    )
-    print("Unzipping catchment boundary map")
-    decompress_gzip_tar("temp/tms.tar.gz", file_paths.tiles_tms)
-    os.remove("temp/tms.tar.gz")
-
-if not file_paths.tiles_vpu.is_dir():
-    print("Downloading vpu boundary map")
-    download_file(
-        "https://www.hydroshare.org/resource/f37d4b10e28a4694825c30fc38e2a7a0/data/contents/vpu.tar.gz",
-        "temp/vpu.tar.gz",
-    )
-    print("Unzipping vpu boundary map")
-    decompress_gzip_tar("temp/vpu.tar.gz", file_paths.tiles_vpu.parent)
-    os.remove("temp/vpu.tar.gz")
-
-
 with open("app.log", "w") as f:
     f.write("")
     f.write("Starting Application!\n")

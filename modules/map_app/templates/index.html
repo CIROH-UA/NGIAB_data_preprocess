@@ -19,12 +19,13 @@
 
 <body>
     <header>
-        <h1>Interactive Map</h1>
+        <h1>Select catchments by clicking!</h1>        
     </header>
 
     <main>
         <section id="map-container">
             <div id="map"></div>
+            <h2>For selection by flowpath, catchment, or gage id, please use cli.</h2>
         </section>
 
         <aside id="settings">
@@ -32,7 +33,7 @@
         </aside>
 
 
-        <section id="selection-container">
+        <!-- <section id="selection-container">
             <div class="input-group">
                 <h2>Select by cat_id</h2>
                 <div class="input-row">
@@ -64,7 +65,7 @@
                 </div>
             </div>
             <button id="clear-button">Clear Selection</button>
-        </section>
+        </section> -->
 
         <section id="basins-container">
             <h2>Selected Basins</h2>
@@ -72,11 +73,11 @@
             <button id="subset-button">Create subset gpkg</button>
             <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
                 id="subset-loading">
-            <button id="subset-to-file-button">Output list of upstreams to file</button>
+            <!-- <button id="subset-to-file-button">Output list of upstreams to file</button>
             <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                id="subset-to-file-loading">
+                id="subset-to-file-loading"> -->
             <div id="output-info">
-                <strong>Output folder is configured in the ~/.NGIAB_data_preprocess file</strong>
+                <strong>Output folder is configured in the ~/.ngiab/preprocessor file</strong>
             </div>
             <div id="output-path"></div>
         </section>
@@ -120,14 +121,8 @@
     </div>
     <!-- <script src="{{ url_for('static', filename='js/console.js') }}"></script> -->
 
-
-    <!-- Leaflet JS -->
-    <!-- <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="{{ url_for('static', filename='js/mbtiles.js' ) }}"></script>
-    <script src="https://unpkg.com/sql.js@0.3.2/js/sql.js"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.6.2/proj4.js"></script>
-    <!-- <script type="module" src="{{ url_for('static', filename='js/data_processing.js') }}"></script> -->
+    <script type="module" src="{{ url_for('static', filename='js/data_processing.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js' ) }}"></script>
     <!-- <script src="{{ url_for('static', filename='js/legend.js') }}"></script> -->
 

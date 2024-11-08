@@ -1,5 +1,6 @@
 async function subset() {
-    if (Object.keys(cat_id_dict).length === 0) {
+    var cat_id = $('#selected-basins').text()
+    if (cat_id == 'None - get clicking!') {
         alert('Please select at least one basin in the map before subsetting');
         return;
     }
@@ -11,7 +12,7 @@ async function subset() {
     fetch('/subset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cat_id_dict),
+        body: JSON.stringify([cat_id]),
     })
         .then(response => response.text())
         .then(filename => {
@@ -30,36 +31,36 @@ async function subset() {
 }
 
 
-async function subset_to_file() {
-    if (Object.keys(cat_id_dict).length === 0) {
-        alert('Please select at least one basin in the map before subsetting');
-        return;
-    }
-    console.log('subsetting to file');
-    document.getElementById('subset-to-file-button').disabled = true;
-    document.getElementById('subset-to-file-loading').style.visibility = "visible";
-    const startTime = performance.now(); // Start the timer
-    document.getElementById('output-path').innerHTML = "Subsetting...";
-    fetch('/subset_to_file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cat_id_dict),
-    })
-        .then(response => response.text())
-        .then(filename => {
-            console.log(filename);
-            const endTime = performance.now(); // Stop the timer
-            const duration = endTime - startTime; // Calculate the duration in milliseconds
-            console.log('Request took ' + duration / 1000 + ' milliseconds');
-            document.getElementById('output-path').innerHTML = "Done in " + duration / 1000 + "s, subset to <a href='file://" + filename + "'>" + filename + "</a>";
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        }).finally(() => {
-            document.getElementById('subset-to-file-button').disabled = false;
-            document.getElementById('subset-to-file-loading').style.visibility = "hidden";
-        });
-}
+// async function subset_to_file() {
+//     if (Object.keys(cat_id_dict).length === 0) {
+//         alert('Please select at least one basin in the map before subsetting');
+//         return;
+//     }
+//     console.log('subsetting to file');
+//     document.getElementById('subset-to-file-button').disabled = true;
+//     document.getElementById('subset-to-file-loading').style.visibility = "visible";
+//     const startTime = performance.now(); // Start the timer
+//     document.getElementById('output-path').innerHTML = "Subsetting...";
+//     fetch('/subset_to_file', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify(cat_id_dict),
+//     })
+//         .then(response => response.text())
+//         .then(filename => {
+//             console.log(filename);
+//             const endTime = performance.now(); // Stop the timer
+//             const duration = endTime - startTime; // Calculate the duration in milliseconds
+//             console.log('Request took ' + duration / 1000 + ' milliseconds');
+//             document.getElementById('output-path').innerHTML = "Done in " + duration / 1000 + "s, subset to <a href='file://" + filename + "'>" + filename + "</a>";
+//         })
+//         .catch(error => {
+//             console.error('Error:', error);
+//         }).finally(() => {
+//             document.getElementById('subset-to-file-button').disabled = false;
+//             document.getElementById('subset-to-file-loading').style.visibility = "hidden";
+//         });
+// }
 
 async function forcings() {
     if (document.getElementById('output-path').textContent === '') {
@@ -129,6 +130,6 @@ async function realization() {
 
 // These functions are exported by data_processing.js
 document.getElementById('subset-button').addEventListener('click', subset);
-document.getElementById('subset-to-file-button').addEventListener('click', subset_to_file);
+// document.getElementById('subset-to-file-button').addEventListener('click', subset_to_file);
 document.getElementById('forcings-button').addEventListener('click', forcings);
 document.getElementById('realization-button').addEventListener('click', realization);
