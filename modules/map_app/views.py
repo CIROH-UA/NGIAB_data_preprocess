@@ -125,13 +125,3 @@ def get_logs():
             return jsonify({"logs": reversed_lines}), 200
     except Exception as e:
         return jsonify({"error": str(e)})
-
-
-@main.route("/get_catid_from_gage_id", methods=["POST"])
-def get_catid_from_gage_id():
-    raise NotImplementedError
-    gage_id = json.loads(request.data.decode("utf-8"))["gage_id"]
-    result = get_cat_from_gage_id(gage_id)
-    if result is not None:
-        return jsonify({"cat_ids": result}), 200
-    return jsonify({"error": "No catid found for gage id"}), 404
