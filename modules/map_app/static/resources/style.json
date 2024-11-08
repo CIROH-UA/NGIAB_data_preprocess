@@ -15,7 +15,8 @@
     },
     "conus": {
       "type": "vector",
-      "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/conus.pmtiles"
+      "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/conus.pmtiles",
+      "attribution": "Community Hydrofabric Based on hf2.2 ODbL <a href=\"https://lynker-spatial.s3-us-west-2.amazonaws.com/copyright.html\">lynker-spatial</a>"
   }
   },
   "sprite": "https://openmaptiles.github.io/maptiler-basic-gl-style/sprite",
