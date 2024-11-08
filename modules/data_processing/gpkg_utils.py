@@ -13,6 +13,20 @@ from shapely.ops import transform
 logger = logging.getLogger(__name__)
 
 
+class GeoPackage:
+    def __init__(self, file_name):
+        self.file_name = file_name
+
+    def __enter__(self):
+        self.conn = sqlite3.connect(self.file_name)
+        self.conn.enable_load_extension(True)
+        self.conn.load_extension("mod_spatialite")
+        return self.conn
+
+    def __exit__(self, *args):
+        self.conn.close()
+
+
 def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     """
     Verify that the indices in the specified geopackage are correct.

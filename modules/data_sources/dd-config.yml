@@ -1,0 +1,60 @@
+batch_size: 256
+clip_gradient_norm: 1
+clip_targets_to_zero:
+- QObs(mm/d)
+data_dir: ./data/
+dataset: hourly_camels_us
+device: cpu
+dynamic_inputs:
+- total_precipitation
+- temperature
+epochs: 9
+experiment_name: hourly_slope_mean_precip_temp
+forcings: nldas_hourly
+head: regression
+hidden_size: 64
+img_log_dir: /ngen/ngen/extern/lstm/trained_neuralhydrology_models/hourly_slope_mean_precip_temp/img_log
+initial_forget_bias: 3
+learning_rate:
+  0: 0.0005
+  10: 0.0001
+  25: 5e-05
+log_interval: 5
+log_n_figures: 0
+log_tensorboard: false
+loss: NSE
+mass_inputs:
+metrics:
+- NSE
+- KGE
+- Alpha-NSE
+- Beta-NSE
+model: cudalstm
+num_workers: 8
+number_of_basins: 516
+optimizer: Adam
+output_activation: linear
+output_dropout: 0.4
+package_version: 1.0.0-beta1
+predict_last_n: 24
+run_dir: /ngen/ngen/extern/lstm/trained_neuralhydrology_models/hourly_slope_mean_precip_temp
+save_weights_every: 1
+seed: 102
+seq_length: 336
+static_attributes:
+- elev_mean
+- slope_mean
+target_variables:
+- QObs(mm/d)
+test_basin_file: 516_basins.txt
+test_end_date: 31/12/2002
+test_start_date: 01/01/2000
+train_basin_file: 516_basins.txt
+train_dir: trained_elsewhere
+train_end_date: 30/09/2018
+train_start_date: 01/10/1980
+validate_every: 1
+validate_n_random_basins: 15
+validation_basin_file: 516_basins.txt
+validation_end_date: 30/09/2018
+validation_start_date: 01/10/1980

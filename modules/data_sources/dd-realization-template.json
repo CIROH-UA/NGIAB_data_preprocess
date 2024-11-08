@@ -1,0 +1,47 @@
+{
+  "global": {
+    "formulations": [
+      {
+        "name": "bmi_multi",
+        "params": {
+          "name": "bmi_multi",
+          "model_type_name": "dd",
+          "forcing_file": "",
+          "init_config": "",
+          "allow_exceed_end_time": true,
+          "main_output_variable": "land_surface_water__runoff_depth",
+          "modules": [
+            {
+              "name": "bmi_python",
+              "params": {
+                "name": "bmi_python",
+                "python_type": "lstm.bmi_lstm.bmi_LSTM",
+                "model_type_name": "bmi_dd",
+                "init_config": "./config/cat_config/dd/{{id}}.yml",
+                "allow_exceed_end_time": true,
+                "main_output_variable": "land_surface_water__runoff_depth",
+                "uses_forcing_file": false,
+                "variables_names_map": {
+                  "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "forcing": {
+      "path": "./forcings/by_catchment/forcings.nc",
+      "provider": "NetCDF"
+    }
+  },
+  "time": {
+    "start_time": "2016-01-01 00:00:00",
+    "end_time": "2016-02-27 00:00:00",
+    "output_interval": 3600
+  },
+  "routing": {
+    "t_route_config_file_with_path": "/ngen/ngen/data/config/troute.yaml"
+  },
+  "output_root": "/ngen/ngen/data/outputs/ngen"
+}

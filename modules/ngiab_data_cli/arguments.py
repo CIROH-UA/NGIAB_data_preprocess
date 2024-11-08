@@ -75,6 +75,11 @@ def parse_arguments() -> argparse.Namespace:
         help="enable debug logging",
     )
     parser.add_argument(
+        "--dd",
+        action="store_true",
+        help="enable data driven realization",
+    )
+    parser.add_argument(
         "--run", action="store_true", help="Automatically run Next Gen against the output folder"
     )
     parser.add_argument(
