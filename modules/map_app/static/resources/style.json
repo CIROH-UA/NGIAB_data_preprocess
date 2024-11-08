@@ -12,7 +12,11 @@
     "openmaptiles": {
       "type": "vector",
       "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/basemap.pmtiles"
-    }
+    },
+    "conus": {
+      "type": "vector",
+      "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/conus.pmtiles"
+  }
   },
   "sprite": "https://openmaptiles.github.io/maptiler-basic-gl-style/sprite",
   "layers": [
@@ -561,7 +565,81 @@
         "line-color": "#fff",
         "line-width": {"base": 1.4, "stops": [[6, 0.5], [20, 30]]}
       }
-    }
+    },
+    {
+      "id": "vpu",
+      "type": "line",
+      "source": "conus",
+      "source-layer": "vpu",
+      "layout": {},
+      "paint": {
+          "line-width": 2,
+          "line-color": ["rgba", 0, 153, 136, 1]
+      }
+  },
+  {
+      "id": "flowpaths",
+      "type": "line",
+      "source": "conus",
+      "source-layer": "flowpaths",
+      "layout": {},
+      "paint": {
+          "line-color": ["rgba", 0, 119, 187, 1],
+          "line-width": { "stops": [[7, 1], [10, 2]] },
+          "line-opacity": { "stops": [[7, 0], [11, 1]] }
+      }
+  },
+  {
+      "id": "catchments",
+      "type": "fill",
+      "source": "conus",
+      "source-layer": "catchments",
+      "layout": {},
+      "paint": {
+          "fill-color": ["rgba", 0, 0, 0, 0],
+          "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+          "fill-opacity": { "stops": [[7, 0], [11, 1]] }
+      }
+  },
+  {
+      "id": "selected-flowpaths",
+      "type": "line",
+      "source": "conus",
+      "source-layer": "flowpaths",
+      "layout": {},
+      "paint": {
+          "line-color": ["rgba", 0, 119, 187, 1],
+          "line-width": { "stops": [[7, 1], [10, 2]] },
+          "line-opacity": { "stops": [[7, 0], [11, 1]] }
+      },
+      "filter": ["any",["in", "id", ""]]
+  },
+  {
+      "id": "selected-catchments",
+      "type": "fill",
+      "source": "conus",
+      "source-layer": "catchments",
+      "layout": {},
+      "paint": {
+          "fill-color": ["rgba", 238, 51, 119, 0.316],
+          "fill-outline-color": ["rgba", 238, 51, 119, 0.7],
+          "fill-opacity": { "stops": [[7, 0], [11, 1]] }
+      },
+      "filter": ["any",["in", "divide_id", ""]]
+  },
+  {
+      "id": "upstream-catchments",
+      "type": "fill",
+      "source": "conus",
+      "source-layer": "catchments",
+      "layout": {},
+      "paint": {
+          "fill-color": ["rgba", 238, 119, 51, 0.278],
+          "fill-outline-color": ["rgba", 238, 119, 51, 0.7],
+          "fill-opacity": { "stops": [[7, 0], [11, 1]] }
+      },
+      "filter": ["any",["in", "divide_id", ""]]
+  }
   ],
   "id": "basic"
 }
