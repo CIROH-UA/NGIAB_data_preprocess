@@ -45,9 +45,7 @@ def download_file(url, save_path):
             f.write(data)
 
 
-hydrofabric_url = (
-    "https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg"
-)
+hydrofabric_url = "https://communityhydrofabric.s3.us-east-1.amazonaws.com/conus_nextgen.gpkg"
 
 
 def validate_hydrofabric():
