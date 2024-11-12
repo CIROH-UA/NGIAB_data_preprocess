@@ -1,20 +1,18 @@
 import argparse
 import logging
+import subprocess
 import time
 from typing import List
-import subprocess
 
 from dask.distributed import Client
-
+from data_processing.create_realization import create_dd_realization, create_realization
 from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
-from data_processing.subset import subset
 from data_processing.forcings import create_forcings
-from data_processing.create_realization import create_realization, create_dd_realization
+from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
+from data_processing.subset import subset
 from data_sources.source_validation import validate_all
-
-from ngiab_data_cli.custom_logging import setup_logging, set_logging_to_critical_only
 from ngiab_data_cli.arguments import parse_arguments
+from ngiab_data_cli.custom_logging import set_logging_to_critical_only, setup_logging
 
 
 def validate_input(args: argparse.Namespace) -> None:
@@ -174,27 +172,25 @@ def main() -> None:
                 logging.error("Next Gen run failed.")
 
         if args.eval:
+            # docker run -v "/mnt/raid0/ngiab/lstm_test/:/app/data" joshcu/ngiab-teehr
             plot = False
-            try:
-                import seaborn, matplotlib
-
-                plot = True
-            except ImportError:
-                logging.info(
-                    "install ngiab_data_preprocess[plot] or ngiab_eval[plot] to enable plotting"
-                )
+            logging.info("Running Evaluation using Teehr for NGIAB...")
+            # open the partitions.json file and get the number of partitions
+            with open(paths.metadata_dir / "num_partitions", "r") as f:
+                num_partitions = int(f.read())
 
             try:
-                from ngiab_eval import evaluate_folder
-
-                if plot:
-                    logging.info("Plotting enabled")
-                logging.info("Evaluating model performance...")
-                evaluate_folder(paths.subset_dir, plot=plot, debug=args.debug)
-            except ImportError:
-                logging.error(
-                    "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
+                s = subprocess.check_output("docker ps", shell=True)
+            except:
+                logging.error("Docker is not running, please start Docker and try again.")
+            try:
+                command = (
+                    f'docker run --rm -v "{str(paths.subset_dir)}:/app/data" joshcu/ngiab-teehr'
                 )
+                subprocess.run(command, shell=True)
+                logging.info("Teehr Evaluation complete.")
+            except:
+                logging.error("Teehr Evaluation failed.")
 
         if args.vis:
             try:
