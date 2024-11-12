@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 class file_paths:
     """
     This class contains all of the file paths used in the data processing

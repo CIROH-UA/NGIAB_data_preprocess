@@ -2,10 +2,9 @@ import logging
 import sqlite3
 from functools import cache
 from pathlib import Path
-from typing import List, Union, Set
+from typing import List, Set, Union
 
 import igraph as ig
-
 from data_processing.file_paths import file_paths
 
 logger = logging.getLogger(__name__)

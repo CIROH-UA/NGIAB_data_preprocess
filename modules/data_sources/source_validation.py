@@ -1,11 +1,12 @@
-import tarfile
 import gzip
-from tqdm.rich import tqdm
-from tqdm import TqdmExperimentalWarning
 import os
+import tarfile
+import warnings
+
 import requests
 from data_processing.file_paths import file_paths
-import warnings
+from tqdm import TqdmExperimentalWarning
+from tqdm.rich import tqdm
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 

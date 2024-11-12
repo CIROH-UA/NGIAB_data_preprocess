@@ -12,3 +12,4 @@ dist
 **/tiles/vpu*
 *.tar.gz
 *.dat
+uv.lock

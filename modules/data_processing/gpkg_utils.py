@@ -1,14 +1,14 @@
 import logging
 import sqlite3
-from typing import List, Tuple
-from data_processing.file_paths import file_paths
-from shapely.wkb import loads
-from shapely.geometry import Point, Polygon
-from typing import Union
 import struct
 from pathlib import Path
+from typing import List, Tuple, Union
+
 import pyproj
+from data_processing.file_paths import file_paths
+from shapely.geometry import Point, Polygon
 from shapely.ops import transform
+from shapely.wkb import loads
 
 logger = logging.getLogger(__name__)
 

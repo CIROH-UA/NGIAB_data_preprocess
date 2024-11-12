@@ -1,16 +1,14 @@
 ## This file is run when the python -m map_app command is run
 ## It is the entry point for the application and is equivalent to run.sh
-from data_processing.file_paths import file_paths
-import os
-from threading import Timer
-from flask import Flask
-from flask_cors import CORS
 import logging
-from .views import intra_module_db, main
-
 import webbrowser
+from threading import Timer
 
-from data_sources.source_validation import download_file, decompress_gzip_tar, validate_all
+from data_processing.file_paths import file_paths
+from data_sources.source_validation import validate_all
+from flask import Flask
+
+from .views import intra_module_db, main
 
 validate_all()
 
@@ -23,8 +21,6 @@ app = Flask(__name__)
 app.register_blueprint(main)
 
 intra_module_db["app"] = app
-
-CORS(app)
 
 logging.basicConfig(
     level=logging.INFO,

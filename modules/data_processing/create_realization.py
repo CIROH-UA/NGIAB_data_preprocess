@@ -1,20 +1,19 @@
+import json
+import multiprocessing
+import sqlite3
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from collections import defaultdict
-import multiprocessing
+
 import pandas
-import json
 import s3fs
 import xarray as xr
-from tqdm.rich import tqdm
 from dask.distributed import Client, LocalCluster
 from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import (
-    get_cat_to_nex_flowpairs,
-    get_cat_to_nhd_feature_id,
-    GeoPackage,
-)
-import sqlite3
+from data_processing.gpkg_utils import (GeoPackage, get_cat_to_nex_flowpairs,
+                                        get_cat_to_nhd_feature_id)
+from tqdm.rich import tqdm
+
 
 def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
     # get the gw levels from the NWM output on a given start date

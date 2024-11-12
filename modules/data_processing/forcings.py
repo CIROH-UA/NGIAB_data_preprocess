@@ -3,22 +3,20 @@ import multiprocessing
 import os
 import time
 import warnings
-from pathlib import Path
 from datetime import datetime
 from functools import partial
-import psutil
 from math import ceil
-
-from tqdm.rich import tqdm
-import numpy as np
-import geopandas as gpd
-import pandas as pd
-import xarray as xr
-from exactextract import exact_extract
 from multiprocessing import shared_memory
+from pathlib import Path
 
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import psutil
+import xarray as xr
 from data_processing.file_paths import file_paths
 from data_processing.zarr_utils import get_forcing_data
+from exactextract import exact_extract
 
 logger = logging.getLogger(__name__)
 # Suppress the specific warning from numpy to keep the cli output clean

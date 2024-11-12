@@ -1,21 +1,16 @@
-import os
 import logging
-from typing import List
-import pyarrow
-
-from pyarrow import csv as pa_csv, parquet as pa_parquet, compute as pa_compute
-
+import os
 from pathlib import Path
+from typing import List
+
 from data_processing.file_paths import file_paths
 from data_processing.gpkg_utils import (
+    add_triggers_to_gpkg,
     create_empty_gpkg,
     subset_table,
     update_geopackage_metadata,
-    add_triggers_to_gpkg,
-    get_available_tables,
 )
 from data_processing.graph_utils import get_upstream_ids
-
 
 logger = logging.getLogger(__name__)
 

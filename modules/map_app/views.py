@@ -1,19 +1,13 @@
 import json
-from datetime import datetime
 import logging
-from flask import Blueprint, jsonify, render_template, request
+from datetime import datetime
 
-
-from data_processing.gpkg_utils import (
-    get_cat_from_gage_id,
-)
 from data_processing.create_realization import create_realization
 from data_processing.file_paths import file_paths
 from data_processing.forcings import create_forcings
-from data_processing.graph_utils import get_upstream_ids, get_upstream_cats
+from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
 from data_processing.subset import subset
-
-from time import perf_counter
+from flask import Blueprint, jsonify, render_template, request
 
 main = Blueprint("main", __name__)
 intra_module_db = {}
