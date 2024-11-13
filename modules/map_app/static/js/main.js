@@ -10,6 +10,24 @@ var colorDict = {
     clearFill: getComputedStyle(document.documentElement).getPropertyValue('--clear-fill')
 };
 
+// A function that creates a cli command from the interface
+function create_cli_command() {
+    var selected_basins = $('#selected-basins').text();
+    var start_time = document.getElementById('start-time').value.split('T')[0];
+    var end_time = document.getElementById('end-time').value.split('T')[0];
+    var command = `python -m ngiab_data_cli -i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
+    var command_all = `python -m ngiab_data_cli -i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
+    if (selected_basins != "None - get clicking!") {
+        $('#cli-command').text(command);
+    }
+}
+
+// These functions are exported by data_processing.js
+document.getElementById('map').addEventListener('click', create_cli_command);
+document.getElementById('start-time').addEventListener('change', create_cli_command);
+document.getElementById('end-time').addEventListener('change', create_cli_command);
+
+
 // add the PMTiles plugin to the maplibregl global.
 let protocol = new pmtiles.Protocol({metadata: true});
 maplibregl.addProtocol("pmtiles", protocol.tile);
