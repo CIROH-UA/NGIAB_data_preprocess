@@ -162,7 +162,7 @@ def main() -> None:
                 num_partitions = int(f.read())
 
             try:
-                s = subprocess.check_output("docker ps", shell=True)
+                subprocess.run("docker pull joshcu/ngen", shell=True)
             except:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
