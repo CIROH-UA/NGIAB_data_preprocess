@@ -6,6 +6,7 @@ from threading import Timer
 
 from data_processing.file_paths import file_paths
 from data_sources.source_validation import validate_all
+from data_processing.graph_utils import get_graph
 from flask import Flask
 
 from .views import intra_module_db, main
@@ -59,6 +60,9 @@ def set_logs_to_warning():
 
 
 if __name__ == "__main__":
+
+    # call this once to cache the graph
+    Timer(1, get_graph).start()
 
     if file_paths.dev_file.is_file():
         Timer(2, set_logs_to_warning).start()

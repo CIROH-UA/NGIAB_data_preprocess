@@ -10,21 +10,45 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
   
-  body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    margin: 0;
-    padding: 24px;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    line-height: 1.5;
-  }
-  
-  /* Layout */
   main {
-    max-width: 1400px;
+    width: 80vw;
     margin: 0 auto;
     display: grid;
     gap: 24px;
+  }
+  
+  /* Ensure padding doesn't interfere with width calculations */
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  /* Add padding to header instead */
+  header {
+    width: 100%;
+    padding: 24px 0;
+    text-align: center;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 1750px) {
+    main {
+      width: 90vw;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    main {
+      width: 90vw;  /* Slightly wider on mobile for better readability */
+    }
   }
   
   /* Header Styles */
@@ -54,7 +78,7 @@
   #map {
     height: 65vh;
     min-height: 450px;
-    max-height: 55vh;
+    max-height: max(55vh, 500px);
     width: 100%;
     border-radius: var(--border-radius);
     overflow: hidden;
