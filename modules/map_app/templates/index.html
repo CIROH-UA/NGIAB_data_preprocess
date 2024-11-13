@@ -25,7 +25,8 @@
     <main>
         <section id="map-container">
             <div id="map"></div>
-            <h2>For selection by flowpath, catchment, or gage id, please use cli.</h2>
+            <div id="cli-command"></div>
+            <h2>For selection by gage id please use cli.</h2>
         </section> 
         <section id="basins-container">
             <h2>Selected Basins</h2>
@@ -55,7 +56,7 @@
 
         <section id="forcings">
             <div id="forcings-warning">
-                <strong>Forcing generation may take a while.</strong>
+                <strong>Forcing generation may take a while.<br> Use the Cli for progress bars and additional information</strong>
             </div>
             <button id="forcings-button">Create Forcing From Zarrs</button>
             <img class=" loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
