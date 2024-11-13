@@ -180,9 +180,8 @@ def main() -> None:
 
                 plot = True
             except ImportError:
-                logging.info(
-                    "install ngiab_data_preprocess[plot] or ngiab_eval[plot] to enable plotting"
-                )
+                # silently fail as plotting isn't publicly supported
+                pass
 
             try:
                 from ngiab_eval import evaluate_folder
@@ -198,11 +197,10 @@ def main() -> None:
 
         if args.vis:
             try:
-                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:0.1.0'
+                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:v0.2.0'
                 subprocess.run(command, shell=True)
-                logging.info("Next Gen run complete.")
             except:
-                logging.error("Next Gen run failed.")
+                logging.error("Failed to launch docker container.")
 
         logging.info("All operations completed successfully.")
         logging.info(f"Output folder: file:///{paths.subset_dir}")

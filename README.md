@@ -19,7 +19,25 @@ This repository contains tools for preparing data to run a [next gen](https://gi
 
 ## What does this tool do?
 
-This tool prepares data to run a next gen simulation by creating a run package that can be used with NGIAB. It picks default data sources, the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) and [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data. To learn more about the hydrofabric, [here's a handy guide](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html)
+This tool prepares data to run a next gen simulation by creating a run package that can be used with NGIAB.  
+It uses geometry and model attributes from the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) more information on [all data sources here](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html).  
+The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data.  
+
+1. **Subset** (delineate) everything upstream of your point of interest (catchment, gage, flowpath etc). Outputs as a geopackage.  
+2. **Calculates** Forcings as a weighted mean of the gridded AORC forcings. Weights are calculated using [exact extract](https://isciences.github.io/exactextract/) and computed with numpy. 
+3. Creates **configuration files** needed to run nextgen.
+    -  realization.json  - ngen model configuration
+    -  troute.yaml - routing configuration.
+    -  **per catchment** model configuration
+4. Optionally Runs a non-interactive [Next gen in a box](https://github.com/CIROH-UA/NGIAB-CloudInfra).
+
+## What does it not do?
+
+### Evaluation
+For automatic evaluation using [Teehr](https://github.com/RTIInternational/teehr), please run [NGIAB](https://github.com/CIROH-UA/NGIAB-CloudInfra) interactively using the `guide.sh` script.
+
+### Visualisation
+For automatic interactive visualisation, please run [NGIAB](https://github.com/CIROH-UA/NGIAB-CloudInfra) interactively using the `guide.sh` script
 
 ## Requirements
 
@@ -28,16 +46,16 @@ This tool prepares data to run a next gen simulation by creating a run package t
 ## Installation and Running
 
 ```bash
-# optional but highly encouraged: create a virtual environment
-python3 -m venv env
-source env/bin/activate
+# This tool is likely to not work without a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 # installing and running the tool
-pip install 'ngiab_data_preprocess[plot]' # [plot] needed to install the evaluation and plotting module
+pip install 'ngiab_data_preprocess'
 python -m map_app
 # CLI instructions at the bottom of the README
 ```
 
-The first time you run this command, it will download the hydrofabric from Lynker Spatial. If you already have it, place `conus_nextgen.gpkg` into `modules/data_sources/`.
+The first time you run this command, it will download the hydrofabric from Lynker Spatial. If you already have it, place `conus_nextgen.gpkg` into `~/.ngiab/hydrofabric/v2.2/`.
 
 ## Development Installation
 
@@ -68,7 +86,7 @@ To install and run the tool, follow these steps:
 
 ## Usage
 
-Running the command `python -m map_app` will open the app in a new browser tab. Alternatively, you can manually open it by going to [http://localhost:5000](http://localhost:5000) with the app running.
+Running the command `python -m map_app` will open the app in a new browser tab.
 
 To use the tool:
 1. Select the catchment you're interested in on the map.
@@ -80,12 +98,9 @@ To use the tool:
 
 Once all the steps are finished, you can run NGIAB on the folder shown underneath the subset button.
 
-**Note:** When using the tool, the output will be stored in the `./output/<your-input-feature>/` folder. There is no overwrite protection on the folders.
+**Note:** When using the tool, the default output will be stored in the `~/ngiab_preprocess_output/<your-input-feature>/` folder. There is no overwrite protection on the folders.
 
 # CLI Documentation
-
-<details>
-<summary>Click to expand CLI documentation</summary>
 
 ## Arguments
 
@@ -102,17 +117,22 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 - `-D`, `--debug`: Enable debug logging.
 - `--run`: Automatically run Next Gen against the output folder.
 - `--validate`: Run every missing step required to run ngiab.
-- `--eval`: Evaluate performance of the model after running and plot streamflow at USGS gages.
-- `-a`, `--all`: Run all operations: subset, forcings, realization, run Next Gen, and evaluate.
+- `-a`, `--all`: Run all operations: subset, forcings, realization, run Next Gen
 
 ## Usage Notes
-
 - If your input has a prefix of `gage-`, you do not need to pass `-g`.
 - The `-l`, `-g`, `-s`, `-f`, `-r` flags can be combined like normal CLI flags. For example, to subset, generate forcings, and create a realization, you can use `-sfr` or `-s -f -r`.
-- When using the `--all` flag, it automatically sets `subset`, `forcings`, `realization`, `run`, and `eval` to `True`.
+- When using the `--all` flag, it automatically sets `subset`, `forcings`, `realization`, and `run` to `True`.
 - Using the `--run` flag automatically sets the `--validate` flag.
 
 ## Examples
+
+0. Prepare everything for a nextgen run at a given gage:
+   ```bash
+   python -m ngiab_data_cli -i gage-10154200 -sfr --start 2022-01-01 --end 2022-02-28 
+   #         add --run or replace -sfr with --all to run nextgen in a box too
+   # to name the folder, add -o folder_name
+   ```
 
 1. Subset hydrofabric using catchment ID:
    ```bash
@@ -151,8 +171,5 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
    python -m ngiab_data_cli -i cat-5173 -a --start 2022-01-01 --end 2022-02-28
    ```
 
-## Output
 
-The script creates an output folder named after the first catchment ID in the input file, the provided output name, or derived from the first lat/lon pair or gage ID. This folder will contain the results of the subsetting, forcings generation, realization creation, Next Gen run (if applicable), and evaluation (if applicable) operations.
 
-</details>

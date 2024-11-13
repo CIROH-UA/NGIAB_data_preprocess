@@ -1,5 +1,6 @@
 import argparse
 from datetime import datetime
+from data_processing.file_paths import file_paths
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
@@ -85,17 +86,18 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--validate", action="store_true", help="Run every missing step required to run ngiab"
     )
-    parser.add_argument(
-        "--eval", action="store_true", help="Evaluate perforance of the model after running"
-    )
-    parser.add_argument(
-        "--vis", "--visualise", action="store_true", help="Visualize the model output"
-    )
+    if file_paths.dev_file.is_file():
+        parser.add_argument(
+            "--eval", action="store_true", help="Evaluate perforance of the model after running"
+        )
+        parser.add_argument(
+            "--vis", "--visualise", action="store_true", help="Visualize the model output"
+        )
     parser.add_argument(
         "-a",
         "--all",
         action="store_true",
-        help="Run all operations: subset, forcings, realization, run Next Gen, and evaluate",
+        help="Run all operations: subset, forcings, realization, and run Next Gen",
     )
 
     args = parser.parse_args()
@@ -105,8 +107,6 @@ def parse_arguments() -> argparse.Namespace:
         args.forcings = True
         args.realization = True
         args.run = True
-        args.eval = True
-        args.vis = True
 
     if args.vis:
         args.eval = True

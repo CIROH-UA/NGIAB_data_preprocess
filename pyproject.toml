@@ -48,6 +48,10 @@ dependencies = [
     "bokeh==3.5.1"
 ]
 
+[project.optional-dependencies]
+eval = ["ngiab_eval"]
+plot = ["ngiab_eval[plot]"]
+
 [project.urls]
 Homepage = "https://github.com/CIROH-UA/NGIAB_data_preprocess"
 Issues = "https://github.com/CIROH-UA/NGIAB_data_preprocess/issues"
