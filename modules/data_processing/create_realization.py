@@ -169,7 +169,7 @@ def configure_troute(
         time_step_size=time_step_size,
         # troute seems to be ok with setting this to your cpu_count
         cpu_pool=multiprocessing.cpu_count(),
-        geo_file_path=f"/ngen/ngen/data/config/{cat_id}_subset.gpkg",
+        geo_file_path=f"./config/{cat_id}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=nts,
         max_loop_size=nts,
