@@ -1,295 +1,297 @@
 /* Modern CSS Reset and Base Styles */
 :root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --background-color: #f8fafc;
-    --surface-color: #ffffff;
-    --text-color: #1e293b;
-    --border-radius: 8px;
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  }
-  
-  main {
-    width: 80vw;
-    margin: 0 auto;
-    display: grid;
-    gap: 24px;
-  }
+  color-scheme: light dark;
+  /* Define both light and dark mode colors directly in properties */
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --background-color: light-dark(#f8fafc, #0f172a);
+  --surface-color: light-dark(#ffffff, #1e293b);
+  --text-color: light-dark(#1e293b, #f1f5f9);
+  --secondary-text: light-dark(#64748b, #94a3b8);
+  --border-color: light-dark(#e2e8f0, #334155);
+  --warning-bg: light-dark(#fee2e2, #7f1d1d);
+  --warning-border: light-dark(#ef4444, #b91c1c);
+  --info-bg: light-dark(#fef9c3, #713f12);
+  --info-border: light-dark(#eab308, #ca8a04);
+  --code-bg: light-dark(#f8fafc, #1e293b);
+  --border-radius: 8px;
+  --shadow-sm: light-dark(0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.5));
+  --shadow-md: light-dark(0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.5));
+}
 
-  #toggle-button {
-    position: relative;
-    top: 20px;
-    left: 20px;
-    background-color: rgb(87, 27, 98);
-    color: #f0ead6;
-    font-size: 1.2rem;
-    min-width: 70px;
-    border-radius: 5px;
-    border: none;
-    padding: 5px 10px;
-    transition: 0.3s;
-    z-index: 1;
-  }
-  #toggle-button:hover {
-    scale: 1.1;
-    box-shadow: 0 0 4px 4px gray;
-  }  
+main {
+  width: 80vw;
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
 
-  /* Ensure padding doesn't interfere with width calculations */
-  body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    line-height: 1.5;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  /* Add padding to header instead */
-  header {
-    width: 100%;
-    padding: 24px 0;
-    text-align: center;
-  }
-  
-  /* Responsive adjustments */
-  @media (max-width: 1750px) {
-    main {
-      width: 90vw;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    main {
-      width: 90vw;  /* Slightly wider on mobile for better readability */
-    }
-  }
-  
-  /* Header Styles */
-  h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    text-align: center;
-    color: var(--text-color);
-    margin: 24px 0;
-  }
-  
-  h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-color);
-    margin: 16px 0;
-  }
-  
-  /* Map Container */
-  #map-container {
-    background: var(--surface-color);
-    border-radius: var(--border-radius);
-    padding: 16px;
-    box-shadow: var(--shadow-md);
-  }
-  
-  #map {
-    height: 65vh;
-    min-height: 450px;
-    max-height: max(55vh, 500px);
-    width: 100%;
-    border-radius: var(--border-radius);
-    overflow: hidden;
-  }
-  
-  /* Selected Basins Section */
-  #basins-container {
-    background: var(--surface-color);
-    border-radius: var(--border-radius);
-    padding: 20px;
-    box-shadow: var(--shadow-md);
-  }
-  
-  #selected-basins,
-  #cli-command {
-    background: var(--background-color);
-    padding: 16px;
-    border-radius: var(--border-radius);
-    margin: 16px 0;
-    font-family: 'Monaco', 'Consolas', monospace;
-    font-size: 0.9rem;
-  }
-  
-  /* Button Styles */
-  button {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-  
-  button:hover {
-    background-color: var(--primary-hover);
-  }
-  
-  /* Time Settings */
-  #time-settings {
-    background: var(--surface-color);
-    padding: 20px;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-md);
-  }
-  
-  .time-input {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 12px 0;
-  }
-  
-  input[type="datetime-local"] {
-    padding: 8px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: var(--border-radius);
-    font-size: 0.9rem;
-  }
-  
-  /* Warning and Info Boxes */
-  #forcings-warning,
-  #time-warning,
-  #output-info {
-    padding: 16px;
-    border-radius: var(--border-radius);
-    margin: 16px 0;
-  }
-  
-  #forcings-warning,
-  #time-warning {
-    background: #fee2e2;
-    border-left: 4px solid #ef4444;
-  }
-  
-  #output-info {
-    background: #fef9c3;
-    border-left: 4px solid #eab308;
-  }
-  
-  /* Output Paths */
-  #output-path,
-  #forcings-output-path,
-  #realization-output-path {
-    background: var(--background-color);
-    padding: 12px;
-    border-radius: var(--border-radius);
-    font-family: 'Monaco', 'Consolas', monospace;
-    font-size: 0.9rem;
-    margin: 12px 0;
-    word-break: break-all;
-  }
-  
-  /* Loading Animation */
-  .loading {
-    display: none;
-    width: 24px;
-    height: 24px;
-    vertical-align: middle;
-  }
-  
-  .loading.visible {
-    display: inline-block;
-  }
-  
-  /* Responsive Design */
-  @media (max-width: 768px) {
-    body {
-      padding: 16px;
-    }
-    
-    .time-input {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    
-    input[type="datetime-local"] {
-      width: 100%;
-    }
-  }
+.maplibregl-popup-content {
+  background: var(--surface-color) !important;
 
-  .command-container {
-    background: var(--surface-color);
-    border: 1px solid #e2e8f0;
-    border-radius: var(--border-radius);
-    margin: 16px 0;
+}
+
+#toggle-button {
+  position: relative;
+  top: 20px;
+  left: 20px;
+  background-color: light-dark(rgb(87, 27, 98), rgb(147, 51, 164));
+  color: light-dark(#f0ead6, #ffffff);
+  font-size: 1.2rem;
+  min-width: 70px;
+  border-radius: 5px;
+  border: none;
+  padding: 5px 10px;
+  transition: 0.3s;
+  z-index: 1;
+}
+
+#toggle-button:hover {
+  scale: 1.1;
+  box-shadow: var(--shadow-md);
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  width: 100%;
+  padding: 24px 0;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-color);
+  margin: 24px 0;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 16px 0;
+}
+
+#map-container {
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+#map {
+  height: 65vh;
+  min-height: 450px;
+  max-height: max(55vh, 500px);
+  width: 100%;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+#basins-container {
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+}
+
+#selected-basins,
+#cli-command {
+  background: var(--code-bg);
+  padding: 16px;
+  border-radius: var(--border-radius);
+  margin: 16px 0;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+button {
+  background-color: var(--primary-color);
+  color: light-dark(white, #f1f5f9);
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background-color: var(--primary-hover);
+}
+
+#time-settings {
+  background: var(--surface-color);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+}
+
+.time-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+input[type="datetime-local"] {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  background-color: var(--surface-color);
+  color: var(--text-color);
+}
+
+#forcings-warning,
+#time-warning,
+#output-info {
+  padding: 16px;
+  border-radius: var(--border-radius);
+  margin: 16px 0;
+}
+
+#forcings-warning,
+#time-warning {
+  background: var(--warning-bg);
+  border-left: 4px solid var(--warning-border);
+}
+
+#output-info {
+  background: var(--info-bg);
+  border-left: 4px solid var(--info-border);
+}
+
+#output-path,
+#forcings-output-path,
+#realization-output-path {
+  background: var(--code-bg);
+  padding: 12px;
+  border-radius: var(--border-radius);
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 0.9rem;
+  margin: 12px 0;
+  word-break: break-all;
+  color: var(--text-color);
+}
+
+#realization {
+  padding-bottom: 40px;
+}
+
+.loading {
+  display: none;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+.loading.visible {
+  display: inline-block;
+}
+
+.command-container {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  margin: 16px 0;
 }
 
 .command-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 16px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    border-top-left-radius: var(--border-radius);
-    border-top-right-radius: var(--border-radius);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--code-bg);
+  border-bottom: 1px solid var(--border-color);
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
 }
 
 .command-header span {
-    font-size: 0.875rem;
-    color: #64748b;
-    font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--secondary-text);
+  font-weight: 500;
 }
 
 .copy-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    background: transparent;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    color: #64748b;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--secondary-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .copy-button:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    color: #334155;
+  background: light-dark(#f1f5f9, #334155);
+  border-color: var(--border-color);
+  color: var(--text-color);
 }
 
 .copy-button:active {
-    background: #e2e8f0;
-}
-
-.copy-icon {
-    fill: currentColor;
+  background: light-dark(#e2e8f0, #475569);
 }
 
 .command-content {
-    padding: 16px;
-    background: #f8fafc;
-    font-family: 'Monaco', 'Consolas', monospace;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    overflow-x: auto;
-    border-bottom-left-radius: var(--border-radius);
-    border-bottom-right-radius: var(--border-radius);
+  padding: 16px;
+  background: var(--code-bg);
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  border-bottom-left-radius: var(--border-radius);
+  border-bottom-right-radius: var(--border-radius);
+  color: var(--text-color);
 }
 
-/* Animation for copy feedback */
 .copy-button.copied {
-    color: #059669;
-    border-color: #059669;
+  color: light-dark(#059669, #34d399);
+  border-color: light-dark(#059669, #34d399);
 }
 
-.copy-button.copied .copy-text {
-    content: "Copied!";
+/* Responsive adjustments */
+@media (max-width: 1750px) {
+  main {
+      width: 90vw;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+      padding: 16px;
+  }
+  
+  main {
+      width: 90vw;
+  }
+  
+  .time-input {
+      flex-direction: column;
+      align-items: flex-start;
+  }
+  
+  input[type="datetime-local"] {
+      width: 100%;
+  }
 }

@@ -32,9 +32,15 @@ document.getElementById('end-time').addEventListener('change', create_cli_comman
 let protocol = new pmtiles.Protocol({metadata: true});
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
+// select light-style if the browser is in light mode
+// select dark-style if the browser is in dark mode
+var style = 'static/resources/light-style.json';
+if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    style = 'static/resources/dark-style.json';
+}
 var map = new maplibregl.Map({
     container: 'map', // container id
-    style: 'static/resources/style.json', // style URL
+    style: style, // style URL
     center: [-96, 40], // starting position [lng, lat]
     zoom: 4 // starting zoom
 });
@@ -99,7 +105,7 @@ map.on('click', 'conus_gages', (e) => {
     window.open("https://waterdata.usgs.gov/monitoring-location/" + e.features[0].properties.hl_link, '_blank');
 }
 );
-show = true;
+show = false;
 const toggleButton = document.querySelector('#toggle-button');
 toggleButton.addEventListener('click', () => {
     if (show) {
