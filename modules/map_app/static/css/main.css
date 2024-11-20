@@ -16,7 +16,26 @@
     display: grid;
     gap: 24px;
   }
-  
+
+  #toggle-button {
+    position: relative;
+    top: 20px;
+    left: 20px;
+    background-color: rgb(87, 27, 98);
+    color: #f0ead6;
+    font-size: 1.2rem;
+    min-width: 70px;
+    border-radius: 5px;
+    border: none;
+    padding: 5px 10px;
+    transition: 0.3s;
+    z-index: 1;
+  }
+  #toggle-button:hover {
+    scale: 1.1;
+    box-shadow: 0 0 4px 4px gray;
+  }  
+
   /* Ensure padding doesn't interfere with width calculations */
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;

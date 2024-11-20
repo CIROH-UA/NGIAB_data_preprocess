@@ -5,13 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map Application</title>
-    <!-- Leaflet CSS -->
-    <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" /> -->
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/legend.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
@@ -25,10 +21,11 @@
 
     <main>
         <section id="map-container">
-            <div id="map"></div>            
+            <div id="map"><button id="toggle-button">Hide gages</button></div>  
+                      
             <div class="command-container">
                 <div class="command-header">
-                    <span>Command - copy up to and include the operation you want to perform</span>
+                    <span>Command</span>
                     <button id="copy-to-clip" class="copy-button" aria-label="Copy to clipboard">
                         <svg class="copy-icon" viewBox="0 0 16 16" width="16" height="16">
                             <path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"></path>

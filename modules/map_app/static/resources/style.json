@@ -13,11 +13,16 @@
       "type": "vector",
       "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/basemap.pmtiles"
     },
-    "conus": {
+    "hydrofabric": {
       "type": "vector",
-      "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/conus.pmtiles",
-      "attribution": "Community Hydrofabric Based on hf2.2 ODbL <a href=\"https://lynker-spatial.s3-us-west-2.amazonaws.com/copyright.html\">lynker-spatial</a>"
-  }
+      "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/merged.pmtiles",
+      "attribution": "Community Hydrofabric Based on hf2.2 ODbL <a href=\"https://lynker-spatial.s3-us-west-2.amazonaws.com/copyright.html\">lynker-spatial</a>",
+      "maxzoom":10
+    },
+    "conus_vpu": {
+    "type": "vector",
+    "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/conus.pmtiles"
+    }
   },
   "sprite": "https://openmaptiles.github.io/maptiler-basic-gl-style/sprite",
   "layers": [
@@ -570,7 +575,7 @@
     {
       "id": "vpu",
       "type": "line",
-      "source": "conus",
+      "source": "conus_vpu",
       "source-layer": "vpu",
       "layout": {},
       "paint": {
@@ -579,10 +584,10 @@
       }
   },
   {
-      "id": "flowpaths",
+      "id": "ak_flowpaths",
       "type": "line",
-      "source": "conus",
-      "source-layer": "flowpaths",
+      "source": "hydrofabric",
+      "source-layer": "ak_flowpaths",
       "layout": {},
       "paint": {
           "line-color": ["rgba", 0, 119, 187, 1],
@@ -591,10 +596,10 @@
       }
   },
   {
-      "id": "catchments",
+      "id": "ak_catchments",
       "type": "fill",
-      "source": "conus",
-      "source-layer": "catchments",
+      "source": "hydrofabric",
+      "source-layer": "ak_divides",
       "layout": {},
       "paint": {
           "fill-color": ["rgba", 0, 0, 0, 0],
@@ -603,10 +608,106 @@
       }
   },
   {
+    "id": "gl_flowpaths",
+    "type": "line",
+    "source": "hydrofabric",
+    "source-layer": "gl_flowpaths",
+    "layout": {},
+    "paint": {
+        "line-color": ["rgba", 0, 119, 187, 1],
+        "line-width": { "stops": [[7, 1], [10, 2]] },
+        "line-opacity": { "stops": [[7, 0], [11, 1]] }
+    }
+},
+{
+    "id": "gl_catchments",
+    "type": "fill",
+    "source": "hydrofabric",
+    "source-layer": "gl_divides",
+    "layout": {},
+    "paint": {
+        "fill-color": ["rgba", 0, 0, 0, 0],
+        "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+        "fill-opacity": { "stops": [[7, 0], [11, 1]] }
+    }
+},
+{
+  "id": "hi_flowpaths",
+  "type": "line",
+  "source": "hydrofabric",
+  "source-layer": "hi_flowpaths",
+  "layout": {},
+  "paint": {
+      "line-color": ["rgba", 0, 119, 187, 1],
+      "line-width": { "stops": [[7, 1], [10, 2]] },
+      "line-opacity": { "stops": [[7, 0], [11, 1]] }
+  }
+},
+{
+  "id": "hi_catchments",
+  "type": "fill",
+  "source": "hydrofabric",
+  "source-layer": "hi_divides",
+  "layout": {},
+  "paint": {
+      "fill-color": ["rgba", 0, 0, 0, 0],
+      "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+      "fill-opacity": { "stops": [[7, 0], [11, 1]] }
+  }
+},
+{
+  "id": "prvi_flowpaths",
+  "type": "line",
+  "source": "hydrofabric",
+  "source-layer": "prvi_flowpaths",
+  "layout": {},
+  "paint": {
+      "line-color": ["rgba", 0, 119, 187, 1],
+      "line-width": { "stops": [[7, 1], [10, 2]] },
+      "line-opacity": { "stops": [[7, 0], [11, 1]] }
+  }
+},
+{
+  "id": "prvi_catchments",
+  "type": "fill",
+  "source": "hydrofabric",
+  "source-layer": "prvi_divides",
+  "layout": {},
+  "paint": {
+      "fill-color": ["rgba", 0, 0, 0, 0],
+      "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+      "fill-opacity": { "stops": [[7, 0], [11, 1]] }
+  }
+},
+  {
+    "id": "flowpaths",
+    "type": "line",
+    "source": "hydrofabric",
+    "source-layer": "conus_flowpaths",
+    "layout": {},
+    "paint": {
+        "line-color": ["rgba", 0, 119, 187, 1],
+        "line-width": { "stops": [[7, 1], [10, 2]] },
+        "line-opacity": { "stops": [[7, 0], [11, 1]] }
+    }
+},
+{
+    "id": "catchments",
+    "type": "fill",
+    "source": "hydrofabric",
+    "source-layer": "conus_divides",
+    "layout": {},
+    "paint": {
+        "fill-color": ["rgba", 0, 0, 0, 0],
+        "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+        "fill-opacity": { "stops": [[7, 0], [11, 1]] }
+    }
+},
+  {
       "id": "selected-flowpaths",
       "type": "line",
-      "source": "conus",
-      "source-layer": "flowpaths",
+      "source": "hydrofabric",
+      "source-layer": "conus_flowpaths",
       "layout": {},
       "paint": {
           "line-color": ["rgba", 0, 119, 187, 1],
@@ -618,8 +719,8 @@
   {
       "id": "selected-catchments",
       "type": "fill",
-      "source": "conus",
-      "source-layer": "catchments",
+      "source": "hydrofabric",
+      "source-layer": "conus_divides",
       "layout": {},
       "paint": {
           "fill-color": ["rgba", 238, 51, 119, 0.316],
@@ -631,8 +732,8 @@
   {
       "id": "upstream-catchments",
       "type": "fill",
-      "source": "conus",
-      "source-layer": "catchments",
+      "source": "hydrofabric",
+      "source-layer": "conus_divides",
       "layout": {},
       "paint": {
           "fill-color": ["rgba", 238, 119, 51, 0.278],
@@ -640,6 +741,31 @@
           "fill-opacity": { "stops": [[7, 0], [11, 1]] }
       },
       "filter": ["any",["in", "divide_id", ""]]
+  },
+  {
+    "id": "conus_gages",
+    "type": "circle",
+    "source": "hydrofabric",
+    "source-layer": "conus_gages",
+    "layout": {},
+    "filter": ["any",["==", "hl_reference", "gages"]],
+    "paint": {
+      "circle-color": ["rgba", 153, 0, 17, 1],
+      "circle-opacity": { "stops": [[3, 0], [11, 1]] }
+    }
+  
+  },
+  {
+    "id": "gl_gages",
+    "type": "circle",
+    "source": "hydrofabric",
+    "source-layer": "gl_gages",
+    "layout": {},
+    "paint": {
+      "circle-color": ["rgba", 153, 0, 17, 1],
+      "circle-opacity": { "stops": [[3, 0], [11, 1]] }
+    }
+  
   }
   ],
   "id": "basic"
