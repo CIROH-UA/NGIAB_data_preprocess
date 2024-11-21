@@ -299,7 +299,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: str, subset_gpkg_name:
         subset_gpkg_name (str): The name of the subset geopackage.
     """
     logger.info(f"Subsetting {table} in {subset_gpkg_name}")
-    source_db = sqlite3.connect(hydrofabric)
+    source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
     table_keys = {"divides": "toid", "divide-attributes": "divide_id", "lakes": "poi_id"}
