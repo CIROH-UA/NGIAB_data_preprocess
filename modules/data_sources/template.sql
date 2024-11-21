@@ -151,6 +151,7 @@ CREATE TABLE IF NOT EXISTS "hydrolocations" (
 	"hl_x"	REAL,
 	"hl_y"	REAL,
 	"vpuid"	TEXT,
+	"geom" POINT,
 	PRIMARY KEY("fid" AUTOINCREMENT)
 );
 CREATE TABLE IF NOT EXISTS "flowpath-attributes" (
@@ -291,7 +292,7 @@ INSERT INTO "gpkg_contents" VALUES
 --  ('divides','features','divides','','2024-10-02T21:40:02.814Z',-2356125.0012,209715.0003,2258234.9955,3506235.0003,5070),
 --  ('lakes','features','lakes','','2024-10-02T21:40:03.033Z',-2306232.84864919,329124.789725057,2240264.19930738,3149850.04714446,5070),
  ('pois','attributes','pois','','2024-10-02T21:40:34.220Z',NULL,NULL,NULL,NULL,0),
- ('hydrolocations','attributes','hydrolocations','','2024-10-02T21:40:35.451Z',NULL,NULL,NULL,NULL,0),
+--  ('hydrolocations','attributes','hydrolocations','','2024-10-02T21:40:35.451Z',NULL,NULL,NULL,NULL,0),
  ('flowpath-attributes','attributes','flowpath-attributes','','2024-10-02T21:40:43.663Z',NULL,NULL,NULL,NULL,0),
  ('flowpath-attributes-ml','attributes','flowpath-attributes-ml','','2024-10-02T21:40:53.358Z',NULL,NULL,NULL,NULL,0),
  ('network','attributes','network','','2024-10-02T21:42:24.445Z',NULL,NULL,NULL,NULL,0),
@@ -300,9 +301,11 @@ INSERT INTO "gpkg_contents" VALUES
 INSERT INTO "gpkg_geometry_columns" VALUES ('flowpaths','geom','GEOMETRY',5070,0,0),
  ('divides','geom','POLYGON',5070,0,0),
  ('lakes','geom','POINT',5070,0,0),
- ('nexus','geom','POINT',5070,0,0);
+ ('nexus','geom','POINT',5070,0,0),
+ ('hydrolocations','geom','POINT',5070,0,0);
 INSERT INTO "gpkg_extensions" VALUES ('flowpaths','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
  ('divides','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
  ('lakes','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
- ('nexus','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only');
+ ('nexus','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
+ ('hydrolocations','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only');
 COMMIT;

@@ -52,3 +52,39 @@ CREATE TRIGGER "trigger_insert_feature_count_nexus" AFTER INSERT ON "nexus" BEGI
 CREATE TRIGGER "trigger_delete_feature_count_nexus" AFTER DELETE ON "nexus" BEGIN UPDATE gpkg_ogr_contents SET feature_count = feature_count - 1 WHERE lower(table_name) = lower('nexus'); END;
 CREATE TRIGGER "trigger_insert_feature_count_divide-attributes" AFTER INSERT ON "divide-attributes" BEGIN UPDATE gpkg_ogr_contents SET feature_count = feature_count + 1 WHERE lower(table_name) = lower('divide-attributes'); END;
 CREATE TRIGGER "trigger_delete_feature_count_divide-attributes" AFTER DELETE ON "divide-attributes" BEGIN UPDATE gpkg_ogr_contents SET feature_count = feature_count - 1 WHERE lower(table_name) = lower('divide-attributes'); END;
+CREATE TRIGGER "rtree_hydrolocations_geom_insert"
+AFTER INSERT ON "hydrolocations"
+WHEN (new."geom" NOT NULL AND NOT ST_IsEmpty(NEW."geom"))
+BEGIN
+INSERT OR REPLACE INTO "rtree_hydrolocations_geom" VALUES (NEW.ROWID, ST_MinX(NEW."geom"), ST_MaxX(NEW."geom"), ST_MinY(NEW."geom"), ST_MaxY(NEW."geom"));
+END;
+CREATE TRIGGER "rtree_hydrolocations_geom_update1"
+AFTER UPDATE OF "geom" ON "hydrolocations"
+WHEN OLD.ROWID = NEW.ROWID AND (NEW."geom" NOT NULL AND NOT ST_IsEmpty(NEW."geom"))
+BEGIN
+INSERT OR REPLACE INTO "rtree_hydrolocations_geom" VALUES (NEW.ROWID, ST_MinX(NEW."geom"), ST_MaxX(NEW."geom"), ST_MinY(NEW."geom"), ST_MaxY(NEW."geom"));
+END;
+CREATE TRIGGER "rtree_hydrolocations_geom_update2"
+AFTER UPDATE OF "geom" ON "hydrolocations"
+WHEN OLD.ROWID = NEW.ROWID AND (NEW."geom" IS NULL OR ST_IsEmpty(NEW."geom"))
+BEGIN
+DELETE FROM "rtree_hydrolocations_geom" WHERE id = OLD.ROWID;
+END;
+CREATE TRIGGER "rtree_hydrolocations_geom_update3"
+AFTER UPDATE OF "geom" ON "hydrolocations"
+WHEN OLD.ROWID != NEW.ROWID AND (NEW."geom" NOT NULL AND NOT ST_IsEmpty(NEW."geom"))
+BEGIN
+DELETE FROM "rtree_hydrolocations_geom" WHERE id = OLD.ROWID;
+INSERT OR REPLACE INTO "rtree_hydrolocations_geom" VALUES (NEW.ROWID, ST_MinX(NEW."geom"), ST_MaxX(NEW."geom"), ST_MinY(NEW."geom"), ST_MaxY(NEW."geom"));
+END;
+CREATE TRIGGER "rtree_hydrolocations_geom_update4"
+AFTER UPDATE ON "hydrolocations"
+WHEN OLD.ROWID != NEW.ROWID AND (NEW."geom" IS NULL OR ST_IsEmpty(NEW."geom"))
+BEGIN
+DELETE FROM "rtree_hydrolocations_geom" WHERE id IN (OLD.ROWID, NEW.ROWID);
+END;
+CREATE TRIGGER "rtree_hydrolocations_geom_delete"
+AFTER DELETE ON "hydrolocations"WHEN old."geom" NOT NULL
+BEGIN
+DELETE FROM "rtree_hydrolocations_geom" WHERE id = OLD.ROWID;
+END;
