@@ -2,13 +2,13 @@ import gzip
 import os
 import tarfile
 import warnings
+import json
 from concurrent.futures import ThreadPoolExecutor
-
 import requests
-
 from data_processing.file_paths import file_paths
 from tqdm import TqdmExperimentalWarning
 from tqdm.rich import tqdm
+from time import sleep
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
@@ -69,19 +69,83 @@ def download_file(url, save_path, num_threads=150):
 hydrofabric_url = "https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/conus_nextgen.tar.gz"
 
 
+def get_headers():
+    # for versioning
+    # Useful Headers: { 'Last-Modified': 'Wed, 20 Nov 2024 18:45:59 GMT', 'ETag': '"cc1452838886a7ab3065a61073fa991b-207"'}
+    response = requests.head(hydrofabric_url)
+    return response.status_code, response.headers
+
+
+def download_and_update_hf():
+    download_file(hydrofabric_url, file_paths.conus_hydrofabric.with_suffix(".tar.gz"))
+    status, headers = get_headers()
+
+    if status == 200:
+        # write headers to a file
+        with open(file_paths.hydrofabric_download_log, "w") as f:
+            json.dump(dict(headers), f)
+
+    decompress_gzip_tar(
+        file_paths.conus_hydrofabric.with_suffix(".tar.gz"),
+        file_paths.conus_hydrofabric.parent,
+    )
+
+
 def validate_hydrofabric():
     if not file_paths.conus_hydrofabric.is_file():
         print("Hydrofabric is missing. Would you like to download it now? (Y/n)")
         response = input()
         if response == "" or response.lower() == "y":
-            download_file(hydrofabric_url, file_paths.conus_hydrofabric.with_suffix(".tar.gz"))
-            decompress_gzip_tar(
-                file_paths.conus_hydrofabric.with_suffix(".tar.gz"),
-                file_paths.conus_hydrofabric.parent,
-            )
+            download_and_update_hf()
         else:
             print("Exiting...")
             exit()
+
+    if file_paths.no_update_hf.exists():
+        # skip the updates
+        return
+
+    if not file_paths.hydrofabric_download_log.is_file():
+        print(
+            "Hydrofabric version information unavailable, Would you like to fetch the updated version?  (Y/n)"
+        )
+        response = input()
+        if response == "" or response.lower() == "y":
+            download_and_update_hf()
+        else:
+            print("Continuing... ")
+            print(
+                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}"
+            )
+            sleep(2)
+            return
+
+    with open(file_paths.hydrofabric_download_log, "r") as f:
+        content = f.read()
+        headers = json.loads(content)
+
+    status, latest_headers = get_headers()
+
+    if status != 200:
+        print("Unable to contact servers, proceeding without updating hydrofabric")
+        sleep("2")
+
+    if headers.get("ETag", "") != latest_headers.get("ETag", ""):
+        print("Local and remote Hydrofabric Differ")
+        print(
+            f"Local last updated at {headers.get('Last-Modified', 'NA')}, remote last updated at {latest_headers.get('Last-Modified', 'NA')}"
+        )
+        print("Would you like to fetch the updated version?  (Y/n)")
+        response = input()
+        if response == "" or response.lower() == "y":
+            download_and_update_hf()
+        else:
+            print("Continuing... ")
+            print(
+                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}"
+            )
+            sleep(2)
+            return
 
 
 def validate_output_dir():
