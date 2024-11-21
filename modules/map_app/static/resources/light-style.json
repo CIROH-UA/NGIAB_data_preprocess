@@ -434,6 +434,7 @@
             ],
             "paint": {
                 "line-color": "#80deea",
+                "line-opacity": {"stops": [[7, 1], [8, 0.05]]},
                 "line-width": 0.5
             }
         },
@@ -450,6 +451,7 @@
             ],
             "paint": {
                 "line-color": "#80deea",
+                "line-opacity": {"stops": [[7, 1], [8, 0.05]]},
                 "line-width": [
                     "interpolate",
                     [
@@ -11041,8 +11043,9 @@
           "layout": {},
           "filter": ["any",["==", "hl_reference", ""]],
           "paint": {
-            "circle-color": ["rgba", 153, 0, 17, 1],
-            "circle-opacity": { "stops": [[3, 0], [11, 1]] }
+            "circle-radius": { "stops": [[3, 2], [11, 5]] },
+            "circle-color": ["rgba", 50, 50, 50, 1],
+            "circle-opacity": { "stops": [[3, 0], [9, 1]] }
           }
         
         },
@@ -11053,8 +11056,9 @@
           "source-layer": "gl_gages",
           "layout": {},
           "paint": {
-            "circle-color": ["rgba", 153, 0, 17, 1],
-            "circle-opacity": { "stops": [[3, 0], [11, 1]] }
+            "circle-radius": { "stops": [[3, 2], [11, 5]] },
+            "circle-color": ["rgba", 50, 50, 50, 1],
+            "circle-opacity": { "stops": [[3, 0], [9, 1]] }
           }
         
         }

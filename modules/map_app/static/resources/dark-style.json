@@ -434,6 +434,7 @@
             ],
             "paint": {
                 "line-color": "#31353f",
+                "line-opacity": {"stops": [[7, 1], [8, 0.05]]},
                 "line-width": 0.5
             }
         },
@@ -450,6 +451,7 @@
             ],
             "paint": {
                 "line-color": "#31353f",
+                "line-opacity": {"stops": [[7, 1], [8, 0.05]]},
                 "line-width": [
                     "interpolate",
                     [
@@ -10894,7 +10896,7 @@
             "layout": {},
             "paint": {
                 "fill-color": ["rgba", 0, 0, 0, 0],
-                "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+                "fill-outline-color": ["rgba", 0, 0, 0, 0.5],
                 "fill-opacity": { "stops": [[7, 0], [11, 1]] }
             }
         },
@@ -10918,7 +10920,7 @@
           "layout": {},
           "paint": {
               "fill-color": ["rgba", 0, 0, 0, 0],
-              "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+              "fill-outline-color": ["rgba", 0, 0, 0, 0.5],
               "fill-opacity": { "stops": [[7, 0], [11, 1]] }
           }
       },
@@ -10942,7 +10944,7 @@
         "layout": {},
         "paint": {
             "fill-color": ["rgba", 0, 0, 0, 0],
-            "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+            "fill-outline-color": ["rgba", 0, 0, 0, 0.5],
             "fill-opacity": { "stops": [[7, 0], [11, 1]] }
         }
       },
@@ -10966,7 +10968,7 @@
         "layout": {},
         "paint": {
             "fill-color": ["rgba", 0, 0, 0, 0],
-            "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+            "fill-outline-color": ["rgba", 0, 0, 0, 0.5],
             "fill-opacity": { "stops": [[7, 0], [11, 1]] }
         }
       },
@@ -10990,7 +10992,7 @@
           "layout": {},
           "paint": {
               "fill-color": ["rgba", 0, 0, 0, 0],
-              "fill-outline-color": ["rgba", 1, 1, 1, 0.5],
+              "fill-outline-color": ["rgba", 0, 0, 0, 0.5],
               "fill-opacity": { "stops": [[7, 0], [11, 1]] }
           }
       },
@@ -11041,8 +11043,9 @@
           "layout": {},
           "filter": ["any",["==", "hl_reference", ""]],
           "paint": {
-            "circle-color": ["rgba", 153, 0, 17, 1],
-            "circle-opacity": { "stops": [[3, 0], [11, 1]] }
+            "circle-radius": { "stops": [[3, 2], [11, 5]] },
+            "circle-color": ["rgba", 200, 200, 200, 1],
+            "circle-opacity": { "stops": [[3, 0], [9, 1]] }
           }
         
         },
@@ -11053,8 +11056,9 @@
           "source-layer": "gl_gages",
           "layout": {},
           "paint": {
-            "circle-color": ["rgba", 153, 0, 17, 1],
-            "circle-opacity": { "stops": [[3, 0], [11, 1]] }
+            "circle-radius": { "stops": [[3, 2], [11, 5]] },
+            "circle-color": ["rgba", 200, 200, 200, 1],
+            "circle-opacity": { "stops": [[3, 0], [9, 1]] }
           }
         
         }
