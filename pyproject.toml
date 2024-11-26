@@ -32,7 +32,6 @@ dependencies = [
     "igraph==0.11.4",
     "s3fs==2024.3.1",
     "xarray==2024.2.0",
-    "rioxarray==0.15.1",
     "zarr==2.17.1",
     "netCDF4==1.6.5",
     "dask==2024.4.1",

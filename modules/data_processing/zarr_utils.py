@@ -97,7 +97,6 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
     return data
 
-import asyncio
 
 def get_forcing_data(
     forcing_paths: file_paths, start_time: str, end_time: str, gdf: gpd.GeoDataFrame
