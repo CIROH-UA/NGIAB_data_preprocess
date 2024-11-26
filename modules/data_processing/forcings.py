@@ -18,7 +18,14 @@ from data_processing.file_paths import file_paths
 from data_processing.zarr_utils import get_forcing_data
 from exactextract import exact_extract
 from exactextract.raster import NumPyRasterSource
-from rich.progress import Progress, BarColumn, TextColumn
+from rich.progress import (
+    Progress,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
+
 
 logger = logging.getLogger(__name__)
 # Suppress the specific warning from numpy to keep the cli output clean
@@ -155,8 +162,12 @@ def compute_zonal_stats(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         "[progress.percentage]{task.percentage:>3.0f}%",
-        "•",
         TextColumn("{task.completed}/{task.total}"),
+        "•",
+        TextColumn(" Elapsed Time:"),
+        TimeElapsedColumn(),
+        TextColumn(" Remaining Time:"),
+        TimeRemainingColumn(),
     )
 
     timer = time.perf_counter()
