@@ -211,7 +211,7 @@ def compute_zonal_stats(
         progress.remove_task(chunk_task)
     progress.update(
         variable_task,
-        description=f"Processing complete in {time.perf_counter() - timer:2f} seconds",
+        description=f"Forcings processed in {time.perf_counter() - timer:2f} seconds",
     )
     progress.stop()
     logger.info(

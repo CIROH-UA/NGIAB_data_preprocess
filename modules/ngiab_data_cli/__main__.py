@@ -1,17 +1,11 @@
 import rich.status
 
-# add a status bar for these imports
+# add a status bar for these imports so the cli feels more responsive
 with rich.status.Status("Initializing...") as status:
-    import threading
     from data_sources.source_validation import validate_all
     from ngiab_data_cli.custom_logging import setup_logging, set_logging_to_critical_only
     from ngiab_data_cli.arguments import parse_arguments
     from data_processing.file_paths import file_paths
-
-
-# load these modules in a separate thread so the cli can start faster
-def import_modules():
-    global argparse, logging, time, List, subprocess, Client, get_catid_from_point, get_cat_from_gage_id, subset, create_forcings, create_realization, create_dd_realization
     import argparse
     import logging
     import time
@@ -23,11 +17,6 @@ def import_modules():
     from data_processing.subset import subset
     from data_processing.forcings import create_forcings
     from data_processing.create_realization import create_realization, create_dd_realization
-
-
-module_import_thread = threading.Thread(target=import_modules)
-module_import_thread.start()
-
 
 def validate_input(args: argparse.Namespace) -> None:
     """Validate input arguments."""
@@ -131,10 +120,7 @@ def main() -> None:
         cat_to_subset, output_folder = validate_input(args)
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
-        logging.info(f"Using output folder: {paths.subset_dir}")
-
-        ## wait for other modules to load
-        module_import_thread.join()
+        logging.info(f"Using output folder: {paths.subset_dir}")        
 
         if args.subset:
             logging.info(f"Subsetting hydrofabric")

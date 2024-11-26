@@ -11,25 +11,35 @@ from tqdm.rich import tqdm
 from time import sleep
 from rich.console import Console
 from rich.prompt import Prompt
+from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, SpinnerColumn, TimeRemainingColumn, DownloadColumn, TransferSpeedColumn
+import threading
+import psutil
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
 console = Console()
 
-def decompress_gzip_tar(file_path, output_dir):
 
-    with tqdm(
-        total=1,
-        desc="Decompressing, this should take less than 30 seconds. The progress bar won't update until the end",
-        bar_format="[elapsed: {elapsed}]",
-    ) as pbar:
-        with gzip.open(file_path, "rb") as f_in:
-            with tarfile.open(fileobj=f_in) as tar:
-                # Extract all contents
-                for member in tar:
-                    tar.extract(member, path=output_dir)
-                    # Update the progress bar
-                    pbar.update(member.size)
+def decompress_gzip_tar(file_path, output_dir):
+    # use rich to display "decompressing" message with a progress bar that just counts down from 30s
+    # actually measuring this is hard and it usually takes ~20s to decompress
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),        
+    )
+    task = progress.add_task("Decompressing", total=1)
+    progress.start()
+    with gzip.open(file_path, "rb") as f_in:
+        with tarfile.open(fileobj=f_in) as tar:
+            # Extract all contents
+            for member in tar:
+                tar.extract(member, path=output_dir)
+                # Update the progress bar
+    progress.update(task, completed=1)
+    progress.stop()
+
+                    
 
 
 def download_chunk(url, start, end, index, save_path):
@@ -42,6 +52,21 @@ def download_chunk(url, start, end, index, save_path):
                 f_out.write(chunk)
     return chunk_path
 
+def download_progress_estimate(progress, task, total_size):
+    network_bytes_start = psutil.net_io_counters().bytes_recv
+    # make a new progress bar that will be updated by a separate thread    
+    progress.start()
+    interval = 0.5
+    while not progress.finished:
+        current_downloaded = psutil.net_io_counters().bytes_recv
+        total_downloaded = current_downloaded - network_bytes_start
+        progress.update(task, completed=total_downloaded)
+        sleep(interval)
+        if total_downloaded >= total_size or progress.finished:
+            break
+    progress.stop()
+
+
 
 def download_file(url, save_path, num_threads=150):
     if not os.path.exists(os.path.dirname(save_path)):
@@ -51,6 +76,21 @@ def download_file(url, save_path, num_threads=150):
     total_size = int(response.headers.get("content-length", 0))
     chunk_size = total_size // num_threads
 
+    progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TextColumn(" Elapsed Time:"),
+            TimeElapsedColumn(),
+            TextColumn(" Remaining Time:"),
+            TimeRemainingColumn(),
+        )
+    task = progress.add_task("Downloading", total=total_size)
+
+    download_progress_thread = threading.Thread(target=download_progress_estimate, args=(progress, task ,total_size))
+    download_progress_thread.start()
+
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = []
         for i in range(num_threads):
@@ -59,14 +99,18 @@ def download_file(url, save_path, num_threads=150):
             futures.append(executor.submit(download_chunk, url, start, end, i, save_path))
 
         chunk_paths = [
-            future.result() for future in tqdm(futures, desc="Downloading", total=num_threads)
+            future.result() for future in futures
         ]
-
+    
+        
     with open(save_path, "wb") as f_out:
         for chunk_path in chunk_paths:
             with open(chunk_path, "rb") as f_in:
                 f_out.write(f_in.read())
             os.remove(chunk_path)
+
+    progress.update(task, completed=total_size)
+    download_progress_thread.join()
 
 
 hydrofabric_url = "https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/conus_nextgen.tar.gz"
@@ -98,10 +142,10 @@ def validate_hydrofabric():
     if not file_paths.conus_hydrofabric.is_file():
         response = Prompt.ask(
             "Hydrofabric is missing. Would you like to download it now?",
-            default="Y",
-            choices=["Y", "n"],
+            default="y",
+            choices=["y", "n"],
         )
-        if response.lower() == "y":
+        if response == "y":
             download_and_update_hf()
         else:
             console.print("Exiting...", style="bold red")
@@ -114,11 +158,11 @@ def validate_hydrofabric():
     if not file_paths.hydrofabric_download_log.is_file():
         response = Prompt.ask(
             "Hydrofabric version information unavailable, Would you like to fetch the updated version?",
-            default="Y",
+            default="y",
             style="bold yellow",
-            choices=["Y", "n"],
+            choices=["y", "n"],
         )
-        if response.lower() == "y":
+        if response == "y":
             download_and_update_hf()
         else:
             console.print("Continuing... ", style="bold yellow")
@@ -149,10 +193,10 @@ def validate_hydrofabric():
         )
         response = Prompt.ask(
             "Would you like to fetch the updated version?",
-            default="Y",
-            choices=["Y", "n"],
+            default="y",
+            choices=["y", "n"],
         )
-        if response.lower() == "y":
+        if response == "y":
             download_and_update_hf()
         else:
             console.print("Continuing... ", style="bold yellow")
@@ -168,8 +212,8 @@ def validate_output_dir():
     if not file_paths.config_file.is_file():
         response = Prompt.ask(
             "Output directory is not set. Would you like to use the default? ~/ngiab_preprocess_output/",
-            default="Y",
-            choices=["Y", "n"],
+            default="y",
+            choices=["y", "n"],
         )
         if response.lower() == "n":
             response = Prompt.ask("Enter the path to the working directory")
