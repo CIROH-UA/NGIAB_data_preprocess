@@ -6,16 +6,15 @@ from typing import Tuple
 import geopandas as gpd
 import numpy as np
 import s3fs
+from data_processing.s3fs_utils import S3ParallelFileSystem
 import xarray as xr
 from dask.distributed import Client, LocalCluster, progress
 from data_processing.file_paths import file_paths
 from fsspec.mapping import FSMap
 
+
 logger = logging.getLogger(__name__)
 
-def open_s3_store(url: str) -> FSMap:
-    """Open an s3 store from a given url."""
-    return s3fs.S3Map(url, s3=s3fs.S3FileSystem(anon=True))
 
 def load_zarr_datasets() -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
@@ -30,14 +29,18 @@ def load_zarr_datasets() -> xr.Dataset:
         f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/zarr/forcing/{var}.zarr"
         for var in forcing_vars
     ]
-    s3_stores = [open_s3_store(url) for url in s3_urls]
-    dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr")
+    # default cache is readahead which is detrimental to performance in this case
+    fs = S3ParallelFileSystem(anon=True, default_cache_type="none")  # default_block_size
+    s3_stores = [s3fs.S3Map(url, s3=fs) for url in s3_urls]
+    # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
+    # most of the data is read once and written to disk but some of the coordinate data is read multiple times
+    dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)
     return dataset
 
 
 def validate_time_range(dataset: xr.Dataset, start_time: str, end_time: str) -> Tuple[str, str]:
-    end_time_in_dataset = dataset.time[-1].values
-    start_time_in_dataset = dataset.time[0].values
+    end_time_in_dataset = dataset.time.isel(time=-1).values
+    start_time_in_dataset = dataset.time.isel(time=0).values
     if np.datetime64(start_time) < start_time_in_dataset:
         logger.warning(
             f"provided start {start_time} is before the start of the dataset {start_time_in_dataset}, selecting from {start_time_in_dataset}"
@@ -130,11 +133,13 @@ def get_forcing_data(
 
     if merged_data is None:
         logger.info("Loading zarr stores")
+        # create new event loop
         lazy_store = load_zarr_datasets()
         logger.debug("Got zarr stores")
         clipped_store = clip_dataset_to_bounds(lazy_store, gdf.total_bounds, start_time, end_time)
         logger.info("Clipped forcing data to bounds")
         merged_data = compute_store(clipped_store, forcing_paths.cached_nc_file)
         logger.info("Forcing data loaded and cached")
+        # close the event loop
 
     return merged_data

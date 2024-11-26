@@ -17,6 +17,15 @@ import xarray as xr
 from data_processing.file_paths import file_paths
 from data_processing.zarr_utils import get_forcing_data
 from exactextract import exact_extract
+from exactextract.raster import NumPyRasterSource
+from rich.progress import (
+    Progress,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
+
 
 logger = logging.getLogger(__name__)
 # Suppress the specific warning from numpy to keep the cli output clean
@@ -26,6 +35,7 @@ warnings.filterwarnings(
 warnings.filterwarnings(
     "ignore", message="'GeoDataFrame.swapaxes' is deprecated", category=FutureWarning
 )
+
 
 def weighted_sum_of_cells(flat_raster: np.ndarray, cell_ids: np.ndarray , factors: np.ndarray):
     # Create an output array initialized with zeros
@@ -37,10 +47,17 @@ def weighted_sum_of_cells(flat_raster: np.ndarray, cell_ids: np.ndarray , factor
     return result
 
 
-def get_cell_weights(raster, gdf):
+def get_cell_weights(raster, gdf, wkt):
     # Get the cell weights for each divide
+    xmin = raster.x[0]
+    xmax = raster.x[-1]
+    ymin = raster.y[0]
+    ymax = raster.y[-1]
+    rastersource = NumPyRasterSource(
+        raster["RAINRATE"], srs_wkt=wkt, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax
+    )
     output = exact_extract(
-        raster["RAINRATE"],
+        rastersource,
         gdf,
         ["cell_id", "coverage"],
         include_cols=["divide_id"],
@@ -109,11 +126,11 @@ def process_chunk_shared(variable, times, shm_name, shape, dtype, chunk):
 
 def get_cell_weights_parallel(gdf, input_forcings, num_partitions):
     gdf_chunks = np.array_split(gdf, num_partitions)
+    wkt = gdf.crs.to_wkt()
     one_timestep = input_forcings.isel(time=0).compute()
     with multiprocessing.Pool() as pool:
-        args = [(one_timestep, gdf_chunk) for gdf_chunk in gdf_chunks]
+        args = [(one_timestep, gdf_chunk, wkt) for gdf_chunk in gdf_chunks]
         catchments = pool.starmap(get_cell_weights, args)
-
     return pd.concat(catchments)
 
 
@@ -139,11 +156,28 @@ def compute_zonal_stats(
                 "V2D": "VGRD_10maboveground",
             }
 
-    results = []
     cat_chunks = np.array_split(catchments, num_partitions)
-    forcing_times = merged_data.time.values
 
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        "[progress.percentage]{task.percentage:>3.0f}%",
+        TextColumn("{task.completed}/{task.total}"),
+        "•",
+        TextColumn(" Elapsed Time:"),
+        TimeElapsedColumn(),
+        TextColumn(" Remaining Time:"),
+        TimeRemainingColumn(),
+    )
+
+    timer = time.perf_counter()
+    variable_task = progress.add_task(
+        "[cyan]Processing variables...", total=len(variables), elapsed=0
+    )
+    progress.start()
     for variable in variables.keys():
+        progress.update(variable_task, advance=1)
+        progress.update(variable_task, description=f"Processing {variable}")
 
         if variable not in merged_data.data_vars:
             logger.warning(f"Variable {variable} not in forcings, skipping")
@@ -151,8 +185,9 @@ def compute_zonal_stats(
 
         # to make sure this fits in memory, we need to chunk the data
         time_chunks = get_index_chunks(merged_data[variable])
-
+        chunk_task = progress.add_task("[purple] processing chunks", total=len(time_chunks))
         for i, times in enumerate(time_chunks):
+            progress.update(chunk_task, advance=1)
             start, end = times
             # select the chunk of time we want to process
             data_chunk = merged_data[variable].isel(time=slice(start,end))
@@ -184,8 +219,14 @@ def compute_zonal_stats(
         xr.concat(datasets, dim="time").to_netcdf(forcings_dir / f"{variable}.nc")
         for file in forcings_dir.glob("temp/*.nc"):
             file.unlink()
+        progress.remove_task(chunk_task)
+    progress.update(
+        variable_task,
+        description=f"Forcings processed in {time.perf_counter() - timer:2f} seconds",
+    )
+    progress.stop()
     logger.info(
-        f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start} seconds"
+        f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
     write_outputs(forcings_dir, variables)
 

@@ -8,6 +8,8 @@ class file_paths:
     """
     config_file = Path("~/.ngiab/preprocessor").expanduser()
     hydrofabric_dir = Path("~/.ngiab/hydrofabric/v2.2").expanduser()
+    hydrofabric_download_log = Path("~/.ngiab/hydrofabric/v2.2/download_log.json").expanduser()
+    no_update_hf = Path("~/.ngiab/hydrofabric/v2.2/no_update").expanduser()
     cache_dir = Path("~/.ngiab/zarr_cache").expanduser()
     output_dir = None
     data_sources = Path(__file__).parent.parent / "data_sources"

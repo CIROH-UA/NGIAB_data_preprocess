@@ -1,21 +1,22 @@
-import argparse
-import logging
-import time
-from typing import List
-import subprocess
+import rich.status
 
-from dask.distributed import Client
-
-from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
-from data_processing.subset import subset
-from data_processing.forcings import create_forcings
-from data_processing.create_realization import create_realization, create_dd_realization
-from data_sources.source_validation import validate_all
-
-from ngiab_data_cli.custom_logging import setup_logging, set_logging_to_critical_only
-from ngiab_data_cli.arguments import parse_arguments
-
+# add a status bar for these imports so the cli feels more responsive
+with rich.status.Status("Initializing...") as status:
+    from data_sources.source_validation import validate_all
+    from ngiab_data_cli.custom_logging import setup_logging, set_logging_to_critical_only
+    from ngiab_data_cli.arguments import parse_arguments
+    from data_processing.file_paths import file_paths
+    import argparse
+    import logging
+    import time
+    from typing import List
+    import subprocess
+    import time
+    from dask.distributed import Client
+    from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
+    from data_processing.subset import subset
+    from data_processing.forcings import create_forcings
+    from data_processing.create_realization import create_realization, create_dd_realization
 
 def validate_input(args: argparse.Namespace) -> None:
     """Validate input arguments."""
@@ -119,7 +120,7 @@ def main() -> None:
         cat_to_subset, output_folder = validate_input(args)
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
-        logging.info(f"Using output folder: {paths.subset_dir}")
+        logging.info(f"Using output folder: {paths.subset_dir}")        
 
         if args.subset:
             logging.info(f"Subsetting hydrofabric")
