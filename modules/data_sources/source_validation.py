@@ -9,9 +9,12 @@ from data_processing.file_paths import file_paths
 from tqdm import TqdmExperimentalWarning
 from tqdm.rich import tqdm
 from time import sleep
+from rich.console import Console
+from rich.prompt import Prompt
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
+console = Console()
 
 def decompress_gzip_tar(file_path, output_dir):
 
@@ -93,12 +96,15 @@ def download_and_update_hf():
 
 def validate_hydrofabric():
     if not file_paths.conus_hydrofabric.is_file():
-        print("Hydrofabric is missing. Would you like to download it now? (Y/n)")
-        response = input()
-        if response == "" or response.lower() == "y":
+        response = Prompt.ask(
+            "Hydrofabric is missing. Would you like to download it now?",
+            default="Y",
+            choices=["Y", "n"],
+        )
+        if response.lower() == "y":
             download_and_update_hf()
         else:
-            print("Exiting...")
+            console.print("Exiting...", style="bold red")
             exit()
 
     if file_paths.no_update_hf.exists():
@@ -106,16 +112,19 @@ def validate_hydrofabric():
         return
 
     if not file_paths.hydrofabric_download_log.is_file():
-        print(
-            "Hydrofabric version information unavailable, Would you like to fetch the updated version?  (Y/n)"
+        response = Prompt.ask(
+            "Hydrofabric version information unavailable, Would you like to fetch the updated version?",
+            default="Y",
+            style="bold yellow",
+            choices=["Y", "n"],
         )
-        response = input()
-        if response == "" or response.lower() == "y":
+        if response.lower() == "y":
             download_and_update_hf()
         else:
-            print("Continuing... ")
-            print(
-                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}"
+            console.print("Continuing... ", style="bold yellow")
+            console.print(
+                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}",
+                style="bold yellow",
             )
             sleep(2)
             return
@@ -127,22 +136,29 @@ def validate_hydrofabric():
     status, latest_headers = get_headers()
 
     if status != 200:
-        print("Unable to contact servers, proceeding without updating hydrofabric")
-        sleep("2")
+        console.print(
+            "Unable to contact servers, proceeding without updating hydrofabric", style="bold red"
+        )
+        sleep(2)
 
     if headers.get("ETag", "") != latest_headers.get("ETag", ""):
-        print("Local and remote Hydrofabric Differ")
-        print(
-            f"Local last updated at {headers.get('Last-Modified', 'NA')}, remote last updated at {latest_headers.get('Last-Modified', 'NA')}"
+        console.print("Local and remote Hydrofabric Differ", style="bold yellow")
+        console.print(
+            f"Local last updated at {headers.get('Last-Modified', 'NA')}, remote last updated at {latest_headers.get('Last-Modified', 'NA')}",
+            style="bold yellow",
         )
-        print("Would you like to fetch the updated version?  (Y/n)")
-        response = input()
-        if response == "" or response.lower() == "y":
+        response = Prompt.ask(
+            "Would you like to fetch the updated version?",
+            default="Y",
+            choices=["Y", "n"],
+        )
+        if response.lower() == "y":
             download_and_update_hf()
         else:
-            print("Continuing... ")
-            print(
-                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}"
+            console.print("Continuing... ", style="bold yellow")
+            console.print(
+                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}",
+                style="bold yellow",
             )
             sleep(2)
             return
@@ -150,13 +166,14 @@ def validate_hydrofabric():
 
 def validate_output_dir():
     if not file_paths.config_file.is_file():
-        print(
-            "Output directory is not set. Would you like to set it now? Defaults to ~/ngiab_preprocess_output/ (y/N)"
+        response = Prompt.ask(
+            "Output directory is not set. Would you like to use the default? ~/ngiab_preprocess_output/",
+            default="Y",
+            choices=["Y", "n"],
         )
-        response = input()
-        if response.lower() == "y":
-            response = input("Enter the path to the working directory: ")
-        if response == "" or response.lower() == "n":
+        if response.lower() == "n":
+            response = Prompt.ask("Enter the path to the working directory")
+        if response == "" or response.lower() == "y":
             response = "~/ngiab_preprocess_output/"
         file_paths.set_working_dir(response)
 
