@@ -1,20 +1,32 @@
-import argparse
-import logging
-import time
-from typing import List
-import subprocess
+import rich.status
 
-from dask.distributed import Client
+# add a status bar for these imports
+with rich.status.Status("Initializing...") as status:
+    import threading
+    from data_sources.source_validation import validate_all
+    from ngiab_data_cli.custom_logging import setup_logging, set_logging_to_critical_only
+    from ngiab_data_cli.arguments import parse_arguments
+    from data_processing.file_paths import file_paths
 
-from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
-from data_processing.subset import subset
-from data_processing.forcings import create_forcings
-from data_processing.create_realization import create_realization, create_dd_realization
-from data_sources.source_validation import validate_all
 
-from ngiab_data_cli.custom_logging import setup_logging, set_logging_to_critical_only
-from ngiab_data_cli.arguments import parse_arguments
+# load these modules in a separate thread so the cli can start faster
+def import_modules():
+    global argparse, logging, time, List, subprocess, Client, get_catid_from_point, get_cat_from_gage_id, subset, create_forcings, create_realization, create_dd_realization
+    import argparse
+    import logging
+    import time
+    from typing import List
+    import subprocess
+    import time
+    from dask.distributed import Client
+    from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
+    from data_processing.subset import subset
+    from data_processing.forcings import create_forcings
+    from data_processing.create_realization import create_realization, create_dd_realization
+
+
+module_import_thread = threading.Thread(target=import_modules)
+module_import_thread.start()
 
 
 def validate_input(args: argparse.Namespace) -> None:
@@ -120,6 +132,9 @@ def main() -> None:
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
         logging.info(f"Using output folder: {paths.subset_dir}")
+
+        ## wait for other modules to load
+        module_import_thread.join()
 
         if args.subset:
             logging.info(f"Subsetting hydrofabric")

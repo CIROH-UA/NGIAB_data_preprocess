@@ -32,7 +32,7 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     Verify that the indices in the specified geopackage are correct.
     If they are not, create the correct indices.
     """
-    logger.info("Building database indices")
+    logger.debug("Building database indices")
     new_indicies = [
         'CREATE INDEX "diid" ON "divides" ( "divide_id" ASC );',
         'CREATE INDEX "ditid" ON "divides" ( "toid" ASC );',
@@ -55,6 +55,9 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     con = sqlite3.connect(gpkg)
     indices = con.execute("SELECT name FROM sqlite_master WHERE type = 'index'").fetchall()
     indices = [x[0] for x in indices]
+    missing = [x for x in new_indicies if x.split('"')[1] not in indices]
+    if len(missing) > 0:
+        logger.info("Creating indices")
     for index in new_indicies:
         if index.split('"')[1] not in indices:
             logger.info(f"Creating index {index}")
