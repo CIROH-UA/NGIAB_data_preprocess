@@ -372,6 +372,25 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
     dest_db.close()
 
 
+def get_table_crs_short(gpkg: str, table: str) -> str:
+    """
+    Gets the CRS of the specified table in the specified geopackage as a short string. e.g. EPSG:5070
+
+    Args:
+        gpkg (str): The path to the geopackage.
+        table (str): The table name.
+    """
+    with sqlite3.connect(gpkg) as con:
+        sql_query = f"""SELECT organization || ':' || organization_coordsys_id
+                    FROM gpkg_spatial_ref_sys
+                    WHERE srs_id = (
+                        SELECT srs_id
+                        FROM gpkg_geometry_columns
+                        WHERE table_name = '{table}'
+                    )"""
+        crs = con.execute(sql_query).fetchone()[0]
+    return crs
+
 def get_table_crs(gpkg: str, table: str) -> str:
     """
     Get the CRS of the specified table in the specified geopackage.

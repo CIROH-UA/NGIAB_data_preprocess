@@ -1,19 +1,26 @@
 import json
 import multiprocessing
 import sqlite3
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
 import pandas
 import s3fs
 import xarray as xr
+import logging
+from collections import defaultdict
 from dask.distributed import Client, LocalCluster
 from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import (GeoPackage, get_cat_to_nex_flowpairs,
-                                        get_cat_to_nhd_feature_id)
+from data_processing.gpkg_utils import (
+    GeoPackage,
+    get_cat_to_nhd_feature_id,
+    get_table_crs_short,
+    get_cat_to_nex_flowpairs,
+)
 from tqdm.rich import tqdm
+from pyproj import Transformer
 
+logger = logging.getLogger(__name__)
 
 def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
     # get the gw levels from the NWM output on a given start date
@@ -109,11 +116,8 @@ def make_noahowp_config(
             )
 
 
-def make_em_config(
-    hydrofabric: Path,
-    output_dir: Path,
-    template_path: Path = file_paths.template_em_config,
-):
+def get_model_attributes_modspatialite(hydrofabric: Path):
+    # modspatialite is faster than pyproj but can't be added as a pip dependency
     # This incantation took a while
     with GeoPackage(hydrofabric) as conn:
         sql = """WITH source_crs AS (
@@ -139,6 +143,55 @@ def make_em_config(
         """
         divide_conf_df = pandas.read_sql_query(sql, conn)
     divide_conf_df.set_index("divide_id", inplace=True)
+    return divide_conf_df
+
+
+def get_model_attributes_pyproj(hydrofabric: Path):
+    # if modspatialite is not available, use pyproj
+    with sqlite3.connect(hydrofabric) as conn:
+        sql = """
+        SELECT 
+        d.divide_id, 
+        d.areasqkm, 
+        da."mean.slope", 
+        da."mean.elevation",
+        da.centroid_x,
+        da.centroid_y
+        FROM divides AS d 
+        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id 
+        """
+        divide_conf_df = pandas.read_sql_query(sql, conn)
+
+    source_crs = get_table_crs_short(hydrofabric, "divides")
+
+    transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+
+    lon, lat = transformer.transform(
+        divide_conf_df["centroid_x"].values, divide_conf_df["centroid_y"].values
+    )
+
+    divide_conf_df["longitude"] = lon
+    divide_conf_df["latitude"] = lat
+
+    divide_conf_df.drop(columns=["centroid_x", "centroid_y"], axis=1, inplace=True)
+    divide_conf_df.set_index("divide_id", inplace=True)
+
+    return divide_conf_df
+
+
+def make_em_config(
+    hydrofabric: Path,
+    output_dir: Path,
+    template_path: Path = file_paths.template_em_config,
+):
+
+    # test if modspatialite is available
+    try:
+        divide_conf_df = get_model_attributes_modspatialite(hydrofabric)
+    except Exception as e:
+        logger.warning(f"mod_spatialite not available, using pyproj instead: {e}")
+        logger.warning(f"Install mod_spatialite for improved performance")
+        divide_conf_df = get_model_attributes_pyproj(hydrofabric)
 
     cat_config_dir = output_dir / "cat_config" / "em"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
@@ -184,7 +237,6 @@ def configure_troute(
 
     with open(config_dir / "troute.yaml", "w") as file:
         file.write(filled_template)
-
 
 
 def make_ngen_realization_json(

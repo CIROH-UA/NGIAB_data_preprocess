@@ -16,9 +16,11 @@ from fsspec.mapping import FSMap
 logger = logging.getLogger(__name__)
 
 
-def load_zarr_datasets(forcing_vars: list[str] = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]) -> xr.Dataset:
+def load_zarr_datasets(forcing_vars: list[str] = None) -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
     # if a LocalCluster is not already running, start one
+    if not forcing_vars:
+        forcing_vars = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]
     try:
         client = Client.current()
     except ValueError:
@@ -98,7 +100,11 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
 
 
 def get_forcing_data(
-    forcing_paths: file_paths, start_time: str, end_time: str, gdf: gpd.GeoDataFrame
+    forcing_paths: file_paths,
+    start_time: str,
+    end_time: str,
+    gdf: gpd.GeoDataFrame,
+    forcing_vars: list[str] = None,
 ) -> xr.Dataset:
     merged_data = None
     if os.path.exists(forcing_paths.cached_nc_file):
@@ -118,6 +124,21 @@ def get_forcing_data(
             lazy_store = load_zarr_datasets()
             start_time, end_time = validate_time_range(lazy_store, start_time, end_time)
 
+        if forcing_vars:
+            # check if the forcing vars are all in the cached data
+            # the zarr file names dont exactly match the forcing vars within them
+            cached_vars = cached_data.data_vars.keys()
+            cached_vars = [var.lower() for var in cached_vars if var != "crs"]
+            # replace rainrate with precip
+            cached_vars = [var.replace("rainrate", "precip") for var in cached_vars]
+            missing_vars = set(forcing_vars) - set(cached_vars)
+            if len(missing_vars) > 0:
+                logger.info("Missing forcing vars in cache")
+                # os.remove(forcing_paths.cached_nc_file)
+                logger.debug("Removed cached nc file")
+                range_in_cache = False
+                exit()
+
         if range_in_cache:
             logger.info("Time range is within cached data")
             logger.debug(f"Opened cached nc file: [{forcing_paths.cached_nc_file}]")
@@ -133,7 +154,7 @@ def get_forcing_data(
     if merged_data is None:
         logger.info("Loading zarr stores")
         # create new event loop
-        lazy_store = load_zarr_datasets()
+        lazy_store = load_zarr_datasets(forcing_vars)
         logger.debug("Got zarr stores")
         clipped_store = clip_dataset_to_bounds(lazy_store, gdf.total_bounds, start_time, end_time)
         logger.info("Clipped forcing data to bounds")

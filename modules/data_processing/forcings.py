@@ -1,6 +1,7 @@
 import logging
 import multiprocessing
 import os
+import shutil
 import time
 import warnings
 from datetime import datetime
@@ -284,15 +285,16 @@ def setup_directories(cat_id: str) -> file_paths:
     forcing_paths = file_paths(cat_id)
     if forcing_paths.forcings_dir.exists():
         logger.info("Forcings directory already exists, deleting")
-        for file in forcing_paths.forcings_dir.glob("*"):
-            file.unlink()
+        shutil.rmtree(forcing_paths.forcings_dir)
     for folder in ["by_catchment", "temp"]:
         os.makedirs(forcing_paths.forcings_dir / folder, exist_ok=True)
-    
+
     return forcing_paths
 
 
-def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> None:
+def create_forcings(
+    start_time: str, end_time: str, output_folder_name: str, forcing_vars: list[str] = None
+) -> None:
     forcing_paths = setup_directories(output_folder_name)
     projection = xr.open_dataset(forcing_paths.template_nc, engine="h5netcdf").crs.esri_pe_string
     logger.debug("Got projection from grid file")
@@ -305,7 +307,7 @@ def create_forcings(start_time: str, end_time: str, output_folder_name: str) -> 
     if type(end_time) == datetime:
         end_time = end_time.strftime("%Y-%m-%d %H:%M")
 
-    merged_data = get_forcing_data(forcing_paths, start_time, end_time, gdf)
+    merged_data = get_forcing_data(forcing_paths, start_time, end_time, gdf, forcing_vars)
     compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir)
 
 
