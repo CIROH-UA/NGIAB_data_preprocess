@@ -132,15 +132,19 @@ def main() -> None:
             if not args.vpu:
                 upstream_count = len(get_upstream_cats(feature_to_subset))
                 logging.info(f"Upstream catchments: {upstream_count}")
+                if upstream_count == 0:
+                    # if there are no upstreams, exit
+                    logging.error("No upstream catchments found.")
+                    return
 
         if args.subset:
             if args.vpu:
                 logging.info(f"Subsetting VPU {args.vpu}")
-                subset_vpu(args.vpu, output_folder_name=output_folder)
+                subset_vpu(args.vpu, output_gpkg_path=paths.geopackage_path)
                 logging.info("Subsetting complete.")
             else:
                 logging.info(f"Subsetting hydrofabric")
-                subset(feature_to_subset, output_folder_name=output_folder)
+                subset(feature_to_subset, output_folder_name=paths.subset_dir)
                 logging.info("Subsetting complete.")
 
         if args.forcings:

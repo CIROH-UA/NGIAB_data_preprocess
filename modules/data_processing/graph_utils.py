@@ -172,6 +172,8 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
                 cat_ids.add(graph.vs[node]["cat"])
         except KeyError:
             logger.critical(f"Catchment {name} not found in the hydrofabric graph.")
+        except ValueError:
+            logger.critical(f"Catchment {name} not found in the hydrofabric graph.")
 
     # sometimes returns None, which isn't helpful
     if None in cat_ids:
@@ -208,6 +210,8 @@ def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True) 
             for node in upstream_nodes:
                 parent_ids.add(graph.vs[node]["name"])
         except KeyError:
+            logger.error(f"feature {name} not found in the hydrofabric graph.")
+        except ValueError:
             logger.error(f"feature {name} not found in the hydrofabric graph.")
 
     return parent_ids

@@ -27,6 +27,7 @@ def parse_arguments() -> argparse.Namespace:
         choices=[
             "01",
             "02",
+            "03",
             "03N",
             "03S",
             "03W",
@@ -36,6 +37,7 @@ def parse_arguments() -> argparse.Namespace:
             "07",
             "08",
             "09",
+            "10",
             "10L",
             "10U",
             "11",

@@ -290,8 +290,44 @@ def update_geopackage_metadata(gpkg: str) -> None:
 
     con.close()
 
+def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_name: Path) -> None:
+    """
+    Subset the specified table from the hydrofabric database by vpuid and save it to the subset geopackage.
+    vpus can be selected by section or as a whole e.g. 03=03N,03S,03W
 
-def subset_table(table: str, ids: List[str], hydrofabric: str, subset_gpkg_name: str) -> None:
+    Args:
+        table (str): The table name.
+        vpu (str): The VPU ID. e.g. 01,02,03N,03S,03W,04,05,06,07,08,09,10L,10U,11,12,13,14,15,16,17,18
+        hydrofabric (Path): The path to the hydrofabric database.
+        subset_gpkg_name (Path): The name of the subset geopackage.
+    """
+    logger.info(f"Subsetting {table} in {subset_gpkg_name}")
+    source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
+    dest_db = sqlite3.connect(subset_gpkg_name)
+
+    if vpu == "03":
+        vpus = ["03N","03S","03W"]
+    elif vpu == "10":
+        vpus = ["10L","10U"]
+    else:
+        vpus = [vpu]
+
+    vpus = [f"'{x}'" for x in vpus]
+    # in hf v2.2 every table has a vpuid column so subsetting is much easier
+    sql_query = f"SELECT * FROM '{table}' WHERE vpuid IN ({','.join(vpus)})"
+    contents = source_db.execute(sql_query).fetchall()
+
+    insert_data(dest_db, table, contents)
+
+    if table in get_feature_tables(file_paths.conus_hydrofabric):
+        fids = [str(x[0]) for x in contents]
+        copy_rTree_tables(table, fids, source_db, dest_db)
+
+    dest_db.commit()
+    source_db.close()
+    dest_db.close()
+
+def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name: Path) -> None:
     """
     Subset the specified table from the hydrofabric database and save it to the subset geopackage.
 
@@ -318,18 +354,17 @@ def subset_table(table: str, ids: List[str], hydrofabric: str, subset_gpkg_name:
         sql_query = "SELECT divide_id FROM 'divides'"
         contents = dest_db.execute(sql_query).fetchall()
         ids = [str(x[0]) for x in contents]
-
     ids = [f"'{x}'" for x in ids]
     key_name = "id"
     if table in table_keys:
         key_name = table_keys[table]
     sql_query = f"SELECT * FROM '{table}' WHERE {key_name} IN ({','.join(ids)})"
-    contents = source_db.execute(sql_query).fetchall()
-    fids = [str(x[0]) for x in contents]
+    contents = source_db.execute(sql_query).fetchall()    
 
     insert_data(dest_db, table, contents)
 
     if table in get_feature_tables(file_paths.conus_hydrofabric):
+        fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 
     dest_db.commit()
