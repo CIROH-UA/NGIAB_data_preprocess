@@ -6,5 +6,5 @@ initial_state: zero
 lat: {lat} # needs calulating
 lon: {lon} # needs calulating
 slope_mean: {slope_mean} # mean.slope
-train_cfg_file: ./config/dd-config.yml
+train_cfg_file: ./config/em-config.yml
 verbose: 0

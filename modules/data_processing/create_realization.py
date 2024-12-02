@@ -3,6 +3,7 @@ import multiprocessing
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+import shutil
 
 import pandas
 import s3fs
@@ -194,6 +195,8 @@ def make_em_config(
         divide_conf_df = get_model_attributes_pyproj(hydrofabric)
 
     cat_config_dir = output_dir / "cat_config" / "empirical_model"
+    if cat_config_dir.exists():
+        shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     with open(template_path, "r") as file:
