@@ -282,8 +282,13 @@ def write_outputs(forcings_dir, variables):
 
 def setup_directories(cat_id: str) -> file_paths:
     forcing_paths = file_paths(cat_id)
+    if forcing_paths.forcings_dir.exists():
+        logger.info("Forcings directory already exists, deleting")
+        for file in forcing_paths.forcings_dir.glob("*"):
+            file.unlink()
     for folder in ["by_catchment", "temp"]:
         os.makedirs(forcing_paths.forcings_dir / folder, exist_ok=True)
+    
     return forcing_paths
 
 

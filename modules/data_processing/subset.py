@@ -45,7 +45,7 @@ def create_subset_gpkg(ids: List[str], hydrofabric: str, paths: file_paths) -> P
 
 def subset(
     cat_ids: List[str],
-    hydrofabric: str = file_paths.conus_hydrofabric,
+    hydrofabric: Path = file_paths.conus_hydrofabric,
     output_folder_name: str = None,
 ) -> str:
 
@@ -71,7 +71,6 @@ def subset(
 def remove_existing_output_dir(subset_output_dir: Path) -> None:
     if subset_output_dir.exists():
         os.system(f"rm -rf {subset_output_dir / 'config'}")
-        os.system(f"rm -rf {subset_output_dir / 'forcings'}")
     else:
         subset_output_dir.mkdir(parents=True, exist_ok=True)
 
