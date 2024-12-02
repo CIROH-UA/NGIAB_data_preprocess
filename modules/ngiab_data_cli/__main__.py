@@ -14,7 +14,8 @@ with rich.status.Status("Initializing...") as status:
     import time
     from dask.distributed import Client
     from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
-    from data_processing.subset import subset
+    from data_processing.graph_utils import get_upstream_cats
+    from data_processing.subset import subset, subset_vpu
     from data_processing.forcings import create_forcings
     from data_processing.create_realization import create_realization, create_dd_realization
 
@@ -24,7 +25,7 @@ def validate_input(args: argparse.Namespace) -> None:
 
     if args.vpu:
         if not args.output_name:
-            args.output_name = args.vpu
+            args.output_name = f"vpu-{args.vpu}"
         return args.vpu, args.output_name
 
     input_feature = args.input_feature.replace("_", "-")
@@ -123,15 +124,24 @@ def main() -> None:
         args = parse_arguments()
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
-        cat_to_subset, output_folder = validate_input(args)
+        feature_to_subset, output_folder = validate_input(args)
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
-        logging.info(f"Using output folder: {paths.subset_dir}")        
+        if feature_to_subset:
+            logging.info(f"Subsetting {feature_to_subset} to {paths.output_dir}")
+            if not args.vpu:
+                upstream_count = len(get_upstream_cats(feature_to_subset))
+                logging.info(f"Upstream catchments: {upstream_count}")
 
         if args.subset:
-            logging.info(f"Subsetting hydrofabric")
-            subset(cat_to_subset, output_folder_name=output_folder)
-            logging.info("Subsetting complete.")
+            if args.vpu:
+                logging.info(f"Subsetting VPU {args.vpu}")
+                subset_vpu(args.vpu, output_folder_name=output_folder)
+                logging.info("Subsetting complete.")
+            else:
+                logging.info(f"Subsetting hydrofabric")
+                subset(feature_to_subset, output_folder_name=output_folder)
+                logging.info("Subsetting complete.")
 
         if args.forcings:
             logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")

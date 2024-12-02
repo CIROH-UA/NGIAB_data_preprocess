@@ -43,6 +43,9 @@ def create_subset_gpkg(ids: List[str], hydrofabric: str, paths: file_paths) -> P
 
     update_geopackage_metadata(subset_gpkg_name)
 
+def subset_vpu():
+    raise NotImplementedError("subset_vpu is not implemented yet")
+
 def subset(
     cat_ids: List[str],
     hydrofabric: Path = file_paths.conus_hydrofabric,
@@ -60,10 +63,7 @@ def subset(
     remove_existing_output_dir(paths.subset_dir)
     create_subset_gpkg(upstream_ids, hydrofabric, paths)
     move_files_to_config_dir(paths.subset_dir)
-    if len(upstream_ids) > 100000:
-        # don't do this slow list comprehension if there are a lot of upstreams
-        num_catchments = sum(1 for x in upstream_ids if x.startswith("wb"))
-        logger.info(f"Subset complete for {num_catchments} catchments")
+    logger.info(f"Subset complete for {len(upstream_ids)} features (catchments + nexuses)")
     logger.debug(f"Subset complete for {upstream_ids} catchments")
     return str(paths.subset_dir)
 

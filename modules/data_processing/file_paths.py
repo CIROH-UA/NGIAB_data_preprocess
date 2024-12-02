@@ -45,6 +45,7 @@ class file_paths:
             raise ValueError("please pass either folder_name or output_dir")
         if folder_name:
             self.folder_name = folder_name
+            self.output_dir = self.root_output_dir() / folder_name
         if output_dir:
             self.output_dir = output_dir
             self.folder_name = str(output_dir.stem)
