@@ -113,6 +113,7 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 
 - `-h`, `--help`: Show the help message and exit.
 - `-i INPUT_FEATURE`, `--input_feature INPUT_FEATURE`: ID of feature to subset. Providing a prefix will automatically convert to catid, e.g., cat-5173 or gage-01646500 or wb-1234.
+- `--vpu VPU_ID` : The id of the vpu to subset e.g 01. 10 = 10L + 10U and 03 = 03N + 03S + 03W. `--help` will display all the options.
 - `-l`, `--latlon`: Use latitude and longitude instead of catid. Expects comma-separated values via the CLI, e.g., `python -m ngiab_data_cli -i 54.33,-69.4 -l -s`.
 - `-g`, `--gage`: Use gage ID instead of catid. Expects a single gage ID via the CLI, e.g., `python -m ngiab_data_cli -i 01646500 -g -s`.
 - `-s`, `--subset`: Subset the hydrofabric to the given feature.
@@ -141,9 +142,10 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
    # to name the folder, add -o folder_name
    ```
 
-1. Subset hydrofabric using catchment ID:
+1. Subset hydrofabric using catchment ID or VPU:
    ```bash
    python -m ngiab_data_cli -i cat-7080 -s
+   python -m ngiab_data_cli --vpu 01 -s
    ```
 
 2. Generate forcings using a single catchment ID:
