@@ -193,7 +193,7 @@ def make_em_config(
         logger.warning(f"Install mod_spatialite for improved performance")
         divide_conf_df = get_model_attributes_pyproj(hydrofabric)
 
-    cat_config_dir = output_dir / "cat_config" / "em"
+    cat_config_dir = output_dir / "cat_config" / "empirical_model"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     with open(template_path, "r") as file:

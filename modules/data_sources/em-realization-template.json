@@ -5,7 +5,7 @@
         "name": "bmi_multi",
         "params": {
           "name": "bmi_multi",
-          "model_type_name": "dd",
+          "model_type_name": "empirical_model",
           "forcing_file": "",
           "init_config": "",
           "allow_exceed_end_time": true,
@@ -16,8 +16,8 @@
               "params": {
                 "name": "bmi_python",
                 "python_type": "lstm.bmi_lstm.bmi_LSTM",
-                "model_type_name": "bmi_dd",
-                "init_config": "./config/cat_config/dd/{{id}}.yml",
+                "model_type_name": "bmi_empirical_model",
+                "init_config": "./config/cat_config/empirical_model/{{id}}.yml",
                 "allow_exceed_end_time": true,
                 "main_output_variable": "land_surface_water__runoff_depth",
                 "uses_forcing_file": false,
