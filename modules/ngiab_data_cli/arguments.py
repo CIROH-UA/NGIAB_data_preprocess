@@ -12,14 +12,43 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Subsetting hydrofabrics, forcing generation, and realization creation"
     )
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
         "-i",
         "--input_feature",
         "--input_file",
         type=str,
         help="ID of feature to subset, providing a prefix will automatically convert to catid, \n e.g. cat-5173 or gage-01646500 or wb-1234",
-        required=True,
     )
+    group.add_argument(
+        "--vpu",
+        type=str,
+        help="The VPU to subset, e.g. 01",
+        choices=[
+            "01",
+            "02",
+            "03N",
+            "03S",
+            "03W",
+            "04",
+            "05",
+            "06",
+            "07",
+            "08",
+            "09",
+            "10L",
+            "10U",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+        ],
+    )
+
     parser.add_argument(
         "-l",
         "--latlon",

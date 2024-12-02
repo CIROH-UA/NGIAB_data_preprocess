@@ -18,8 +18,14 @@ with rich.status.Status("Initializing...") as status:
     from data_processing.forcings import create_forcings
     from data_processing.create_realization import create_realization, create_dd_realization
 
+
 def validate_input(args: argparse.Namespace) -> None:
     """Validate input arguments."""
+
+    if args.vpu:
+        if not args.output_name:
+            args.output_name = args.vpu
+        return args.vpu, args.output_name
 
     input_feature = args.input_feature.replace("_", "-")
 
@@ -41,22 +47,22 @@ def validate_input(args: argparse.Namespace) -> None:
         raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
     if args.latlon:
-        catchment_id = get_cat_id_from_lat_lon(input_feature)
-        logging.info(f"Found {catchment_id} from {input_feature}")
+        feature_name = get_cat_id_from_lat_lon(input_feature)
+        logging.info(f"Found {feature_name} from {input_feature}")
     elif args.gage:
-        catchment_id = get_cat_from_gage_id(input_feature)
-        logging.info(f"Found {catchment_id} from {input_feature}")
+        feature_name = get_cat_from_gage_id(input_feature)
+        logging.info(f"Found {feature_name} from {input_feature}")
     else:
-        catchment_id = input_feature
+        feature_name = input_feature
 
     if args.output_name:
         output_folder = args.output_name
     elif args.gage:
         output_folder = input_feature
     else:
-        output_folder = catchment_id
+        output_folder = feature_name
 
-    return catchment_id, output_folder
+    return feature_name, output_folder
 
 
 def get_cat_id_from_lat_lon(input_feature: str) -> List[str]:
