@@ -61,31 +61,21 @@ def subset_vpu(vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_pat
 def subset(
     cat_ids: List[str],
     hydrofabric: Path = file_paths.conus_hydrofabric,
-    output_folder_name: str = None,
+    output_gpkg_path: Path = None,
 ) -> str:
 
     upstream_ids = list(get_upstream_ids(cat_ids))
 
-    if not output_folder_name:
+    if not output_gpkg_path:
         # if the name isn't provided, use the first upstream id
         upstream_ids = sorted(upstream_ids)
         output_folder_name = upstream_ids[0]
+        paths = file_paths(output_folder_name)
+        output_gpkg_path = paths.geopackage_path
 
-    paths = file_paths(output_folder_name)
-    remove_existing_output_dir(paths.subset_dir)
-    create_subset_gpkg(upstream_ids, hydrofabric, paths.geopackage_path)
-    move_files_to_config_dir(paths.subset_dir)
+    create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path)
     logger.info(f"Subset complete for {len(upstream_ids)} features (catchments + nexuses)")
     logger.debug(f"Subset complete for {upstream_ids} catchments")
-    return str(paths.subset_dir)
-
-
-def remove_existing_output_dir(subset_output_dir: Path) -> None:
-    if subset_output_dir.exists():
-        os.system(f"rm -rf {subset_output_dir / 'config'}")
-    else:
-        subset_output_dir.mkdir(parents=True, exist_ok=True)
-
 
 def move_files_to_config_dir(subset_output_dir: str) -> None:
     config_dir = subset_output_dir / "config"

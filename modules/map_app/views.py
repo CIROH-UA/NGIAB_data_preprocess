@@ -41,8 +41,9 @@ def subset_selection():
     cat_ids = list(json.loads(request.data.decode("utf-8")))
     logger.info(cat_ids)
     subset_name = cat_ids[0]
-    subset_folder = subset(cat_ids, output_folder_name=subset_name)
-    return subset_folder, 200
+    run_paths = file_paths(subset_name)
+    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path)
+    return run_paths.geopackage_path, 200
 
 
 @main.route("/subset_to_file", methods=["POST"])

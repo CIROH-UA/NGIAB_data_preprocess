@@ -55,7 +55,13 @@ def make_cfe_config(
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in divide_conf_df.iterrows():
-        gw_storage_ratio = water_levels[row["divide_id"]] / row["mean.Zmax"]
+        nwm_water_level = water_levels.get(row["divide_id"], None)
+        # if we have the nwm output water level for that catchment, use it
+        # otherwise, use 5%
+        if nwm_water_level is not None:
+            gw_storage_ratio = water_levels[row["divide_id"]] / row["mean.Zmax"]
+        else:
+            gw_storage_ratio = 0.05
         cat_config = cfe_template.format(
             bexp=row["mode.bexp_soil_layers_stag=2"],
             dksat=row["geom_mean.dksat_soil_layers_stag=2"],
@@ -179,11 +185,10 @@ def configure_troute(
     with open(config_dir / "troute.yaml", "w") as file:
         file.write(filled_template)
 
-    return nts
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime, nts: int
+    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime 
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
@@ -206,9 +211,9 @@ def create_dd_realization(cat_id: str, start_time: datetime, end_time: datetime)
     with open(paths.config_dir / "dd-config.yml", "w") as f:
         f.write(dd_config)
 
-    num_timesteps = configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(
-        paths.config_dir, template_path, start_time, end_time, num_timesteps
+        paths.config_dir, template_path, start_time, end_time
     )
     make_dd_config(paths.geopackage_path, paths.config_dir)
     # create some partitions for parallelization
@@ -216,22 +221,26 @@ def create_dd_realization(cat_id: str, start_time: datetime, end_time: datetime)
     create_partitions(paths)
 
 
-def create_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_realization(cat_id: str, start_time: datetime, end_time: datetime, use_nwm_gw: bool = False):
     paths = file_paths(cat_id)
 
     # get approximate groundwater levels from nwm output
     template_path = paths.template_cfe_nowpm_realization_config
     with sqlite3.connect(paths.geopackage_path) as conn:
         conf_df = pandas.read_sql_query("SELECT * FROM 'divide-attributes';", conn)
-    gw_levels = get_approximate_gw_storage(paths, start_time)
+
+    if use_nwm_gw:
+        gw_levels = get_approximate_gw_storage(paths, start_time)
+    else:
+        gw_levels = dict()
     make_cfe_config(conf_df, paths, gw_levels)
 
     make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
 
-    num_timesteps = configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
     make_ngen_realization_json(
-        paths.config_dir, template_path, start_time, end_time, num_timesteps
+        paths.config_dir, template_path, start_time, end_time
     )
 
     # create some partitions for parallelization

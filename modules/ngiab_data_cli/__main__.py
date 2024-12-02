@@ -144,7 +144,7 @@ def main() -> None:
                 logging.info("Subsetting complete.")
             else:
                 logging.info(f"Subsetting hydrofabric")
-                subset(feature_to_subset, output_folder_name=paths.subset_dir)
+                subset(feature_to_subset, output_gpkg_path=paths.geopackage_path)
                 logging.info("Subsetting complete.")
 
         if args.forcings:
@@ -158,13 +158,13 @@ def main() -> None:
 
         if args.realization:
             logging.info(f"Creating realization from {args.start_date} to {args.end_date}...")
-            if args.dd:
+            if args.empirical_model:
                 create_dd_realization(
                     output_folder, start_time=args.start_date, end_time=args.end_date
                 )
             else:
                 create_realization(
-                    output_folder, start_time=args.start_date, end_time=args.end_date
+                    output_folder, start_time=args.start_date, end_time=args.end_date, use_nwm_gw=args.nwm_gw
                 )
             logging.info("Realization creation complete.")
 
