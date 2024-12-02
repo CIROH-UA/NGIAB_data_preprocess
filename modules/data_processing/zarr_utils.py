@@ -16,7 +16,7 @@ from fsspec.mapping import FSMap
 logger = logging.getLogger(__name__)
 
 
-def load_zarr_datasets() -> xr.Dataset:
+def load_zarr_datasets(forcing_vars: list[str] = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]) -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
     # if a LocalCluster is not already running, start one
     try:
@@ -24,7 +24,6 @@ def load_zarr_datasets() -> xr.Dataset:
     except ValueError:
         cluster = LocalCluster()
         client = Client(cluster)
-    forcing_vars = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]
     s3_urls = [
         f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/zarr/forcing/{var}.zarr"
         for var in forcing_vars

@@ -25,11 +25,11 @@ class file_paths:
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
     template_cfe_nowpm_realization_config = data_sources / "cfe-nowpm-realization-template.json"
-    template_dd_realization_config = data_sources / "dd-realization-template.json"
+    template_em_realization_config = data_sources / "em-realization-template.json"
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
     template_cfe_config = data_sources / "cfe-template.ini"
-    template_dd_config = data_sources / "dd-catchment-template.yml"
-    template_dd_model_config = data_sources / "dd-config.yml"
+    template_em_config = data_sources / "em-catchment-template.yml"
+    template_em_model_config = data_sources / "em-config.yml"
 
     def __init__(self, folder_name: str = None, output_dir: Path = None):
         """

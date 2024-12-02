@@ -109,10 +109,10 @@ def make_noahowp_config(
             )
 
 
-def make_dd_config(
+def make_em_config(
     hydrofabric: Path,
     output_dir: Path,
-    template_path: Path = file_paths.template_dd_config,
+    template_path: Path = file_paths.template_em_config,
 ):
     # This incantation took a while
     with GeoPackage(hydrofabric) as conn:
@@ -140,7 +140,7 @@ def make_dd_config(
         divide_conf_df = pandas.read_sql_query(sql, conn)
     divide_conf_df.set_index("divide_id", inplace=True)
 
-    cat_config_dir = output_dir / "cat_config" / "dd"
+    cat_config_dir = output_dir / "cat_config" / "em"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     with open(template_path, "r") as file:
@@ -201,21 +201,21 @@ def make_ngen_realization_json(
         json.dump(realization, file, indent=4)
 
 
-def create_dd_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_em_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = file_paths(cat_id)
-    template_path = file_paths.template_dd_realization_config
-    dd_config = file_paths.template_dd_model_config
-    # move dd_config to paths.config_dir
-    with open(dd_config, "r") as f:
-        dd_config = f.read()
-    with open(paths.config_dir / "dd-config.yml", "w") as f:
-        f.write(dd_config)
+    template_path = file_paths.template_em_realization_config
+    em_config = file_paths.template_em_model_config
+    # move em_config to paths.config_dir
+    with open(em_config, "r") as f:
+        em_config = f.read()
+    with open(paths.config_dir / "em-config.yml", "w") as f:
+        f.write(em_config)
 
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(
         paths.config_dir, template_path, start_time, end_time
     )
-    make_dd_config(paths.geopackage_path, paths.config_dir)
+    make_em_config(paths.geopackage_path, paths.config_dir)
     # create some partitions for parallelization
     paths.setup_run_folders()
     create_partitions(paths)
