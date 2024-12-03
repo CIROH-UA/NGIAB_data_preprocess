@@ -148,8 +148,6 @@ def main() -> None:
                 logging.info("Subsetting complete.")
 
         if args.forcings:
-            
-
             logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
             if args.empirical_model:
                 create_forcings(

@@ -133,11 +133,8 @@ def get_forcing_data(
             cached_vars = [var.replace("rainrate", "precip") for var in cached_vars]
             missing_vars = set(forcing_vars) - set(cached_vars)
             if len(missing_vars) > 0:
-                logger.info("Missing forcing vars in cache")
-                # os.remove(forcing_paths.cached_nc_file)
-                logger.debug("Removed cached nc file")
+                logger.info(f"Missing forcing vars in cache: {missing_vars}")
                 range_in_cache = False
-                exit()
 
         if range_in_cache:
             logger.info("Time range is within cached data")

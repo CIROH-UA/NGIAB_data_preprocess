@@ -12,6 +12,28 @@
           "main_output_variable": "land_surface_water__runoff_depth",
           "modules": [
             {
+              "name": "bmi_c++",
+              "params": {
+                "name": "bmi_c++",
+                "model_type_name": "SLOTH",
+                "main_output_variable": "z",
+                "init_config": "/dev/null",
+                "allow_exceed_end_time": true,
+                "fixed_time_step": false,
+                "uses_forcing_file": false,
+                "model_params": {
+                  "land_surface_air__pressure": 0.0,
+                  "atmosphere_air_water~vapor__relative_saturation": 0.0,
+                  "land_surface_radiation~incoming~shortwave__energy_flux": 0.0,
+                  "land_surface_radiation~incoming~longwave__energy_flux": 0.0,
+                  "land_surface_wind__x_component_of_velocity": 0.0,
+                  "land_surface_wind__y_component_of_velocity": 0.0
+                },
+                "library_file": "/dmod/shared_libs/libslothmodel.so",
+                "registration_function": "none"
+              }
+            },
+            {
               "name": "bmi_python",
               "params": {
                 "name": "bmi_python",
