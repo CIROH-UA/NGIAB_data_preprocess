@@ -98,12 +98,12 @@ compute_parameters:
 output_parameters:
     #----------
     #test_output: outputs/lcr_flowveldepth.pkl
-    lite_restart:
-        #----------
-        lite_restart_output_directory: restart/
-    lakeout_output: lakeout/
+    # lite_restart:
+    #     #----------
+    #     lite_restart_output_directory: restart/
+    # lakeout_output: lakeout/
     stream_output:
         stream_output_directory: outputs/troute/
-        stream_output_time: {stream_output_time} #number of internal_frequency timesteps per output file
+        stream_output_time: -1 # -1 adds all outputs to a single file
         stream_output_type: ".nc" #please select only between netcdf '.nc' or '.csv' or '.pkl'
         stream_output_internal_frequency: 60 #[min] it should be order of 5 minutes. For instance if you want to output every hour put 60

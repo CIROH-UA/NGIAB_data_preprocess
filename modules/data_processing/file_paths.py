@@ -110,8 +110,6 @@ class file_paths:
 
     def setup_run_folders(self) -> None:
         folders = [
-            "restart",
-            "lakeout",
             "outputs",
             "outputs/ngen",
             "outputs/troute",

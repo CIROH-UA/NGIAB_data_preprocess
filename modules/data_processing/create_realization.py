@@ -224,8 +224,6 @@ def configure_troute(
         troute_template = file.read()
     time_step_size = 300
     nts = (end_time - start_time).total_seconds() / time_step_size
-    seconds_in_hour = 3600
-    number_of_hourly_steps = nts * time_step_size / seconds_in_hour
     filled_template = troute_template.format(
         # hard coded to 5 minutes
         time_step_size=time_step_size,
@@ -234,8 +232,7 @@ def configure_troute(
         geo_file_path=f"./config/{cat_id}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=nts,
-        max_loop_size=nts,
-        stream_output_time=number_of_hourly_steps,
+        max_loop_size=nts,        
     )
 
     with open(config_dir / "troute.yaml", "w") as file:
