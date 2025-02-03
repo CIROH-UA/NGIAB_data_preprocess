@@ -76,6 +76,7 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # technically should be kg/m^2/s at 1kg = 1l it equates to mm/s
     # nom says qinsur output is m/s, hopefully qinsur is converted to mm/h by ngen
     dataset["APCP_surface"] = dataset["precip_rate"] * 3600
+    dataset["APCP_surface"].attrs["units"] = "mm h^-1" # ^-1 notation copied from source data
     return dataset
 
 
@@ -140,6 +141,12 @@ def get_cell_weights_parallel(gdf, input_forcings, num_partitions):
         catchments = pool.starmap(get_cell_weights, args)
     return pd.concat(catchments)
 
+def get_units(dataset: xr.Dataset) -> dict:
+    units = {}
+    for var in dataset.data_vars:
+        if dataset[var].attrs["units"]:
+            units[var] = dataset[var].attrs["units"]
+    return units
 
 def compute_zonal_stats(
     gdf: gpd.GeoDataFrame, merged_data: xr.Dataset, forcings_dir: Path
@@ -151,6 +158,8 @@ def compute_zonal_stats(
         num_partitions = len(gdf)
 
     catchments = get_cell_weights_parallel(gdf, merged_data, num_partitions)
+
+    units = get_units(merged_data)
 
     variables = {
                 "LWDOWN": "DLWRF_surface",
@@ -240,10 +249,10 @@ def compute_zonal_stats(
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
-    write_outputs(forcings_dir, variables)
+    write_outputs(forcings_dir, variables, units)
 
 
-def write_outputs(forcings_dir, variables):
+def write_outputs(forcings_dir, variables, units):
 
     # start a dask cluster if there isn't one already running
     try:
@@ -255,6 +264,11 @@ def write_outputs(forcings_dir, variables):
     # Combine all variables into a single dataset using dask
     results = [xr.open_dataset(file, chunks="auto") for file in forcings_dir.glob("*.nc")]
     final_ds = xr.merge(results)
+    for var in final_ds.data_vars:
+        if var in units:
+            final_ds[var].attrs["units"] = units[var]
+        else:
+            logger.warning(f"Variable {var} has no units")
 
     output_folder = forcings_dir / "by_catchment"
 
