@@ -310,10 +310,10 @@ def create_partitions(paths: Path, num_partitions: int = None) -> None:
     cat_to_nex_pairs = get_cat_to_nex_flowpairs(hydrofabric=paths.geopackage_path)
     nexus = defaultdict(list)
 
-    for cat, nex in cat_to_nex_pairs:
-        nexus[nex].append(cat)
+    # for cat, nex in cat_to_nex_pairs:
+    #     nexus[nex].append(cat)
 
-    num_partitions = min(num_partitions, len(nexus))
+    num_partitions = min(num_partitions, len(cat_to_nex_pairs))
     # partition_size = ceil(len(nexus) / num_partitions)
     # num_nexus = len(nexus)
     # nexus = list(nexus.items())
