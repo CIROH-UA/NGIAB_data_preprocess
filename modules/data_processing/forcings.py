@@ -320,9 +320,11 @@ def write_outputs(forcings_dir, variables, units):
 
 def setup_directories(cat_id: str) -> file_paths:
     forcing_paths = file_paths(cat_id)
-    if forcing_paths.forcings_dir.exists():
-        logger.info("Forcings directory already exists, deleting")
-        shutil.rmtree(forcing_paths.forcings_dir)
+    # delete everything in the forcing folder except the cached nc file
+    for file in forcing_paths.forcings_dir.glob("*.*"):
+        if file != forcing_paths.cached_nc_file:
+            file.unlink()
+
     os.makedirs(forcing_paths.forcings_dir / "temp", exist_ok=True)
 
     return forcing_paths
