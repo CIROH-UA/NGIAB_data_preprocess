@@ -74,7 +74,7 @@ def make_cfe_config(
             bexp=row["mode.bexp_soil_layers_stag=2"],
             dksat=row["geom_mean.dksat_soil_layers_stag=2"],
             psisat=row["geom_mean.psisat_soil_layers_stag=2"],
-            slope=row["mean.slope"],
+            slope=row["mean.slope_1km"],
             smcmax=row["mean.smcmax_soil_layers_stag=2"],
             smcwlt=row["mean.smcwlt_soil_layers_stag=2"],
             max_gw_storage=row["mean.Zmax"]/1000 if row["mean.Zmax"] is not None else "0.011[m]", # mean.Zmax is in mm!
@@ -107,10 +107,10 @@ def make_noahowp_config(
                 template.format(
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
-                    lat=divide_conf_df.loc[divide, "centroid_y"],
-                    lon=divide_conf_df.loc[divide, "centroid_x"],
-                    terrain_slope=divide_conf_df.loc[divide, "mean.slope"],
-                    azimuth=divide_conf_df.loc[divide, "circ_mean.aspect"],
+                    lat=divide_conf_df.loc[divide, "latitude"],
+                    lon=divide_conf_df.loc[divide, "longitude"],
+                    terrain_slope= divide_conf_df.loc[divide, "mean.slope_1km"],
+                    azimuth= divide_conf_df.loc[divide, "circ_mean.aspect"],
                     ISLTYP=int(divide_conf_df.loc[divide, "mode.ISLTYP"]),
                     IVGTYP=int(divide_conf_df.loc[divide, "mode.IVGTYP"]),
                 )
@@ -123,24 +123,25 @@ def get_model_attributes_modspatialite(hydrofabric: Path):
     with GeoPackage(hydrofabric) as conn:
         sql = """WITH source_crs AS (
         SELECT organization || ':' || organization_coordsys_id AS crs_string
-        FROM gpkg_spatial_ref_sys 
+        FROM gpkg_spatial_ref_sys
         WHERE srs_id = (
-            SELECT srs_id 
-            FROM gpkg_geometry_columns 
+            SELECT srs_id
+            FROM gpkg_geometry_columns
             WHERE table_name = 'divides'
         )
         )
-        SELECT 
-        d.divide_id, 
-        d.areasqkm, 
-        da."mean.slope", 
+        SELECT
+        d.divide_id,
+        d.areasqkm,
+        da."mean.slope",
+        da."mean.slope_1km",
         da."mean.elevation",
-        ST_X(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL, 
+        ST_X(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
             (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
-        ST_Y(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL, 
+        ST_Y(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
             (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude
-        FROM divides AS d 
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id 
+        FROM divides AS d
+        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
         """
         divide_conf_df = pandas.read_sql_query(sql, conn)
     divide_conf_df.set_index("divide_id", inplace=True)
@@ -151,15 +152,16 @@ def get_model_attributes_pyproj(hydrofabric: Path):
     # if modspatialite is not available, use pyproj
     with sqlite3.connect(hydrofabric) as conn:
         sql = """
-        SELECT 
-        d.divide_id, 
-        d.areasqkm, 
-        da."mean.slope", 
+        SELECT
+        d.divide_id,
+        d.areasqkm,
+        da."mean.slope",
+        da."mean.slope_1km",
         da."mean.elevation",
         da.centroid_x,
         da.centroid_y
-        FROM divides AS d 
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id 
+        FROM divides AS d
+        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
         """
         divide_conf_df = pandas.read_sql_query(sql, conn)
 
@@ -243,7 +245,7 @@ def configure_troute(
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime 
+    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
@@ -281,8 +283,25 @@ def create_realization(cat_id: str, start_time: datetime, end_time: datetime, us
 
     # get approximate groundwater levels from nwm output
     template_path = paths.template_cfe_nowpm_realization_config
-    with sqlite3.connect(paths.geopackage_path) as conn:
-        conf_df = pandas.read_sql_query("SELECT * FROM 'divide-attributes';", conn)
+    with GeoPackage(paths.geopackage_path) as conn:
+        conf_df = pandas.read_sql_query(
+            """WITH source_crs AS (
+        SELECT organization || ':' || organization_coordsys_id AS crs_string
+        FROM gpkg_spatial_ref_sys
+        WHERE srs_id = (
+            SELECT srs_id
+            FROM gpkg_geometry_columns
+            WHERE table_name = 'divides'
+        )
+        )
+        SELECT
+        *,
+        ST_X(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
+            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
+        ST_Y(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
+            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude FROM 'divide-attributes';""",
+            conn,
+        )
 
     if use_nwm_gw:
         gw_levels = get_approximate_gw_storage(paths, start_time)
