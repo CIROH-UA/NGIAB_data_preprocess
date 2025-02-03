@@ -77,6 +77,7 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # nom says qinsur output is m/s, hopefully qinsur is converted to mm/h by ngen
     dataset["APCP_surface"] = dataset["precip_rate"] * 3600
     dataset["APCP_surface"].attrs["units"] = "mm h^-1" # ^-1 notation copied from source data
+    dataset["APCP_surface"].attrs["source_note"] = "This is just the precip_rate variable converted to mm/h by multiplying by 3600"
     return dataset
 
 
@@ -233,12 +234,12 @@ def compute_zonal_stats(
         # Merge the chunks back together
         datasets = [xr.open_dataset(forcings_dir / "temp" / f"{variable}_{i}.nc") for i in range(len(time_chunks))]
         result = xr.concat(datasets, dim="time")
-        result.to_netcdf(forcings_dir / f"{variable}.nc")
+        result.to_netcdf(forcings_dir / "temp" / f"{variable}.nc")
         # close the datasets
         result.close()
         _ = [dataset.close() for dataset in datasets]
 
-        for file in forcings_dir.glob("temp/*.nc"):
+        for file in forcings_dir.glob("temp/*_*.nc"):
             file.unlink()
         progress.remove_task(chunk_task)
     progress.update(
@@ -260,17 +261,15 @@ def write_outputs(forcings_dir, variables, units):
     except ValueError:
         cluster = LocalCluster()
         client = Client(cluster)
-
+    temp_forcings_dir = forcings_dir / "temp"
     # Combine all variables into a single dataset using dask
-    results = [xr.open_dataset(file, chunks="auto") for file in forcings_dir.glob("*.nc")]
+    results = [xr.open_dataset(file, chunks="auto") for file in temp_forcings_dir.glob("*.nc")]
     final_ds = xr.merge(results)
     for var in final_ds.data_vars:
         if var in units:
             final_ds[var].attrs["units"] = units[var]
         else:
             logger.warning(f"Variable {var} has no units")
-
-    output_folder = forcings_dir / "by_catchment"
 
     rename_dict = {}
     for key, value in variables.items():
@@ -308,10 +307,15 @@ def write_outputs(forcings_dir, variables, units):
     final_ds["Time"].attrs["units"] = "s"
     final_ds["Time"].attrs["epoch_start"] = "01/01/1970 00:00:00" # not needed but suppresses the ngen warning
 
-    final_ds.to_netcdf(output_folder / "forcings.nc", engine="netcdf4")
+    final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
     # close the datasets
     _ = [result.close() for result in results]
     final_ds.close()
+
+    # clean up the temp files
+    for file in temp_forcings_dir.glob("*.*"):
+        file.unlink()
+    temp_forcings_dir.rmdir()
 
 
 def setup_directories(cat_id: str) -> file_paths:
@@ -319,8 +323,7 @@ def setup_directories(cat_id: str) -> file_paths:
     if forcing_paths.forcings_dir.exists():
         logger.info("Forcings directory already exists, deleting")
         shutil.rmtree(forcing_paths.forcings_dir)
-    for folder in ["by_catchment", "temp"]:
-        os.makedirs(forcing_paths.forcings_dir / folder, exist_ok=True)
+    os.makedirs(forcing_paths.forcings_dir / "temp", exist_ok=True)
 
     return forcing_paths
 

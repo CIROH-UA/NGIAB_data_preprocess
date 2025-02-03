@@ -53,7 +53,7 @@
       }
     ],
     "forcing": {
-      "path": "./forcings/by_catchment/forcings.nc",
+      "path": "./forcings/forcings.nc",
       "provider": "NetCDF",
       "enable_cache": false
     }
