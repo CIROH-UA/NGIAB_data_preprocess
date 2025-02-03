@@ -181,6 +181,40 @@ def get_model_attributes_pyproj(hydrofabric: Path):
 
     return divide_conf_df
 
+def get_model_attributes(hydrofabric: Path):
+    try:
+        with GeoPackage(hydrofabric) as conn:
+            conf_df = pandas.read_sql_query(
+                """WITH source_crs AS (
+            SELECT organization || ':' || organization_coordsys_id AS crs_string
+            FROM gpkg_spatial_ref_sys
+            WHERE srs_id = (
+                SELECT srs_id
+                FROM gpkg_geometry_columns
+                WHERE table_name = 'divides'
+            )
+            )
+            SELECT
+            *,
+            ST_X(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
+                (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
+            ST_Y(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
+                (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude FROM 'divide-attributes';""",
+                conn,
+            )
+    except pandas.errors.DatabaseError:
+        with sqlite3.connect(hydrofabric) as conn:
+            conf_df = pandas.read_sql_query("SELECT* FROM 'divide-attributes';", conn,)
+        source_crs = get_table_crs_short(hydrofabric, "divides")
+        transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+        lon, lat = transformer.transform(
+            conf_df["centroid_x"].values, conf_df["centroid_y"].values
+        )
+        conf_df["longitude"] = lon
+        conf_df["latitude"] = lat
+
+        conf_df.drop(columns=["centroid_x", "centroid_y"], axis=1, inplace=True)
+    return conf_df
 
 def make_em_config(
     hydrofabric: Path,
@@ -283,25 +317,8 @@ def create_realization(cat_id: str, start_time: datetime, end_time: datetime, us
 
     # get approximate groundwater levels from nwm output
     template_path = paths.template_cfe_nowpm_realization_config
-    with GeoPackage(paths.geopackage_path) as conn:
-        conf_df = pandas.read_sql_query(
-            """WITH source_crs AS (
-        SELECT organization || ':' || organization_coordsys_id AS crs_string
-        FROM gpkg_spatial_ref_sys
-        WHERE srs_id = (
-            SELECT srs_id
-            FROM gpkg_geometry_columns
-            WHERE table_name = 'divides'
-        )
-        )
-        SELECT
-        *,
-        ST_X(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
-            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
-        ST_Y(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
-            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude FROM 'divide-attributes';""",
-            conn,
-        )
+    
+    conf_df = get_model_attributes(paths.geopackage_path)
 
     if use_nwm_gw:
         gw_levels = get_approximate_gw_storage(paths, start_time)
