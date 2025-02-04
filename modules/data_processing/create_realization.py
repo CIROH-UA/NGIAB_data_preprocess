@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 
 import pandas
+import numpy as np
 import s3fs
 import xarray as xr
 import logging
@@ -202,6 +203,12 @@ def make_em_config(
     with open(template_path, "r") as file:
         template = file.read()
 
+    # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
+    # flip 0 and 90 degree values
+    divide_conf_df["flipped_mean_slope"] = abs(divide_conf_df["mean.slope"] - 90)
+    # Convert degrees to meters per kmmeter
+    divide_conf_df["mean_slope_mpkm"] = np.tan(np.radians(divide_conf_df["flipped_mean_slope"]))*1000
+
     for divide in divide_conf_df.index:
         with open(cat_config_dir / f"{divide}.yml", "w") as file:
             file.write(
@@ -210,8 +217,8 @@ def make_em_config(
                     divide_id=divide,
                     lat=divide_conf_df.loc[divide, "latitude"],
                     lon=divide_conf_df.loc[divide, "longitude"],
-                    slope_mean=divide_conf_df.loc[divide, "mean.slope"],
-                    elevation_mean=divide_conf_df.loc[divide, "mean.slope"],
+                    slope_mean=divide_conf_df.loc[divide, "mean_slope_mpkm"],
+                    elevation_mean=divide_conf_df.loc[divide, "mean.elevation"]/1000, # convert mm in hf to m
                 )
             )
 
