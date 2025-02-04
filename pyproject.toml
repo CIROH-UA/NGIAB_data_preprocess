@@ -44,7 +44,7 @@ dependencies = [
     "tqdm==4.66.4",
     "rich==13.7.1",
     "colorama==0.4.6",
-    "bokeh==3.5.1"
+    "bokeh==3.5.1",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +58,7 @@ Issues = "https://github.com/CIROH-UA/NGIAB_data_preprocess/issues"
 [project.scripts]
 cli = "ngiab_data_cli.__main__:main"
 map_app = "map_app.__main__:main"
+forcings = "ngiab_data_cli.forcing_cli:main"
 
 [build-system]
 # scm adds files tracked by git to the package

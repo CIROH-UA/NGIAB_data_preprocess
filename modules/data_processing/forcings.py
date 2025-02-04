@@ -345,7 +345,7 @@ def create_forcings(
     if type(end_time) == datetime:
         end_time = end_time.strftime("%Y-%m-%d %H:%M")
 
-    merged_data = get_forcing_data(forcing_paths, start_time, end_time, gdf, forcing_vars)
+    merged_data = get_forcing_data(forcing_paths.cached_nc_path, start_time, end_time, gdf, forcing_vars)
     compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir)
 
 

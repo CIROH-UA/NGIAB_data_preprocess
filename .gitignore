@@ -13,3 +13,4 @@ dist
 *.tar.gz
 *.dat
 uv.lock
+/build

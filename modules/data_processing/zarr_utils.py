@@ -100,18 +100,18 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
 
 
 def get_forcing_data(
-    forcing_paths: file_paths,
+    cached_nc_path: Path,
     start_time: str,
     end_time: str,
     gdf: gpd.GeoDataFrame,
     forcing_vars: list[str] = None,
 ) -> xr.Dataset:
     merged_data = None
-    if os.path.exists(forcing_paths.cached_nc_file):
+    if os.path.exists(cached_nc_path):
         logger.info("Found cached nc file")
         # open the cached file and check that the time range is correct
         cached_data = xr.open_mfdataset(
-            forcing_paths.cached_nc_file, parallel=True, engine="h5netcdf"
+            cached_nc_path, parallel=True, engine="h5netcdf"
         )
         range_in_cache = cached_data.time[0].values <= np.datetime64(
             start_time
@@ -138,14 +138,14 @@ def get_forcing_data(
 
         if range_in_cache:
             logger.info("Time range is within cached data")
-            logger.debug(f"Opened cached nc file: [{forcing_paths.cached_nc_file}]")
+            logger.debug(f"Opened cached nc file: [{cached_nc_path}]")
             merged_data = clip_dataset_to_bounds(
                 cached_data, gdf.total_bounds, start_time, end_time
             )
             logger.debug("Clipped stores")
         else:
             logger.info("Time range is incorrect")
-            os.remove(forcing_paths.cached_nc_file)
+            os.remove(cached_nc_path)
             logger.debug("Removed cached nc file")
 
     if merged_data is None:
@@ -155,7 +155,7 @@ def get_forcing_data(
         logger.debug("Got zarr stores")
         clipped_store = clip_dataset_to_bounds(lazy_store, gdf.total_bounds, start_time, end_time)
         logger.info("Clipped forcing data to bounds")
-        merged_data = compute_store(clipped_store, forcing_paths.cached_nc_file)
+        merged_data = compute_store(clipped_store, cached_nc_path)
         logger.info("Forcing data loaded and cached")
         # close the event loop
 
