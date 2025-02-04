@@ -149,19 +149,11 @@ def main() -> None:
 
         if args.forcings:
             logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
-            if args.empirical_model:
-                create_forcings(
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    output_folder_name=output_folder,
-                    forcing_vars = ["t2d", "precip"]
-                )
-            else:
-                create_forcings(
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    output_folder_name=output_folder,
-                )
+            create_forcings(
+                start_time=args.start_date,
+                end_time=args.end_date,
+                output_folder_name=output_folder,
+            )
             logging.info("Forcings generation complete.")
 
         if args.realization:

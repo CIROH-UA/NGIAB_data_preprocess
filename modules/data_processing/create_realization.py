@@ -123,24 +123,24 @@ def get_model_attributes_modspatialite(hydrofabric: Path):
     with GeoPackage(hydrofabric) as conn:
         sql = """WITH source_crs AS (
         SELECT organization || ':' || organization_coordsys_id AS crs_string
-        FROM gpkg_spatial_ref_sys 
+        FROM gpkg_spatial_ref_sys
         WHERE srs_id = (
-            SELECT srs_id 
-            FROM gpkg_geometry_columns 
+            SELECT srs_id
+            FROM gpkg_geometry_columns
             WHERE table_name = 'divides'
         )
         )
-        SELECT 
-        d.divide_id, 
-        d.areasqkm, 
-        da."mean.slope", 
+        SELECT
+        d.divide_id,
+        d.areasqkm,
+        da."mean.slope",
         da."mean.elevation",
-        ST_X(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL, 
+        ST_X(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
             (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
-        ST_Y(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL, 
+        ST_Y(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
             (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude
-        FROM divides AS d 
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id 
+        FROM divides AS d
+        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
         """
         divide_conf_df = pandas.read_sql_query(sql, conn)
     divide_conf_df.set_index("divide_id", inplace=True)
@@ -151,15 +151,15 @@ def get_model_attributes_pyproj(hydrofabric: Path):
     # if modspatialite is not available, use pyproj
     with sqlite3.connect(hydrofabric) as conn:
         sql = """
-        SELECT 
-        d.divide_id, 
-        d.areasqkm, 
-        da."mean.slope", 
+        SELECT
+        d.divide_id,
+        d.areasqkm,
+        da."mean.slope",
         da."mean.elevation",
         da.centroid_x,
         da.centroid_y
-        FROM divides AS d 
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id 
+        FROM divides AS d
+        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
         """
         divide_conf_df = pandas.read_sql_query(sql, conn)
 
@@ -243,7 +243,7 @@ def configure_troute(
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime 
+    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
@@ -259,17 +259,12 @@ def make_ngen_realization_json(
 def create_em_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = file_paths(cat_id)
     template_path = file_paths.template_em_realization_config
-    em_config = file_paths.template_em_model_config
-    # move em_config to paths.config_dir
-    with open(em_config, "r") as f:
-        em_config = f.read()
-    with open(paths.config_dir / "em-config.yml", "w") as f:
-        f.write(em_config)
 
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(
         paths.config_dir, template_path, start_time, end_time
     )
+    # assumes #sed -i 's/\.\./\/ngen\/ngen\/extern\/lstm/g' ./**/config.yml was run in the docker container
     make_em_config(paths.geopackage_path, paths.config_dir)
     # create some partitions for parallelization
     paths.setup_run_folders()
