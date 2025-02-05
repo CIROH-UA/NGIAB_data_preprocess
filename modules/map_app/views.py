@@ -123,4 +123,4 @@ def get_logs():
                     break
             return jsonify({"logs": reversed_lines}), 200
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify({"error": "unable to fetch logs"})
