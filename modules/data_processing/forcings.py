@@ -158,7 +158,7 @@ def get_index_chunks(data: xr.DataArray) -> list[tuple[int, int]]:
 
 def create_shared_memory(lazy_array: xr.Dataset) -> Tuple[
     shared_memory.SharedMemory,
-    np.dtype.shape,
+    np.dtype,
     np.dtype
 ]:
     '''
