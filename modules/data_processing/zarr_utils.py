@@ -40,6 +40,25 @@ def load_zarr_datasets(forcing_vars: list[str] = None) -> xr.Dataset:
 
 
 def validate_time_range(dataset: xr.Dataset, start_time: str, end_time: str) -> Tuple[str, str]:
+    '''
+    Ensure that all selected times are in the passed dataset.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Dataset with a time coordinate.
+    start_time : str
+        Desired start time in YYYY/MM/DD HH:MM:SS format.
+    end_time : str
+        Desired end time in YYYY/MM/DD HH:MM:SS format.
+
+    Returns
+    -------
+    str
+        start_time, or if not available, earliest available timestep in dataset.
+    str
+        end_time, or if not available, latest available timestep in dataset.
+    '''
     end_time_in_dataset = dataset.time.isel(time=-1).values
     start_time_in_dataset = dataset.time.isel(time=0).values
     if np.datetime64(start_time) < start_time_in_dataset:
@@ -58,7 +77,26 @@ def validate_time_range(dataset: xr.Dataset, start_time: str, end_time: str) -> 
 def clip_dataset_to_bounds(
     dataset: xr.Dataset, bounds: Tuple[float, float, float, float], start_time: str, end_time: str
 ) -> xr.Dataset:
-    """Clip the dataset to specified geographical bounds."""
+     """
+    Clip the dataset to specified geographical bounds.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Dataset to be clipped.
+    bounds : tuple[float, float, float, float]
+        Corners of bounding box. bounds[0] is x_min, bounds[1] is y_min, 
+        bounds[2] is x_max, bounds[3] is y_max.
+    start_time : str
+        Desired start time in YYYY/MM/DD HH:MM:SS format.
+    end_time : str
+        Desired end time in YYYY/MM/DD HH:MM:SS format.
+    
+    Returns
+    -------
+    xr.Dataset
+        Clipped dataset.
+    """
     # check time range here in case just this function is imported and not the whole module
     start_time, end_time = validate_time_range(dataset, start_time, end_time)
     dataset = dataset.sel(
