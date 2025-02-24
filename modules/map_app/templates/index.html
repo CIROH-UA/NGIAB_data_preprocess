@@ -8,6 +8,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/toggle.css') }}">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
@@ -92,9 +93,20 @@
             <div id="forcings-warning">
                 <strong>Forcing generation may take a while.<br> Use the Cli for progress bars and additional information</strong>
             </div>
-            <button id="forcings-button">Create Forcing From Zarrs</button>
-            <img class=" loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                id="forcings-loading">
+            <!-- div below to show source data toggle -->
+            <div style="display: flex; justify-content: left;">
+                <div class="toggle-switch">
+                    <input type="checkbox" id="datasource-toggle" class="toggle-input">
+                    <label for="datasource-toggle" class="toggle-label">
+                        <span class="toggle-text toggle-text-left">NWM</span>
+                        <span class="toggle-text toggle-text-right">AORC</span>
+                        <span class="toggle-handle"></span>
+                    </label>
+                </div>
+                <button id="forcings-button">Create Forcing From Zarrs</button>
+                <img class=" loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
+                    id="forcings-loading">
+            </div>
             <div id="forcings-output-path"></div>
         </section>
 

@@ -6,9 +6,13 @@ from pathlib import Path
 from data_processing.create_realization import create_realization
 from data_processing.file_paths import file_paths
 from data_processing.forcings import create_forcings
+from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
+from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
+
+import geopandas as gpd
 
 main = Blueprint("main", __name__)
 intra_module_db = {}
@@ -67,10 +71,14 @@ def get_forcings():
     # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time}),
     data = json.loads(request.data.decode("utf-8"))
     subset_gpkg = Path(data.get("forcing_dir").split("subset to ")[-1])
-    output_folder = subset_gpkg.parent.parent.stem
+    output_folder = Path(subset_gpkg.parent.parent)
+    paths = file_paths(output_dir=output_folder)
 
     start_time = data.get("start_time")
     end_time = data.get("end_time")
+
+    # get the selected data source
+    data_source = data.get("source")
     # get the forcings
     start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
     end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
@@ -79,8 +87,16 @@ def get_forcings():
     debug_enabled = app.debug
     app.debug = False
     logger.info(f"get_forcings() disabled debug mode at {datetime.now()}")
+    print(f"forcing_dir: {output_folder}")
     try:
-        create_forcings(start_time, end_time, output_folder)
+        if data_source == "aorc":
+            data = load_aorc_zarr(start_time.year, end_time.year)
+        elif data_source == "nwm":
+            data = load_v3_retrospective_zarr()
+        gdf = gpd.read_file(paths.geopackage_path, layer="divides")
+        cached_data = save_and_clip_dataset(data, gdf, start_time, end_time, paths.cached_nc_file)
+
+        create_forcings(cached_data, paths.output_dir.stem)
     except Exception as e:
         logger.info(f"get_forcings() failed with error: {str(e)}")
         return jsonify({"error": str(e)}), 500

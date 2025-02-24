@@ -1,0 +1,82 @@
+/* Toggle Switch Container */
+.toggle-switch {
+    position: relative;
+    width: 120px;
+    height: 40px;
+    margin-right: 15px;
+}
+
+/* Hide the default checkbox */
+.toggle-input {
+    display: none;
+}
+
+/* Toggle Label (the switch background) */
+.toggle-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #ccc;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Toggle Handle (the sliding circle) */
+.toggle-handle {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 60px;
+    height: 36px;
+    background-color: white;
+    border-radius: 18px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #4CAF50; /* Default color for the selected text */
+}
+
+/* Toggle Text (NWM and AORC labels) */
+.toggle-text {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    font-weight: bold;
+    color: #888; /* Grey color for non-selected text */
+    transition: color 0.3s ease;
+}
+
+.toggle-text-left {
+    left: 10px;
+}
+
+.toggle-text-right {
+    right: 10px;
+}
+
+/* When the toggle is checked (AORC is selected) */
+/* .toggle-input:checked + .toggle-label {
+    background-color: #4CAF50;
+} */
+
+.toggle-input:checked + .toggle-label .toggle-handle {
+    transform: translateX(56px);
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.8); /* Blue glow effect */
+    color: #007BFF; /* Blue color for the selected text */
+}
+
+.toggle-input:checked + .toggle-label .toggle-text-left {
+    color: #888; /* Grey color for non-selected text */
+}
+
+.toggle-input:checked + .toggle-label .toggle-text-right {
+    color: #888; /* Grey color for non-selected text */
+}

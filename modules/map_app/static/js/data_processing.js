@@ -63,6 +63,8 @@ async function subset() {
 // }
 
 async function forcings() {
+
+
     if (document.getElementById('output-path').textContent === '') {
         alert('Please subset the data before getting forcings');
         return;
@@ -79,11 +81,18 @@ async function forcings() {
         document.getElementById('time-warning').style.color = 'red';
         return;
     }
+
+    // get the position of the nwm aorc forcing toggle
+    // false means nwm forcing, true means aorc forcing
+    var nwm_aorc = document.getElementById('datasource-toggle').checked;
+    var source = nwm_aorc ? 'aorc' : 'nwm';
+    console.log('source:', source);
+
     document.getElementById('forcings-output-path').textContent = "Generating forcings...";
     fetch('/forcings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time }),
+        body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source}),
     }).then(response => response.text())
         .then(response_code => {
             document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";

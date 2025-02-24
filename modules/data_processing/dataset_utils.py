@@ -114,6 +114,9 @@ def save_to_cache(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     """Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth."""
     logger.info("Downloading and caching forcing data, this may take a while")
 
+    if not cached_nc_path.parent.exists():
+        cached_nc_path.parent.mkdir(parents=True)
+
     # sort of terrible work around for half downloaded files
     temp_path = cached_nc_path.with_suffix(".downloading.nc")
     if os.path.exists(temp_path):

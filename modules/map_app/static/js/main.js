@@ -106,16 +106,19 @@ map.on('click', 'conus_gages', (e) => {
 }
 );
 show = false;
-const toggleButton = document.querySelector('#toggle-button');
-toggleButton.addEventListener('click', () => {
-    if (show) {
-        map.setFilter('conus_gages', ['any', ['==', 'hl_uri', ""]])
-        toggleButton.innerText = 'Show gages';
-        show = false;
+
+// TOGGLE BUTTON LOGIC
+const toggleInput = document.querySelector('.toggle-input');
+const toggleHandle = document.querySelector('.toggle-handle');
+
+// Set initial text based on the default state
+toggleHandle.textContent = toggleInput.checked ? 'AORC' : 'NWM';
+
+toggleInput.addEventListener('change', function() {
+    if (this.checked) {
+        toggleHandle.textContent = 'AORC'; // Update handle text to AORC
     } else {
-        map.setFilter('conus_gages', null)
-        toggleButton.innerText = 'Hide gages';
-        show = true;
+        toggleHandle.textContent = 'NWM'; // Update handle text to NWM
     }
 });
 

@@ -118,7 +118,10 @@ hydrofabric_url = "https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydro
 def get_headers():
     # for versioning
     # Useful Headers: { 'Last-Modified': 'Wed, 20 Nov 2024 18:45:59 GMT', 'ETag': '"cc1452838886a7ab3065a61073fa991b-207"'}
-    response = requests.head(hydrofabric_url)
+    try:
+        response = requests.head(hydrofabric_url)
+    except requests.exceptions.ConnectionError:
+        return 500, {}
     return response.status_code, response.headers
 
 
