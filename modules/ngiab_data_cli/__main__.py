@@ -18,6 +18,9 @@ with rich.status.Status("Initializing...") as status:
     from data_processing.subset import subset, subset_vpu
     from data_processing.forcings import create_forcings
     from data_processing.create_realization import create_realization, create_em_realization
+    from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
+    from data_processing.dataset_utils import save_and_clip_dataset
+    import geopandas as gpd
 
 
 def validate_input(args: argparse.Namespace) -> None:
@@ -149,19 +152,19 @@ def main() -> None:
 
         if args.forcings:
             logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
-            if args.empirical_model:
-                create_forcings(
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    output_folder_name=output_folder,
-                    forcing_vars = ["t2d", "precip"]
-                )
-            else:
-                create_forcings(
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    output_folder_name=output_folder,
-                )
+            if args.source == "aorc":
+                data = load_aorc_zarr(args.start_date.year, args.end_date.year)
+            elif args.source == "nwm":
+                data = load_v3_retrospective_zarr()
+            gdf = gpd.read_file(paths.geopackage_path, layer="divides")
+            cached_data = save_and_clip_dataset(
+                data, gdf, args.start_date, args.end_date, paths.cached_nc_file
+            )
+
+            create_forcings(
+                cached_data,
+                output_folder_name=output_folder,
+            )
             logging.info("Forcings generation complete.")
 
         if args.realization:
@@ -191,11 +194,11 @@ def main() -> None:
                 num_partitions = int(f.read())
 
             try:
-                subprocess.run("docker pull joshcu/ngen", shell=True)
+                subprocess.run("docker pull joshcu/ngiab", shell=True)
             except:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
-                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngen /ngen/ngen/data/ auto {num_partitions}'
+                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngiab /ngen/ngen/data/ auto {num_partitions}'
                 # command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest-x86 /ngen/ngen/data/ auto {num_partitions}'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
@@ -223,6 +226,7 @@ def main() -> None:
                 logging.error(
                     "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
                 )
+                args.vis = False
 
         if args.vis:
             try:

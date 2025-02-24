@@ -7,8 +7,12 @@ import geopandas as gpd
 import numpy as np
 import xarray as xr
 from dask.distributed import Client,  progress
+import datetime
 
 logger = logging.getLogger(__name__)
+
+# known ngen variable names
+# https://github.com/CIROH-UA/ngen/blob/4fb5bb68dc397298bca470dfec94db2c1dcb42fe/include/forcing/AorcForcing.hpp#L77
 
 def validate_dataset_format(dataset: xr.Dataset) -> None:
     """
@@ -146,7 +150,6 @@ def check_local_cache(
         logger.info("No cache found")
         return
 
-    
     logger.info("Found cached nc file")
     # open the cached file and check that the time range is correct
     cached_data = xr.open_mfdataset(
@@ -169,7 +172,6 @@ def check_local_cache(
         logger.warning("Requested time range not in cache")
         return
 
-
     cached_vars = cached_data.data_vars.keys()
     forcing_vars = remote_dataset.data_vars.keys()
     # replace rainrate with precip
@@ -188,3 +190,20 @@ def check_local_cache(
 
     return merged_data
 
+
+def save_and_clip_dataset(
+    dataset: xr.Dataset,
+    gdf: gpd.GeoDataFrame,
+    start_time: datetime.datetime,
+    end_time: datetime.datetime,
+    cache_location: Path,
+) -> xr.Dataset:
+    """convenience function clip the remote dataset, and either load from cache or save to cache if it's not present"""
+    gdf = gdf.to_crs(dataset.crs)
+
+    cached_data = check_local_cache(cache_location, start_time, end_time, gdf, dataset)
+
+    if not cached_data:
+        clipped_data = clip_dataset_to_bounds(dataset, gdf.total_bounds, start_time, end_time)
+        cached_data = save_to_cache(clipped_data, cache_location)
+    return cached_data

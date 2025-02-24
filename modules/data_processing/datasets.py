@@ -36,7 +36,20 @@ def load_v3_retrospective_zarr(forcing_vars: list[str] = None) -> xr.Dataset:
     dataset = dataset.drop_vars(["crs"])
     dataset.attrs["crs"] = esri_pe_string
     dataset.attrs["name"] = "v3_retrospective_zarr"
-    
+
+    # rename the data vars to work with ngen
+    variables = {
+        "LWDOWN": "DLWRF_surface",
+        "PSFC": "PRES_surface",
+        "Q2D": "SPFH_2maboveground",
+        "RAINRATE": "precip_rate",
+        "SWDOWN": "DSWRF_surface",
+        "T2D": "TMP_2maboveground",
+        "U2D": "UGRD_10maboveground",
+        "V2D": "VGRD_10maboveground",
+    }
+    dataset = dataset.rename_vars(variables)
+
     validate_dataset_format(dataset)
     return dataset
 
@@ -55,7 +68,7 @@ def load_aorc_zarr(start_year: int = None, end_year: int = None) -> xr.Dataset:
     except ValueError:
         cluster = LocalCluster()
         client = Client(cluster)
-        
+
     logger.info(f"Loading AORC zarr datasets from {start_year} to {end_year}")
     estimated_time_s = ((end_year - start_year) * 2.5) + 3.5
     # from testing, it's about 2.1s per year + 3.5s overhead
@@ -70,7 +83,5 @@ def load_aorc_zarr(start_year: int = None, end_year: int = None) -> xr.Dataset:
     # rename latitude and longitude to x and y
     dataset = dataset.rename({"latitude": "y", "longitude": "x"})
 
-
     validate_dataset_format(dataset)
     return dataset
-

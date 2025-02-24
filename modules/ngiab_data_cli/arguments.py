@@ -130,6 +130,13 @@ def parse_arguments() -> argparse.Namespace:
         "--vis", "--visualise", action="store_true", help="Visualize the model output"
     )
     parser.add_argument(
+        "--source",
+        type=str,
+        help="source of the data",
+        choices=["aorc", "nwm"],
+        default="nwm",
+    )
+    parser.add_argument(
         "-a",
         "--all",
         action="store_true",

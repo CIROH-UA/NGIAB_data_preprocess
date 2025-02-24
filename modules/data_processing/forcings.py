@@ -17,6 +17,7 @@ import pandas as pd
 import psutil
 import xarray as xr
 from data_processing.file_paths import file_paths
+from data_processing.dataset_utils import validate_dataset_format
 from exactextract import exact_extract
 from exactextract.raster import NumPyRasterSource
 from rich.progress import (
@@ -305,8 +306,9 @@ def get_units(dataset: xr.Dataset) -> dict:
             units[var] = dataset[var].attrs["units"]
     return units
 
+
 def compute_zonal_stats(
-    gdf: gpd.GeoDataFrame, merged_data: xr.Dataset, forcings_dir: Path
+    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path
 ) -> None:
     '''  
     Compute zonal statistics in parallel for all timesteps over all desired 
@@ -328,19 +330,8 @@ def compute_zonal_stats(
     if num_partitions > len(gdf):
         num_partitions = len(gdf)
 
-    catchments = get_cell_weights_parallel(gdf, merged_data, num_partitions)
-    units = get_units(merged_data)
-
-    variables = {
-                "LWDOWN": "DLWRF_surface",
-                "PSFC": "PRES_surface",
-                "Q2D": "SPFH_2maboveground",
-                "RAINRATE": "precip_rate",
-                "SWDOWN": "DSWRF_surface",
-                "T2D": "TMP_2maboveground",
-                "U2D": "UGRD_10maboveground",
-                "V2D": "VGRD_10maboveground",
-            }
+    catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
+    units = get_units(gridded_data)
 
     cat_chunks = np.array_split(catchments, num_partitions)
 
@@ -358,25 +349,21 @@ def compute_zonal_stats(
 
     timer = time.perf_counter()
     variable_task = progress.add_task(
-        "[cyan]Processing variables...", total=len(variables), elapsed=0
+        "[cyan]Processing variables...", total=len(gridded_data.data_vars), elapsed=0
     )
     progress.start()
-    for variable in list(merged_data.data_vars):
+    for variable in list(gridded_data.data_vars):
         progress.update(variable_task, advance=1)
         progress.update(variable_task, description=f"Processing {variable}")
 
-        if variable not in merged_data.data_vars:
-            logger.warning(f"Variable {variable} not in forcings, skipping")
-            continue
-
         # to make sure this fits in memory, we need to chunk the data
-        time_chunks = get_index_chunks(merged_data[variable])
+        time_chunks = get_index_chunks(gridded_data[variable])
         chunk_task = progress.add_task("[purple] processing chunks", total=len(time_chunks))
         for i, times in enumerate(time_chunks):
             progress.update(chunk_task, advance=1)
             start, end = times
             # select the chunk of time we want to process
-            data_chunk = merged_data[variable].isel(time=slice(start,end))
+            data_chunk = gridded_data[variable].isel(time=slice(start, end))
             # put it in shared memory
             shm, shape, dtype = create_shared_memory(data_chunk)
             times = data_chunk.time.values
@@ -423,12 +410,10 @@ def compute_zonal_stats(
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
-    write_outputs(forcings_dir, variables, units)
+    write_outputs(forcings_dir, units)
 
 
-def write_outputs(forcings_dir: Path,
-                  variables: dict,
-                  units: dict) -> None:
+def write_outputs(forcings_dir: Path, units: dict) -> None:
     '''  
     Write outputs to disk in the form of a NetCDF file, using dask clusters to
     facilitate parallel computing.
@@ -463,9 +448,6 @@ def write_outputs(forcings_dir: Path,
             logger.warning(f"Variable {var} has no units")
 
     rename_dict = {}
-    for key, value in variables.items():
-        if key in final_ds:
-            rename_dict[key] = value
 
     final_ds = final_ds.rename_vars(rename_dict)
     if "APCP_surface" in final_ds.data_vars:
@@ -523,29 +505,10 @@ def setup_directories(cat_id: str) -> file_paths:
     return forcing_paths
 
 
-# def create_forcings(
-#     start_time: str, end_time: str, output_folder_name: str, forcing_vars: list[str] = None
-# ) -> None:
-#     forcing_paths = setup_directories(output_folder_name)
-#     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
-#     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
-
-#     if type(start_time) == datetime:
-#         start_time = start_time.strftime("%Y-%m-%d %H:%M")
-#     if type(end_time) == datetime:
-#         end_time = end_time.strftime("%Y-%m-%d %H:%M")
-
-#     merged_data = get_forcing_data(forcing_paths.cached_nc_file, start_time, end_time, gdf, forcing_vars)
-#     gdf = gdf.to_crs(merged_data.crs.esri_pe_string)
-#     compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir)
-
-
-# if __name__ == "__main__":
-#     # Example usage
-#     start_time = "2010-01-01 00:00"
-#     end_time = "2010-01-02 00:00"
-#     output_folder_name = "cat-1643991"
-#     # looks in output/cat-1643991/config for the geopackage cat-1643991_subset.gpkg
-#     # puts forcings in output/cat-1643991/forcings
-#     logger.basicConfig(level=logging.DEBUG)
-#     create_forcings(start_time, end_time, output_folder_name)
+def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
+    validate_dataset_format(dataset)
+    forcing_paths = setup_directories(output_folder_name)
+    gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
+    logger.debug(f"gdf  bounds: {gdf.total_bounds}")
+    gdf = gdf.to_crs(dataset.crs)
+    compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
