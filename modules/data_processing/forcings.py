@@ -1,7 +1,6 @@
 import logging
 import multiprocessing
 import os
-import shutil
 import time
 import warnings
 from datetime import datetime
@@ -18,7 +17,6 @@ import pandas as pd
 import psutil
 import xarray as xr
 from data_processing.file_paths import file_paths
-from data_processing.zarr_utils import get_forcing_data
 from exactextract import exact_extract
 from exactextract.raster import NumPyRasterSource
 from rich.progress import (
@@ -324,7 +322,6 @@ def compute_zonal_stats(
     forcings_dir : Path
         Path to directory where outputs are to be stored.
     '''
-    merged_data = merged_data.drop_vars(["crs"])
     logger.info("Computing zonal stats in parallel for all timesteps")
     timer_start = time.time()
     num_partitions = multiprocessing.cpu_count() - 1
@@ -526,29 +523,29 @@ def setup_directories(cat_id: str) -> file_paths:
     return forcing_paths
 
 
-def create_forcings(
-    start_time: str, end_time: str, output_folder_name: str, forcing_vars: list[str] = None
-) -> None:
-    forcing_paths = setup_directories(output_folder_name)
-    gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
-    logger.debug(f"gdf  bounds: {gdf.total_bounds}")
+# def create_forcings(
+#     start_time: str, end_time: str, output_folder_name: str, forcing_vars: list[str] = None
+# ) -> None:
+#     forcing_paths = setup_directories(output_folder_name)
+#     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
+#     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
 
-    if type(start_time) == datetime:
-        start_time = start_time.strftime("%Y-%m-%d %H:%M")
-    if type(end_time) == datetime:
-        end_time = end_time.strftime("%Y-%m-%d %H:%M")
+#     if type(start_time) == datetime:
+#         start_time = start_time.strftime("%Y-%m-%d %H:%M")
+#     if type(end_time) == datetime:
+#         end_time = end_time.strftime("%Y-%m-%d %H:%M")
 
-    merged_data = get_forcing_data(forcing_paths.cached_nc_file, start_time, end_time, gdf, forcing_vars)
-    gdf = gdf.to_crs(merged_data.crs.esri_pe_string)
-    compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir)
+#     merged_data = get_forcing_data(forcing_paths.cached_nc_file, start_time, end_time, gdf, forcing_vars)
+#     gdf = gdf.to_crs(merged_data.crs.esri_pe_string)
+#     compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir)
 
 
-if __name__ == "__main__":
-    # Example usage
-    start_time = "2010-01-01 00:00"
-    end_time = "2010-01-02 00:00"
-    output_folder_name = "cat-1643991"
-    # looks in output/cat-1643991/config for the geopackage cat-1643991_subset.gpkg
-    # puts forcings in output/cat-1643991/forcings
-    logger.basicConfig(level=logging.DEBUG)
-    create_forcings(start_time, end_time, output_folder_name)
+# if __name__ == "__main__":
+#     # Example usage
+#     start_time = "2010-01-01 00:00"
+#     end_time = "2010-01-02 00:00"
+#     output_folder_name = "cat-1643991"
+#     # looks in output/cat-1643991/config for the geopackage cat-1643991_subset.gpkg
+#     # puts forcings in output/cat-1643991/forcings
+#     logger.basicConfig(level=logging.DEBUG)
+#     create_forcings(start_time, end_time, output_folder_name)

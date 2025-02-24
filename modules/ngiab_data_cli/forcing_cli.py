@@ -1,7 +1,8 @@
 from data_sources.source_validation import validate_all
 from ngiab_data_cli.custom_logging import setup_logging
 from data_processing.forcings import compute_zonal_stats
-from data_processing.zarr_utils import get_forcing_data
+from data_processing.dataset_utils import check_local_cache, save_to_cache, clip_dataset_to_bounds
+from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import file_paths
 import argparse
 import logging
@@ -11,6 +12,8 @@ import geopandas as gpd
 from datetime import datetime
 from pathlib import Path
 import shutil
+
+from dask.distributed import Client, LocalCluster
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
@@ -51,6 +54,13 @@ def parse_arguments() -> argparse.Namespace:
         required=True,
     )
     parser.add_argument(
+        "--source",
+        type=str,
+        help="source of the data",
+        choices=["aorc", "nwm"],
+        default="nwm",
+    )
+    parser.add_argument(
         "-D",
         "--debug",
         action="store_true",
@@ -73,7 +83,19 @@ def main() -> None:
 
     cached_nc_path = args.output_file.parent / (args.input_file.stem + "-raw-gridded-data.nc")
     print(cached_nc_path)
-    merged_data = get_forcing_data(cached_nc_path, start_time, end_time, gdf)
+    if args.source == "aorc":
+        data = load_aorc_zarr(args.start_date.year, args.end_date.year)
+    elif args.source == "nwm":
+        data = load_v3_retrospective_zarr()
+
+    gdf = gdf.to_crs(data.crs)
+
+    cached_data = check_local_cache(cached_nc_path, start_time, end_time, gdf, data)
+
+    if not cached_data:
+        clipped_data = clip_dataset_to_bounds(data, gdf.total_bounds, start_time, end_time)
+        cached_data = save_to_cache(clipped_data, cached_nc_path)
+
     forcing_working_dir = args.output_file.parent / (args.input_file.stem + "-working-dir")
     if not forcing_working_dir.exists():
         forcing_working_dir.mkdir(parents=True, exist_ok=True)
@@ -82,13 +104,22 @@ def main() -> None:
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-    gdf = gdf.to_crs(merged_data.crs.esri_pe_string)
-    compute_zonal_stats(gdf, merged_data, forcing_working_dir)
+    compute_zonal_stats(gdf, cached_data, forcing_working_dir)
 
     shutil.copy(forcing_working_dir / "forcings.nc", args.output_file)
     logging.info(f"Created forcings file: {args.output_file}")
     # remove the working directory
     shutil.rmtree(forcing_working_dir)
+
+    try:
+        client = Client.current()
+    except ValueError:
+        cluster = LocalCluster()
+        client = Client(cluster)
+        cluster.close()
+
+    # shut down the client and cluster
+    client.close()
 
 
 if __name__ == "__main__":
