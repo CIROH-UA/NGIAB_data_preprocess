@@ -2,7 +2,7 @@
 
 This repository contains tools for preparing data to run a [next gen](https://github.com/NOAA-OWP/ngen) simulation using [NGIAB](https://github.com/CIROH-UA/NGIAB-CloudInfra). The tools allow you to select a catchment of interest on an interactive map, choose a date range, and prepare the data with just a few clicks!
 
-![map screenshot](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/map_app/static/resources/screenshot.png)
+![map screenshot](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/map_app/static/resources/screenshot.jpg)
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ This repository contains tools for preparing data to run a [next gen](https://gi
 
 This tool prepares data to run a next gen simulation by creating a run package that can be used with NGIAB.  
 It uses geometry and model attributes from the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) more information on [all data sources here](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html).  
-The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data.  
+The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data or the [AORC 1km gridded data](https://noaa-nws-aorc-v1-1-1km.s3.amazonaws.com/index.html) depending on user input
 
 1. **Subset** (delineate) everything upstream of your point of interest (catchment, gage, flowpath etc). Outputs as a geopackage.  
 2. **Calculates** Forcings as a weighted mean of the gridded AORC forcings. Weights are calculated using [exact extract](https://isciences.github.io/exactextract/) and computed with numpy. 
@@ -122,6 +122,7 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
+- `--source` : The datasource you want to use, either `nwm` for retrospective v3 or `aorc`. Default is `nwm`
 - `-D`, `--debug`: Enable debug logging.
 - `--run`: Automatically run Next Gen against the output folder.
 - `--validate`: Run every missing step required to run ngiab.
