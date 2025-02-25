@@ -122,3 +122,17 @@ toggleInput.addEventListener('change', function() {
     }
 });
 
+show = false;
+const toggleButton = document.querySelector('#toggle-button');
+toggleButton.addEventListener('click', () => {
+    if (show) {
+        map.setFilter('conus_gages', ['any', ['==', 'hl_uri', ""]])
+        toggleButton.innerText = 'Show gages';
+        show = false;
+    } else {
+        map.setFilter('conus_gages', null)
+        toggleButton.innerText = 'Hide gages';
+        show = true;
+    }
+});
+
