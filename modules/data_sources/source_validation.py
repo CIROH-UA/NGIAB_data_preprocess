@@ -3,26 +3,30 @@ import os
 import tarfile
 import warnings
 import json
-from concurrent.futures import ThreadPoolExecutor
 import requests
 from data_processing.file_paths import file_paths
 from tqdm import TqdmExperimentalWarning
-from tqdm.rich import tqdm
 from time import sleep
+import boto3
+from botocore.exceptions import ClientError
+from boto3.s3.transfer import TransferConfig
 from rich.console import Console
 from rich.prompt import Prompt
-from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, SpinnerColumn, TimeRemainingColumn, DownloadColumn, TransferSpeedColumn
-import threading
+from rich.progress import Progress, TextColumn, TimeElapsedColumn, SpinnerColumn
 import psutil
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
 console = Console()
-
+S3_BUCKET = "communityhydrofabric"
+S3_KEY = "hydrofabrics/community/conus_nextgen.tar.gz"
+S3_REGION = "us-east-1"
+hydrofabric_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
 
 def decompress_gzip_tar(file_path, output_dir):
     # use rich to display "decompressing" message with a progress bar that just counts down from 30s
     # actually measuring this is hard and it usually takes ~20s to decompress
+    console.print("Decompressing Hydrofabric...", style="bold green")
     progress = Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -40,79 +44,71 @@ def decompress_gzip_tar(file_path, output_dir):
     progress.stop()
 
 
-def download_chunk(url, start, end, index, save_path):
-    headers = {"Range": f"bytes={start}-{end}"}
-    response = requests.get(url, headers=headers, stream=True)
-    chunk_path = f"{save_path}.part{index}"
-    # store the response in memory rather than streaming to disk
-    # OSX has a limit of 256 open files so this is a workaround
-    response_bytes = bytes()
-    for chunk in response.iter_content(chunk_size=8 * 1024):
-        response_bytes += chunk
-    with open(chunk_path, "wb") as f_out:
-        f_out.write(response_bytes)
-    return chunk_path
-
-def download_progress_estimate(progress, task, total_size):
-    network_bytes_start = psutil.net_io_counters().bytes_recv
-    # make a new progress bar that will be updated by a separate thread
-    progress.start()
-    interval = 0.5
-    while not progress.finished:
-        current_downloaded = psutil.net_io_counters().bytes_recv
-        total_downloaded = current_downloaded - network_bytes_start
-        progress.update(task, completed=total_downloaded)
-        sleep(interval)
-        if total_downloaded >= total_size or progress.finished:
-            break
-    progress.stop()
-
-
-def download_file(url, save_path, num_threads=150):
+def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
+    """Download file from S3 with optimal multipart configuration"""
     if not os.path.exists(os.path.dirname(save_path)):
         os.makedirs(os.path.dirname(save_path))
 
-    response = requests.head(url)
-    total_size = int(response.headers.get("content-length", 0))
-    chunk_size = total_size // num_threads
+    # Check if file already exists
+    if os.path.exists(save_path):
+        console.print(f"File already exists: {save_path}", style="bold yellow")
+        os.remove(save_path)
 
-    progress = Progress(
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-            TextColumn(" Elapsed Time:"),
-            TimeElapsedColumn(),
-            TextColumn(" Remaining Time:"),
-            TimeRemainingColumn(),
-        )
-    task = progress.add_task("Downloading", total=total_size)
+    # Initialize S3 client
+    s3_client = boto3.client(
+        "s3", aws_access_key_id="", aws_secret_access_key="", region_name=region
+    )
+    # Disable request signing for public buckets
+    s3_client._request_signer.sign = lambda *args, **kwargs: None
 
-    download_progress_thread = threading.Thread(target=download_progress_estimate, args=(progress, task ,total_size))
-    download_progress_thread.start()
+    # Get object size
+    try:
+        response = s3_client.head_object(Bucket=bucket, Key=key)
+        total_size = int(response.get("ContentLength", 0))
+    except ClientError as e:
+        console.print(f"Error getting object info: {e}", style="bold red")
+        return False
 
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = []
-        for i in range(num_threads):
-            start = i * chunk_size
-            end = start + chunk_size - 1 if i < num_threads - 1 else total_size - 1
-            futures.append(executor.submit(download_chunk, url, start, end, i, save_path))
+    # Configure transfer settings for maximum speed
+    # Use more CPU cores for parallel processing
+    cpu_count = os.cpu_count() or 8
+    max_threads = cpu_count * 4
 
-        chunk_paths = [
-            future.result() for future in futures
-        ]
+    # Optimize chunk size based on file size and available memory
+    memory = psutil.virtual_memory()
+    available_mem_mb = memory.available / (1024 * 1024)
 
-    with open(save_path, "wb") as f_out:
-        for chunk_path in chunk_paths:
-            with open(chunk_path, "rb") as f_in:
-                f_out.write(f_in.read())
-            os.remove(chunk_path)
+    # Calculate optimal chunk size (min 8MB, max 100MB)
+    # Larger files get larger chunks for better throughput
+    optimal_chunk_mb = min(max(8, total_size / (50 * 1024 * 1024)), 100)
+    # Ensure we don't use too much memory
+    optimal_chunk_mb = min(optimal_chunk_mb, available_mem_mb / (max_threads * 2))
 
-    progress.update(task, completed=total_size)
-    download_progress_thread.join()
+    # Create transfer config
+    config = TransferConfig(
+        # multipart_threshold=8 * 1024 * 1024,  # 8MB
+        max_concurrency=max_threads,
+        multipart_chunksize=int(optimal_chunk_mb * 1024 * 1024),
+        use_threads=True,
+    )
 
+    console.print(f"Downloading {key} to {save_path}...", style="bold green")
+    console.print(
+        f"The file downloads faster with no progress indicator, this should take around 30s",
+        style="bold yellow",
+    )
+    console.print(
+        f"Please use network monitoring on your computer if you wish to track the download",
+        style="green",
+    )
 
-hydrofabric_url = "https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/conus_nextgen.tar.gz"
+    try:
+        # Download file using optimized transfer config
+        s3_client.download_file(Bucket=bucket, Key=key, Filename=save_path, Config=config)
+        return True
+    except Exception as e:
+        console.print(f"Error downloading file: {e}", style="bold red")
+        return False
 
 
 def get_headers():
@@ -126,7 +122,11 @@ def get_headers():
 
 
 def download_and_update_hf():
-    download_file(hydrofabric_url, file_paths.conus_hydrofabric.with_suffix(".tar.gz"))
+    download_from_s3(
+        file_paths.conus_hydrofabric.with_suffix(".tar.gz"),
+        bucket="communityhydrofabric",
+        key="hydrofabrics/community/conus_nextgen.tar.gz",
+    )
     status, headers = get_headers()
 
     if status == 200:
