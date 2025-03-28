@@ -169,13 +169,20 @@ def main() -> None:
 
         if args.realization:
             logging.info(f"Creating realization from {args.start_date} to {args.end_date}...")
+            gage_id = None
+            if args.gage:
+                gage_id = args.input_feature
             if args.empirical_model:
                 create_em_realization(
                     output_folder, start_time=args.start_date, end_time=args.end_date
                 )
             else:
                 create_realization(
-                    output_folder, start_time=args.start_date, end_time=args.end_date, use_nwm_gw=args.nwm_gw
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                    use_nwm_gw=args.nwm_gw,
+                    gage_id=gage_id,
                 )
             logging.info("Realization creation complete.")
 
@@ -198,7 +205,7 @@ def main() -> None:
             except:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
-                #command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngiab /ngen/ngen/data/ auto {num_partitions} local'
+                # command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngiab /ngen/ngen/data/ auto {num_partitions} local'
                 command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {num_partitions} local'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")

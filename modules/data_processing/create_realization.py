@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 import shutil
+import requests
 
 import pandas
 import s3fs
@@ -309,18 +310,37 @@ def create_em_realization(cat_id: str, start_time: datetime, end_time: datetime)
     create_partitions(paths)
 
 
-def create_realization(cat_id: str, start_time: datetime, end_time: datetime, use_nwm_gw: bool = False):
+def create_realization(
+    cat_id: str,
+    start_time: datetime,
+    end_time: datetime,
+    use_nwm_gw: bool = False,
+    gage_id: str = None,
+):
     paths = file_paths(cat_id)
 
-    # get approximate groundwater levels from nwm output
     template_path = paths.template_cfe_nowpm_realization_config
-    
+
+    if gage_id is not None:
+        # try and download s3:communityhydrofabric/hydrofabrics/community/gage_parameters/gage_id
+        # if it doesn't exist, use the default
+        try:
+            url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
+
+            new_template = requests.get(url).json()
+            template_path = paths.config_dir / "calibrated_params.json"
+            with open(template_path, "w") as f:
+                json.dump(new_template, f)
+        except Exception as e:
+            logger.warning(f"Failed to download gage parameters")
+
     conf_df = get_model_attributes(paths.geopackage_path)
 
     if use_nwm_gw:
         gw_levels = get_approximate_gw_storage(paths, start_time)
     else:
         gw_levels = dict()
+
     make_cfe_config(conf_df, paths, gw_levels)
 
     make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
