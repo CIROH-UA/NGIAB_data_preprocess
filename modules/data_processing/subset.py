@@ -22,13 +22,16 @@ subset_tables = [
     "flowpath-attributes-ml",
     "flowpaths",
     "hydrolocations",
-    "network",
     "nexus",
     "pois",  # requires flowpaths
     "lakes",  # requires pois
+    "network",
 ]
 
-def create_subset_gpkg(ids: Union[List[str],str], hydrofabric: Path, output_gpkg_path: Path, is_vpu: bool = False) -> Path:
+
+def create_subset_gpkg(
+    ids: Union[List[str], str], hydrofabric: Path, output_gpkg_path: Path, is_vpu: bool = False
+) -> Path:
     # ids is a list of nexus and wb ids, or a single vpu id
     if not isinstance(ids, list):
         ids = [ids]
@@ -42,11 +45,12 @@ def create_subset_gpkg(ids: Union[List[str],str], hydrofabric: Path, output_gpkg
     for table in subset_tables:
         if is_vpu:
             subset_table_by_vpu(table, ids[0], hydrofabric, output_gpkg_path)
-        else:                
+        else:
             subset_table(table, ids, hydrofabric, output_gpkg_path)
 
     add_triggers_to_gpkg(output_gpkg_path)
     update_geopackage_metadata(output_gpkg_path)
+
 
 def subset_vpu(vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_paths.conus_hydrofabric):
 
@@ -76,6 +80,7 @@ def subset(
     create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path)
     logger.info(f"Subset complete for {len(upstream_ids)} features (catchments + nexuses)")
     logger.debug(f"Subset complete for {upstream_ids} catchments")
+
 
 def move_files_to_config_dir(subset_output_dir: str) -> None:
     config_dir = subset_output_dir / "config"

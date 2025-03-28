@@ -317,7 +317,24 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
     sql_query = f"SELECT * FROM '{table}' WHERE vpuid IN ({','.join(vpus)})"
     contents = source_db.execute(sql_query).fetchall()
 
+    if table == "network":
+        # Look for the network entry that has a toid not in the flowpath or nexus tables        
+        network_toids = [x[2] for x in contents]
+        print(f"Network toids: {len(network_toids)}")
+        sql = "SELECT id FROM flowpaths"  
+        flowpath_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
+        print(f"Flowpath ids: {len(flowpath_ids)}")
+        sql = "SELECT id FROM nexus"
+        nexus_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
+        print(f"Nexus ids: {len(nexus_ids)}")
+        bad_ids = set(network_toids) - set(flowpath_ids + nexus_ids)
+        print(bad_ids)
+        print(f"Removing {len(bad_ids)} network entries that are not in flowpaths or nexuses")
+        # id column is second after fid
+        contents = [x for x in contents if x[1] not in bad_ids]
+
     insert_data(dest_db, table, contents)
+
 
     if table in get_feature_tables(file_paths.conus_hydrofabric):
         fids = [str(x[0]) for x in contents]
@@ -325,7 +342,8 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
 
     dest_db.commit()
     source_db.close()
-    dest_db.close()
+    dest_db.close()   
+    
 
 def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name: Path) -> None:
     """
