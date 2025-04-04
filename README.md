@@ -44,6 +44,41 @@ For automatic interactive visualisation, please run [NGIAB](https://github.com/C
 * This tool is officially supported on macOS or Ubuntu (tested on 22.04 & 24.04). To use it on Windows, please install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
 
 ## Installation and Running
+It is highly recommended to use [Astral UV](https://docs.astral.sh/uv/) to install and run this tool. It works similarly to pip and conda, and I would also recommend you use it for other python projects as it is so useful.
+
+```bash
+# Install UV
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# It can be installed via pip if that fails
+# pip install uv
+
+# Create a virtual environment in the current directory
+uv venv
+
+# Install the tool in the virtual environment 
+uv pip install ngiab_data_preprocess
+
+# To run the cli
+uv run cli --help
+
+# To run the map 
+uv run map_app
+```
+
+UV automatically detects any virtual environments in the current directory and will use them when you use `uv run`.
+
+### Running without install
+This package supports pipx and uvx which means you can run the tool without installing it. No virtual environment needed, just UV.
+```bash
+# run this from anywhere 
+uvx --from ngiab_data_preprocess cli --help
+# for the map
+uvx --from ngiab_data_preprocess map_app
+```
+
+## For legacy pip installation
+<details>
+  <summary>Click here to expand</summary>
 
 ```bash
 # If you're installing this on jupyterhub / 2i2c you HAVE TO DEACTIVATE THE CONDA ENV
@@ -61,8 +96,7 @@ pip install 'ngiab_data_preprocess'
 python -m map_app
 # CLI instructions at the bottom of the README
 ```
-
-The first time you run this command, it will download the hydrofabric from Lynker Spatial. If you already have it, place `conus_nextgen.gpkg` into `~/.ngiab/hydrofabric/v2.2/`.
+</details>
 
 ## Development Installation
 
@@ -76,24 +110,23 @@ To install and run the tool, follow these steps:
    git clone https://github.com/CIROH-UA/NGIAB_data_preprocess
    cd NGIAB_data_preprocess
    ```
-2. Create a virtual environment and activate it:
+2. Create a virtual environment:
    ```bash
-   python3 -m venv env
-   source env/bin/activate
+   uv venv
    ```
 3. Install the tool:
    ```bash
-   pip install -e .
+   uv pip install -e .
    ```
 4. Run the map app:
    ```bash
-   python -m map_app
+   uv run map_app
    ```
 </details>
 
 ## Usage
 
-Running the command `python -m map_app` will open the app in a new browser tab.
+Running the command `uv run map_app` will open the app in a new browser tab.
 
 To use the tool:
 1. Select the catchment you're interested in on the map.
