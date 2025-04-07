@@ -85,3 +85,32 @@ def load_aorc_zarr(start_year: int = None, end_year: int = None) -> xr.Dataset:
 
     validate_dataset_format(dataset)
     return dataset
+
+
+def load_swe_zarr() -> xr.Dataset:
+    """Load the swe zarr dataset from S3."""
+    s3_urls = [
+        f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/zarr/ldasout.zarr"
+    ]
+    # default cache is readahead which is detrimental to performance in this case
+    fs = S3ParallelFileSystem(anon=True, default_cache_type="none")  # default_block_size
+    s3_stores = [s3fs.S3Map(url, s3=fs) for url in s3_urls]
+    # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
+    # most of the data is read once and written to disk but some of the coordinate data is read multiple times
+    dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)
+    
+    # set the crs attribute to conform with the format
+    esri_pe_string = dataset.crs.esri_pe_string
+    dataset = dataset.drop_vars(["crs"])
+    dataset.attrs["crs"] = esri_pe_string
+    dataset = dataset['SNEQV']
+    dataset.attrs["name"] = "v3_swe_zarr"
+
+    # rename the data vars to work with ngen
+    variables = {
+        "SNEQV": "swe"
+    }
+    dataset = dataset.rename_vars(variables)
+
+    validate_dataset_format(dataset)
+    return dataset
