@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>/* General body styling */
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f0f0;
+        margin-bottom: 30px;
+    }    
+       /* Main title styling */
+    h1 {
+        text-align: center;
+        color: #333;
+        margin-top: 20px;
+    }
+    #map {
+        height: 60vh;
+        /* max-height: 1000px; */
+        min-height: 400px;
+        width: 100%;
+        margin-right: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    #features {
+        font-family: 'Arial', sans-serif;
+        font-size: medium;
+        position: absolute;
+        top: 85px;
+        right: 25px;
+        min-width: 5%;
+        min-height: 5%;
+        width: auto;
+        overflow: auto;
+        background: rgba(255, 255, 255, 0.8);
+    }
+</style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydrofabric viewer</title>
+    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> -->
+    <script src="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+</head>
+
+<body>
+    <header>
+        <h1>Community Hydrofabric, zoom to see more details</h1>        
+    </header>
+
+    <main>
+        <section id="map-container">
+            <div id="map"></div>            
+        </section>         
+
+    </main>    
+</body>
+<pre id="features"></pre>
+
+<script>// add the PMTiles plugin to the maplibregl global.
+    let protocol = new pmtiles.Protocol({metadata: true});
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+    
+    var map = new maplibregl.Map({
+        container: 'map', // container id
+        style: 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/style.json', // style URL
+        center: [-96, 40], // starting position [lng, lat]
+        zoom: 4 // starting zoom
+    });
+    map.on('mousemove', (e) => {
+        const features = map.queryRenderedFeatures(e.point);
+
+        // Limit the number of properties we're displaying for
+        // legibility and performance
+        const displayProperties = [
+            'properties',
+            'sourceLayer',
+        ];
+
+        const displayFeatures = features.map((feat) => {
+            const displayFeat = {};
+            displayProperties.forEach((prop) => {
+                displayFeat[prop] = feat[prop];
+            });
+            return displayFeat;
+        });
+
+        document.getElementById('features').innerHTML = JSON.stringify(
+            displayFeatures,
+            null,
+            2
+        );
+    });
+</script>
+</html>

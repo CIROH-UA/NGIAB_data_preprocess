@@ -387,7 +387,7 @@ def compute_zonal_stats(
             # xarray will monitor memory usage, but it doesn't account for the shared memory used to store the raster
             # This reduces memory usage by about 60%
             concatenated_da.to_dataset(name=variable).to_netcdf(
-                forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc", engine="h5netcdf"
+                forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc"
             )
         # Merge the chunks back together
         datasets = [
@@ -395,7 +395,7 @@ def compute_zonal_stats(
             for i in range(len(time_chunks))
         ]
         result = xr.concat(datasets, dim="time")
-        result.to_netcdf(forcings_dir / "temp" / f"{variable}.nc", engine="h5netcdf")
+        result.to_netcdf(forcings_dir / "temp" / f"{variable}.nc")
         # close the datasets
         result.close()
         _ = [dataset.close() for dataset in datasets]
@@ -482,7 +482,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     final_ds["Time"].attrs["units"] = "s"
     final_ds["Time"].attrs["epoch_start"] = "01/01/1970 00:00:00" # not needed but suppresses the ngen warning
 
-    final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="h5netcdf")
+    final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
     # close the datasets
     _ = [result.close() for result in results]
     final_ds.close()
