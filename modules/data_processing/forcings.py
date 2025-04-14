@@ -482,7 +482,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     final_ds["Time"].attrs["units"] = "s"
     final_ds["Time"].attrs["epoch_start"] = "01/01/1970 00:00:00" # not needed but suppresses the ngen warning
 
-    final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
+    final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="h5netcdf")
     # close the datasets
     _ = [result.close() for result in results]
     final_ds.close()
