@@ -387,7 +387,7 @@ def compute_zonal_stats(
             # xarray will monitor memory usage, but it doesn't account for the shared memory used to store the raster
             # This reduces memory usage by about 60%
             concatenated_da.to_dataset(name=variable).to_netcdf(
-                forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc"
+                forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc", engine="h5netcdf"
             )
         # Merge the chunks back together
         datasets = [
@@ -395,7 +395,7 @@ def compute_zonal_stats(
             for i in range(len(time_chunks))
         ]
         result = xr.concat(datasets, dim="time")
-        result.to_netcdf(forcings_dir / "temp" / f"{variable}.nc")
+        result.to_netcdf(forcings_dir / "temp" / f"{variable}.nc", engine="h5netcdf")
         # close the datasets
         result.close()
         _ = [dataset.close() for dataset in datasets]
