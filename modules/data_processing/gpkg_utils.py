@@ -69,7 +69,7 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     con.close()
 
 
-def create_empty_gpkg(gpkg: str) -> None:
+def create_empty_gpkg(gpkg: Path) -> None:
     """
     Create an empty geopackage with the necessary tables and indices.
     """
@@ -80,7 +80,7 @@ def create_empty_gpkg(gpkg: str) -> None:
         conn.executescript(sql_script)
 
 
-def add_triggers_to_gpkg(gpkg: str) -> None:
+def add_triggers_to_gpkg(gpkg: Path) -> None:
     """
     Adds geopackage triggers required to maintain spatial index integrity
     """
@@ -256,7 +256,7 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
     con.commit()
 
 
-def update_geopackage_metadata(gpkg: str) -> None:
+def update_geopackage_metadata(gpkg: Path) -> None:
     """
     Update the contents of the gpkg_contents table in the specified geopackage.
     """
@@ -318,10 +318,10 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
     contents = source_db.execute(sql_query).fetchall()
 
     if table == "network":
-        # Look for the network entry that has a toid not in the flowpath or nexus tables        
+        # Look for the network entry that has a toid not in the flowpath or nexus tables
         network_toids = [x[2] for x in contents]
         print(f"Network toids: {len(network_toids)}")
-        sql = "SELECT id FROM flowpaths"  
+        sql = "SELECT id FROM flowpaths"
         flowpath_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
         print(f"Flowpath ids: {len(flowpath_ids)}")
         sql = "SELECT id FROM nexus"
@@ -342,8 +342,8 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
 
     dest_db.commit()
     source_db.close()
-    dest_db.close()   
-    
+    dest_db.close()
+
 
 def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name: Path) -> None:
     """
@@ -359,7 +359,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
     source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
-    table_keys = {"divides": "toid", "divide-attributes": "divide_id", "lakes": "poi_id"}
+    table_keys = {"divide-attributes": "divide_id", "lakes": "poi_id"}
 
     if table == "lakes":
         # lakes subset we get from the pois table which was already subset by water body id
@@ -377,7 +377,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
     if table in table_keys:
         key_name = table_keys[table]
     sql_query = f"SELECT * FROM '{table}' WHERE {key_name} IN ({','.join(ids)})"
-    contents = source_db.execute(sql_query).fetchall()    
+    contents = source_db.execute(sql_query).fetchall()
 
     insert_data(dest_db, table, contents)
 
@@ -429,16 +429,16 @@ def get_table_crs(gpkg: str, table: str) -> str:
 
 def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric) -> str:
     """
-    Get the nexus id of associated with a gage id.
+    Get the catchment id associated with a gage id.
 
     Args:
         gage_id (str): The gage ID.
 
     Returns:
-        str: The nexus id of the watershed containing the gage ID.
+        str: The catchment id of the watershed containing the gage ID.
 
     Raises:
-        IndexError: If nexus is found for the given gage ID.
+        IndexError: If catchment is found for the given gage ID.
 
     """
     gage_id = "".join([x for x in gage_id if x.isdigit()])

@@ -147,7 +147,10 @@ def main() -> None:
                 logging.info("Subsetting complete.")
             else:
                 logging.info(f"Subsetting hydrofabric")
-                subset(feature_to_subset, output_gpkg_path=paths.geopackage_path)
+                include_outlet = True
+                if args.gage:
+                    include_outlet = False
+                subset(feature_to_subset, output_gpkg_path=paths.geopackage_path, include_outlet=include_outlet)
                 logging.info("Subsetting complete.")
 
         if args.forcings:

@@ -165,6 +165,10 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
         if name in parent_ids:
             continue
         try:
+            if "cat" in name:
+                node_index = graph.vs.find(cat=name).index
+            else:
+                node_index = graph.vs.find(name=name).index
             node_index = graph.vs.find(cat=name).index
             upstream_nodes = graph.subcomponent(node_index, mode="IN")
             for node in upstream_nodes:
@@ -205,7 +209,10 @@ def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True) 
         if name in parent_ids:
             continue
         try:
-            node_index = graph.vs.find(name=name).index
+            if "cat" in name:
+                node_index = graph.vs.find(cat=name).index
+            else:
+                node_index = graph.vs.find(name=name).index
             upstream_nodes = graph.subcomponent(node_index, mode="IN")
             for node in upstream_nodes:
                 parent_ids.add(graph.vs[node]["name"])
