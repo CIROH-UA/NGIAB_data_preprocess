@@ -103,7 +103,10 @@ def load_swe_zarr() -> xr.Dataset:
     esri_pe_string = dataset.crs.esri_pe_string
     dataset = dataset.drop_vars(["crs"])
     dataset.attrs["crs"] = esri_pe_string
-    dataset = dataset['SNEQV']
+    # drop everything except SNEQV
+    vars_to_drop = list(dataset.data_vars)
+    vars_to_drop.remove('SNEQV')
+    dataset = dataset.drop_vars(vars_to_drop)
     dataset.attrs["name"] = "v3_swe_zarr"
 
     # rename the data vars to work with ngen
