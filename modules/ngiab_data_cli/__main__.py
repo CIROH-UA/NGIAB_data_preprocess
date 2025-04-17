@@ -240,7 +240,7 @@ def main() -> None:
 
         if args.vis:
             try:
-                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:v0.2.0'
+                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:v0.2.1'
                 subprocess.run(command, shell=True)
             except:
                 logging.error("Failed to launch docker container.")
