@@ -22,7 +22,7 @@ subset_tables = [
     "flowpath-attributes-ml",
     "flowpaths",
     "hydrolocations",
-    "nexus",
+    "nexus",  # depends on flowpaths in some cases e.g. gage delineation
     "pois",  # requires flowpaths
     "lakes",  # requires pois
     "network",
@@ -52,8 +52,9 @@ def create_subset_gpkg(
     update_geopackage_metadata(output_gpkg_path)
 
 
-def subset_vpu(vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_paths.conus_hydrofabric):
-
+def subset_vpu(
+    vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_paths.conus_hydrofabric
+):
     if output_gpkg_path.exists():
         os.remove(output_gpkg_path)
 

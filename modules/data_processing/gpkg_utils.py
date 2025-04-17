@@ -290,6 +290,7 @@ def update_geopackage_metadata(gpkg: Path) -> None:
 
     con.close()
 
+
 def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_name: Path) -> None:
     """
     Subset the specified table from the hydrofabric database by vpuid and save it to the subset geopackage.
@@ -306,9 +307,9 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
     dest_db = sqlite3.connect(subset_gpkg_name)
 
     if vpu == "03":
-        vpus = ["03N","03S","03W"]
+        vpus = ["03N", "03S", "03W"]
     elif vpu == "10":
-        vpus = ["10L","10U"]
+        vpus = ["10L", "10U"]
     else:
         vpus = [vpu]
 
@@ -334,7 +335,6 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
         contents = [x for x in contents if x[1] not in bad_ids]
 
     insert_data(dest_db, table, contents)
-
 
     if table in get_feature_tables(file_paths.conus_hydrofabric):
         fids = [str(x[0]) for x in contents]
@@ -372,6 +372,14 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
         sql_query = "SELECT divide_id FROM 'divides'"
         contents = dest_db.execute(sql_query).fetchall()
         ids = [str(x[0]) for x in contents]
+
+    if table == "nexus":
+        # add the nexuses in the toid column from the flowpaths table
+        sql_query = "SELECT toid FROM 'flowpaths'"
+        contents = dest_db.execute(sql_query).fetchall()
+        new_ids = [str(x[0]) for x in contents]
+        ids.extend(new_ids)
+
     ids = [f"'{x}'" for x in ids]
     key_name = "id"
     if table in table_keys:
@@ -408,6 +416,7 @@ def get_table_crs_short(gpkg: str, table: str) -> str:
                     )"""
         crs = con.execute(sql_query).fetchone()[0]
     return crs
+
 
 def get_table_crs(gpkg: str, table: str) -> str:
     """
@@ -510,7 +519,6 @@ def get_available_tables(gpkg: Path) -> List[str]:
 
 
 def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> dict:
-
     available_tables = get_available_tables(gpkg)
     possible_tables = ["flowpath_edge_list", "network"]
 
