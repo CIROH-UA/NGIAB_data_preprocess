@@ -12,6 +12,8 @@ var colorDict = {
 
 // A function that creates a cli command from the interface
 function create_cli_command() {
+    const cliPrefix = document.getElementById('cli-prefix');
+    cliPrefix.style.opacity = 1;
     var selected_basins = $('#selected-basins').text();
     var start_time = document.getElementById('start-time').value.split('T')[0];
     var end_time = document.getElementById('end-time').value.split('T')[0];
@@ -24,11 +26,11 @@ function create_cli_command() {
 
 function updateCommandPrefix(){
   const toggleInput = document.getElementById('runcmd-toggle');
-  const toggleHandle = document.getElementById('cli-prefix');
-  const uvxText = "uvx --from ngiab_data_preprocess cli "
-  const pythonText = "python -m ngiab_data_cli "
+  const cliPrefix = document.getElementById('cli-prefix');
+  const uvxText = "uvx --from ngiab_data_preprocess cli"
+  const pythonText = "python -m ngiab_data_cli"
   // Set initial handle text based on the default state using data attribute
-  toggleHandle.textContent = toggleInput.checked ? pythonText : uvxText;
+  cliPrefix.textContent = toggleInput.checked ? pythonText : uvxText;
 }
 document.getElementById("runcmd-toggle").addEventListener('change', updateCommandPrefix);
 

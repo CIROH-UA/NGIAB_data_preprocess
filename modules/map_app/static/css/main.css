@@ -206,7 +206,7 @@ input[type="datetime-local"] {
 }
 
 #command-builder{
-    display: flex;
+    display: inline-block;
     padding:16px ;
 }
 
@@ -260,6 +260,7 @@ input[type="datetime-local"] {
 }
 
 .command-content {
+    display:inline;
   padding: 0px !important;
   background: var(--code-bg);
   font-family: 'Monaco', 'Consolas', monospace;
@@ -269,7 +270,11 @@ input[type="datetime-local"] {
   border-bottom-left-radius: var(--border-radius);
   border-bottom-right-radius: var(--border-radius);
   color: var(--text-color);
-  /* opacity: 0; */
+
+}
+
+#cli-prefix{
+    opacity: 0;
 }
 
 .copy-button.copied {
