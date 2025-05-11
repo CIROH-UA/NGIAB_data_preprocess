@@ -1,28 +1,29 @@
 import json
+import logging
 import multiprocessing
+import shutil
 import sqlite3
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-import shutil
-import requests
 
 import pandas
+import requests
 import s3fs
 import xarray as xr
-import logging
-from collections import defaultdict
 from dask.distributed import Client, LocalCluster
 from data_processing.file_paths import file_paths
 from data_processing.gpkg_utils import (
     GeoPackage,
+    get_cat_to_nex_flowpairs,
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
-    get_cat_to_nex_flowpairs,
 )
-from tqdm.rich import tqdm
 from pyproj import Transformer
+from tqdm.rich import tqdm
 
 logger = logging.getLogger(__name__)
+
 
 def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
     # get the gw levels from the NWM output on a given start date
@@ -78,7 +79,9 @@ def make_cfe_config(
             slope=row["mean.slope_1km"],
             smcmax=row["mean.smcmax_soil_layers_stag=2"],
             smcwlt=row["mean.smcwlt_soil_layers_stag=2"],
-            max_gw_storage=row["mean.Zmax"]/1000 if row["mean.Zmax"] is not None else "0.011[m]", # mean.Zmax is in mm!
+            max_gw_storage=row["mean.Zmax"] / 1000
+            if row["mean.Zmax"] is not None
+            else "0.011[m]",  # mean.Zmax is in mm!
             gw_Coeff=row["mean.Coeff"] if row["mean.Coeff"] is not None else "0.0018[m h-1]",
             gw_Expon=row["mode.Expon"],
             gw_storage="{:.5}".format(gw_storage_ratio),
@@ -92,7 +95,6 @@ def make_cfe_config(
 def make_noahowp_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-
     divide_conf_df.set_index("divide_id", inplace=True)
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
@@ -110,8 +112,8 @@ def make_noahowp_config(
                     end_datetime=end_datetime,
                     lat=divide_conf_df.loc[divide, "latitude"],
                     lon=divide_conf_df.loc[divide, "longitude"],
-                    terrain_slope= divide_conf_df.loc[divide, "mean.slope_1km"],
-                    azimuth= divide_conf_df.loc[divide, "circ_mean.aspect"],
+                    terrain_slope=divide_conf_df.loc[divide, "mean.slope_1km"],
+                    azimuth=divide_conf_df.loc[divide, "circ_mean.aspect"],
                     ISLTYP=int(divide_conf_df.loc[divide, "mode.ISLTYP"]),
                     IVGTYP=int(divide_conf_df.loc[divide, "mode.IVGTYP"]),
                 )
@@ -182,6 +184,7 @@ def get_model_attributes_pyproj(hydrofabric: Path):
 
     return divide_conf_df
 
+
 def get_model_attributes(hydrofabric: Path):
     try:
         with GeoPackage(hydrofabric) as conn:
@@ -205,30 +208,31 @@ def get_model_attributes(hydrofabric: Path):
             )
     except sqlite3.OperationalError:
         with sqlite3.connect(hydrofabric) as conn:
-            conf_df = pandas.read_sql_query("SELECT* FROM 'divide-attributes';", conn,)
+            conf_df = pandas.read_sql_query(
+                "SELECT* FROM 'divide-attributes';",
+                conn,
+            )
         source_crs = get_table_crs_short(hydrofabric, "divides")
         transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
-        lon, lat = transformer.transform(
-            conf_df["centroid_x"].values, conf_df["centroid_y"].values
-        )
+        lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
         conf_df["longitude"] = lon
         conf_df["latitude"] = lat
 
         conf_df.drop(columns=["centroid_x", "centroid_y"], axis=1, inplace=True)
     return conf_df
 
+
 def make_em_config(
     hydrofabric: Path,
     output_dir: Path,
     template_path: Path = file_paths.template_em_config,
 ):
-
     # test if modspatialite is available
     try:
         divide_conf_df = get_model_attributes_modspatialite(hydrofabric)
     except Exception as e:
         logger.warning(f"mod_spatialite not available, using pyproj instead: {e}")
-        logger.warning(f"Install mod_spatialite for improved performance")
+        logger.warning("Install mod_spatialite for improved performance")
         divide_conf_df = get_model_attributes_pyproj(hydrofabric)
 
     cat_config_dir = output_dir / "cat_config" / "empirical_model"
@@ -256,7 +260,6 @@ def make_em_config(
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
 ) -> int:
-
     with open(file_paths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
@@ -269,7 +272,7 @@ def configure_troute(
         geo_file_path=f"./config/{cat_id}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=nts,
-        max_loop_size=nts,        
+        max_loop_size=nts,
     )
 
     with open(config_dir / "troute.yaml", "w") as file:
@@ -301,9 +304,7 @@ def create_em_realization(cat_id: str, start_time: datetime, end_time: datetime)
         f.write(em_config)
 
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
-    make_ngen_realization_json(
-        paths.config_dir, template_path, start_time, end_time
-    )
+    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
     make_em_config(paths.geopackage_path, paths.config_dir)
     # create some partitions for parallelization
     paths.setup_run_folders()
@@ -324,15 +325,14 @@ def create_realization(
     if gage_id is not None:
         # try and download s3:communityhydrofabric/hydrofabrics/community/gage_parameters/gage_id
         # if it doesn't exist, use the default
-        try:
-            url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
-
+        url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
             new_template = requests.get(url).json()
-            template_path = paths.config_dir / "calibrated_params.json"
+            template_path = paths.config_dir / "downloaded_params.json"
             with open(template_path, "w") as f:
                 json.dump(new_template, f)
-        except Exception as e:
-            logger.warning(f"Failed to download gage parameters")
+            logger.info(f"downloaded calibrated parameters for {gage_id}")
 
     conf_df = get_model_attributes(paths.geopackage_path)
 
@@ -347,9 +347,7 @@ def create_realization(
 
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
-    make_ngen_realization_json(
-        paths.config_dir, template_path, start_time, end_time
-    )
+    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
 
     # create some partitions for parallelization
     paths.setup_run_folders()
