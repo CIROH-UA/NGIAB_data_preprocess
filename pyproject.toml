@@ -1,5 +1,5 @@
 [tool.black]
-line-length = 99
+line-length = 100
 
 # includes the data_sources files
 [tool.setuptools]
@@ -36,8 +36,6 @@ dependencies = [
     "netCDF4>=1.6.5",
     "dask==2024.4.1",
     "dask[distributed]==2024.4.1",
-    "black==24.3.0",
-    "isort==5.13.2",
     "h5netcdf==1.3.0",
     "exactextract==0.2.0",
     "numpy>=1.26.4",
@@ -46,7 +44,7 @@ dependencies = [
     "colorama==0.4.6",
     "bokeh==3.5.1",
     "boto3",
-    "numcodecs<0.16.0"
+    "numcodecs<0.16.0",
 ]
 
 [project.optional-dependencies]
@@ -66,3 +64,41 @@ forcings = "ngiab_data_cli.forcing_cli:main"
 # scm adds files tracked by git to the package
 requires = ["setuptools>=69.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = ["ruff>=0.11.9"]
+
+
+[tool.ruff]
+line-length = 100
+exclude = [
+    ".html",
+    ".js",
+    ".css",
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]

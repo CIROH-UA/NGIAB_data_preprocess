@@ -17,15 +17,23 @@
 
 <body>
     <header>
-        <h1>Select catchments by clicking!</h1>        
+        <h1>Select catchments by clicking!</h1>
     </header>
 
     <main>
         <section id="map-container">
-            <div id="map"><button id="toggle-button">Show gages</button></div>  
-                      
+            <div id="map"><button id="toggle-button">Show gages</button></div>
+
             <div class="command-container">
                 <div class="command-header">
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="runcmd-toggle" class="toggle-input">
+                            <label for="runcmd-toggle" class="toggle-label">
+                                <span class="toggle-text toggle-text-left">UVX</span>
+                                <span class="toggle-text toggle-text-right">Pip</span>
+                                <span class="toggle-handle"></span>
+                            </label>
+                        </div>
                     <span>Command</span>
                     <button id="copy-to-clip" class="copy-button" aria-label="Copy to clipboard">
                         <svg class="copy-icon" viewBox="0 0 16 16" width="16" height="16">
@@ -35,22 +43,27 @@
                         <span class="copy-text">Copy</span>
                     </button>
                 </div>
-                <div id="cli-command" class="command-content"></div>
+                <div id="command-builder">
+                    <div id="cli-prefix" class="command-content">uvx --from ngiab_data_preprocess cli </div>
+                    <div id="cli-command" class="command-content"></div>
+                </div>
             </div>
             <script>
                 document.getElementById('copy-to-clip').addEventListener('click', async function() {
+                    const commandPrefix = document.getElementById('cli-prefix').textContent;
                     const commandText = document.getElementById('cli-command').textContent;
+                    const full_command = commandPrefix + commandText;
                     const button = this;
-                    
+
                     try {
-                        await navigator.clipboard.writeText(commandText);
-                        
+                        await navigator.clipboard.writeText(full_command);
+
                         // Update button state
                         button.classList.add('copied');
                         const copyText = button.querySelector('.copy-text');
                         const originalText = copyText.textContent;
                         copyText.textContent = 'Copied!';
-                        
+
                         // Reset button state after 2 seconds
                         setTimeout(() => {
                             button.classList.remove('copied');
@@ -62,7 +75,7 @@
                 });
             </script>
             <h2>For selection by gage id please use the cli.</h2>
-        </section> 
+        </section>
         <section id="basins-container">
             <h2>Selected Basins</h2>
             <div id="selected-basins">None - get clicking!</div>

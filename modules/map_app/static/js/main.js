@@ -15,12 +15,22 @@ function create_cli_command() {
     var selected_basins = $('#selected-basins').text();
     var start_time = document.getElementById('start-time').value.split('T')[0];
     var end_time = document.getElementById('end-time').value.split('T')[0];
-    var command = `python -m ngiab_data_cli -i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
-    var command_all = `python -m ngiab_data_cli -i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
+    var command = `-i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
+    var command_all = `-i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
     if (selected_basins != "None - get clicking!") {
         $('#cli-command').text(command);
     }
 }
+
+function updateCommandPrefix(){
+  const toggleInput = document.getElementById('runcmd-toggle');
+  const toggleHandle = document.getElementById('cli-prefix');
+  const uvxText = "uvx --from ngiab_data_preprocess cli "
+  const pythonText = "python -m ngiab_data_cli "
+  // Set initial handle text based on the default state using data attribute
+  toggleHandle.textContent = toggleInput.checked ? pythonText : uvxText;
+}
+document.getElementById("runcmd-toggle").addEventListener('change', updateCommandPrefix);
 
 // These functions are exported by data_processing.js
 document.getElementById('map').addEventListener('click', create_cli_command);
@@ -48,7 +58,7 @@ function update_map(cat_id, e) {
     $('#selected-basins').text(cat_id)
     map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
     map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
-    
+
     fetch('/get_upstream_catids', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,7 +67,7 @@ function update_map(cat_id, e) {
     .then(response => response.json())
     .then(data => {
         map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
-        if (data.length === 0) { 
+        if (data.length === 0) {
             new maplibregl.Popup()
             .setLngLat(e.lngLat)
             .setHTML('No upstreams')
@@ -66,7 +76,7 @@ function update_map(cat_id, e) {
     });
 }
 map.on('click', 'catchments', (e) => {
-    cat_id = e.features[0].properties.divide_id;    
+    cat_id = e.features[0].properties.divide_id;
     update_map(cat_id, e);
 });
 
@@ -101,26 +111,38 @@ map.on('mouseleave', 'conus_gages', () => {
 });
 
 map.on('click', 'conus_gages', (e) => {
-    //  https://waterdata.usgs.gov/monitoring-location/02465000 
+    //  https://waterdata.usgs.gov/monitoring-location/02465000
     window.open("https://waterdata.usgs.gov/monitoring-location/" + e.features[0].properties.hl_link, '_blank');
 }
 );
 show = false;
 
 // TOGGLE BUTTON LOGIC
-const toggleInput = document.querySelector('.toggle-input');
-const toggleHandle = document.querySelector('.toggle-handle');
+function initializeToggleSwitches() {
+    // Find all toggle switches
+    const toggleSwitches = document.querySelectorAll('.toggle-switch');
+    // Process each toggle switch
+    toggleSwitches.forEach(toggleSwitch => {
+        const toggleInput = toggleSwitch.querySelector('.toggle-input');
+        const toggleHandle = toggleSwitch.querySelector('.toggle-handle');
+        const leftText = toggleSwitch.querySelector('.toggle-text-left').textContent;
+        const rightText = toggleSwitch.querySelector('.toggle-text-right').textContent;
+        // Set initial handle text based on the default state using data attribute
+        toggleHandle.textContent = toggleInput.checked ? rightText : leftText;
+        // Add event listener
+        toggleInput.addEventListener('change', function() {
+            setTimeout(() => {
+                if (this.checked) {
+                    toggleHandle.textContent = rightText;
+                } else {
+                    toggleHandle.textContent = leftText;
+                }
+            }, 180);
+        });
+    });
+}
+document.addEventListener('DOMContentLoaded', initializeToggleSwitches);
 
-// Set initial text based on the default state
-toggleHandle.textContent = toggleInput.checked ? 'AORC' : 'NWM';
-
-toggleInput.addEventListener('change', function() {
-    if (this.checked) {
-        toggleHandle.textContent = 'AORC'; // Update handle text to AORC
-    } else {
-        toggleHandle.textContent = 'NWM'; // Update handle text to NWM
-    }
-});
 
 show = false;
 const toggleButton = document.querySelector('#toggle-button');
@@ -135,4 +157,3 @@ toggleButton.addEventListener('click', () => {
         show = true;
     }
 });
-
