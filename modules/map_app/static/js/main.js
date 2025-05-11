@@ -44,9 +44,9 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 
 // select light-style if the browser is in light mode
 // select dark-style if the browser is in dark mode
-var style = 'static/resources/light-style.json';
+var style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json';
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    style = 'static/resources/dark-style.json';
+  style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json';
 }
 var map = new maplibregl.Map({
     container: 'map', // container id
