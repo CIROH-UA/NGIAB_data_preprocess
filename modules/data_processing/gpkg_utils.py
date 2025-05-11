@@ -321,16 +321,16 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
     if table == "network":
         # Look for the network entry that has a toid not in the flowpath or nexus tables
         network_toids = [x[2] for x in contents]
-        print(f"Network toids: {len(network_toids)}")
+        logger.debug(f"Network toids: {len(network_toids)}")
         sql = "SELECT id FROM flowpaths"
         flowpath_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
-        print(f"Flowpath ids: {len(flowpath_ids)}")
+        logger.debug(f"Flowpath ids: {len(flowpath_ids)}")
         sql = "SELECT id FROM nexus"
         nexus_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
-        print(f"Nexus ids: {len(nexus_ids)}")
+        logger.debug(f"Nexus ids: {len(nexus_ids)}")
         bad_ids = set(network_toids) - set(flowpath_ids + nexus_ids)
-        print(bad_ids)
-        print(f"Removing {len(bad_ids)} network entries that are not in flowpaths or nexuses")
+        logger.debug(bad_ids)
+        logger.info(f"Removing {len(bad_ids)} network entries that are not in flowpaths or nexuses")
         # id column is second after fid
         contents = [x for x in contents if x[1] not in bad_ids]
 
