@@ -14,3 +14,5 @@ dist
 *.dat
 uv.lock
 /build
+*.pmtiles
+*style.json

@@ -46,15 +46,34 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 
 // select light-style if the browser is in light mode
 // select dark-style if the browser is in dark mode
-var style = '/static/resources/light-style.json'; // CHANGE THIS
+var style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json'; // CHANGE THIS
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  style = '/static/resources/dark-style.json'; // CHANGE THIS
+  style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json'; // CHANGE THIS
 }
 var map = new maplibregl.Map({
     container: 'map', // container id
     style: style, // style URL
     center: [-96, 40], // starting position [lng, lat]
     zoom: 4 // starting zoom
+});
+
+map.on('load', () => {
+       map.addSource('camels_basins', {
+           'type': 'vector',
+           'url': 'pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/camels.pmtiles'
+       });
+       map.addLayer({       
+         "id": "camels",
+         "type": "line",
+         "source": "camels_basins",
+         "source-layer": "camels_basins",
+         "layout": {},
+         "filter": ["any", ["==", "hru_id", ""]],
+         "paint": {
+           "line-width": 1.5,
+           "line-color": ["rgba", 134, 30, 232, 1]
+         }       
+       });
 });
 
 function update_map(cat_id, e) {
