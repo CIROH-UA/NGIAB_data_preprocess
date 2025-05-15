@@ -31,7 +31,7 @@ main {
 
 }
 
-#toggle-button {
+#toggle-button-gages {
   position: relative;
   top: 20px;
   left: 20px;
@@ -46,10 +46,31 @@ main {
   z-index: 1;
 }
 
-#toggle-button:hover {
+#toggle-button-gages:hover {
   scale: 1.1;
   box-shadow: var(--shadow-md);
 }
+
+#toggle-button-camels {
+  position: relative;
+  top: 20px;
+  left: 30px;
+  background-color: light-dark(rgb(87, 27, 98), rgb(147, 51, 164));
+  color: light-dark(#f0ead6, #ffffff);
+  font-size: 1.2rem;
+  min-width: 70px;
+  border-radius: 5px;
+  border: none;
+  padding: 5px 10px;
+  transition: 0.3s;
+  z-index: 1;
+}
+
+#toggle-button-camels:hover {
+  scale: 1.1;
+  box-shadow: var(--shadow-md);
+}
+
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;

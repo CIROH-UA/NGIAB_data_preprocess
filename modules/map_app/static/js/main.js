@@ -46,9 +46,9 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 
 // select light-style if the browser is in light mode
 // select dark-style if the browser is in dark mode
-var style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json';
+var style = '/static/resources/light-style.json'; // CHANGE THIS
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json';
+  style = '/static/resources/dark-style.json'; // CHANGE THIS
 }
 var map = new maplibregl.Map({
     container: 'map', // container id
@@ -56,6 +56,7 @@ var map = new maplibregl.Map({
     center: [-96, 40], // starting position [lng, lat]
     zoom: 4 // starting zoom
 });
+
 function update_map(cat_id, e) {
     $('#selected-basins').text(cat_id)
     map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
@@ -146,16 +147,30 @@ function initializeToggleSwitches() {
 document.addEventListener('DOMContentLoaded', initializeToggleSwitches);
 
 
-show = false;
-const toggleButton = document.querySelector('#toggle-button');
-toggleButton.addEventListener('click', () => {
-    if (show) {
+showGages = false;
+const toggleButtonGages = document.querySelector('#toggle-button-gages');
+toggleButtonGages.addEventListener('click', () => {
+    if (showGages) {
         map.setFilter('conus_gages', ['any', ['==', 'hl_uri', ""]])
-        toggleButton.innerText = 'Show gages';
-        show = false;
+        toggleButtonGages.innerText = 'Show gages';
+        showGages = false;
     } else {
         map.setFilter('conus_gages', null)
-        toggleButton.innerText = 'Hide gages';
-        show = true;
+        toggleButtonGages.innerText = 'Hide gages';
+        showGages = true;
+    }
+});
+
+showCamels = false;
+const toggleButtonCamels = document.querySelector('#toggle-button-camels');
+toggleButtonCamels.addEventListener('click', () => {
+    if (showCamels) {
+        map.setFilter('camels', ['any', ['==', 'hru_id', ""]])
+        toggleButtonCamels.innerText = 'Show CAMELS basins';
+        showCamels = false;
+    } else {
+        map.setFilter('camels', null)
+        toggleButtonCamels.innerText = 'Hide CAMELS basins';
+        showCamels = true;
     }
 });
