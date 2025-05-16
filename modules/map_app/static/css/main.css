@@ -30,7 +30,7 @@ main {
   background: var(--surface-color) !important;
 }
 
-#toggle-button-gages, #toggle-button-camels {
+#toggle-button-gages, #toggle-button-camels, #toggle-button-nwm, #toggle-button-aorc  {
   position: relative;
   top: 20px;
   left: 20px;
@@ -45,13 +45,21 @@ main {
   z-index: 1;
 }
 
-#toggle-button-gages:hover, #toggle-button-camels:hover {
+#toggle-button-gages:hover, #toggle-button-camels:hover, #toggle-button-nwm:hover, #toggle-button-aorc:hover {
   scale: 1.1;
   box-shadow: var(--shadow-md);
 }
 
 #toggle-button-camels {
   left: 30px;
+}
+
+#toggle-button-nwm {
+  left: 40px;
+}
+
+#toggle-button-aorc {
+  left: 50px;
 }
 
 body {

@@ -47,8 +47,10 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 // select light-style if the browser is in light mode
 // select dark-style if the browser is in dark mode
 var style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json';
+var colorScheme = "light";
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
   style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json';
+    colorScheme = "dark";
 }
 var map = new maplibregl.Map({
     container: 'map', // container id
@@ -75,6 +77,86 @@ map.on('load', () => {
          }       
        });
 });
+
+if (colorScheme == "light") {
+    map.on('load', () => {
+            map.addSource('nwm_zarr_chunks', {
+            'type': 'vector',
+            'url': 'pmtiles://http://10.116.34.226:8081/nwm_zarr_tessellation.pmtiles' // CHANGE THIS
+        });
+        map.addLayer({       
+            "id": "nwm_zarr_chunks",
+            "type": "line",
+            "source": "nwm_zarr_chunks",
+            "source-layer": "nwm_zarr_chunks",
+            "layout": {},
+            "filter": ["any"],
+            "paint": {
+            "line-width": 1,
+            "line-color": ["rgba", 0, 0, 0, 1]
+            }       
+        });
+    });
+
+    map.on('load', () => {
+        map.addSource('aorc_zarr_chunks', {
+            'type': 'vector',
+            'url': 'pmtiles://http://10.116.34.226:8081/aorc_zarr_fishnet.pmtiles' // CHANGE THIS
+        });
+        map.addLayer({       
+            "id": "aorc_zarr_chunks",
+            "type": "line",
+            "source": "aorc_zarr_chunks",
+            "source-layer": "aorc_zarr_chunks",
+            "layout": {},
+            "filter": ["any"],
+            "paint": {
+            "line-width": 1,
+            "line-color": ["rgba", 71, 58, 222, 1]
+            }       
+        });
+    });
+}
+
+if (colorScheme == "dark") {
+    map.on('load', () => {
+            map.addSource('nwm_zarr_chunks', {
+            'type': 'vector',
+            'url': 'pmtiles://http://10.116.34.226:8081/nwm_zarr_tessellation.pmtiles' // CHANGE THIS
+        });
+        map.addLayer({       
+            "id": "nwm_zarr_chunks",
+            "type": "line",
+            "source": "nwm_zarr_chunks",
+            "source-layer": "nwm_zarr_chunks",
+            "layout": {},
+            "filter": ["any"],
+            "paint": {
+            "line-width": 1,
+            "line-color": ["rgba", 255, 255, 255, 1]
+            }       
+        });
+    });
+
+    map.on('load', () => {
+        map.addSource('aorc_zarr_chunks', {
+            'type': 'vector',
+            'url': 'pmtiles://http://10.116.34.226:8081/aorc_zarr_fishnet.pmtiles'
+        });
+        map.addLayer({       
+            "id": "aorc_zarr_chunks",
+            "type": "line",
+            "source": "aorc_zarr_chunks",
+            "source-layer": "aorc_zarr_chunks",
+            "layout": {},
+            "filter": ["any"],
+            "paint": {
+            "line-width": 1,
+            "line-color": ["rgba", 242, 252, 126, 1]
+            }       
+        });
+    });
+}
 
 function update_map(cat_id, e) {
     $('#selected-basins').text(cat_id)
@@ -191,5 +273,33 @@ toggleButtonCamels.addEventListener('click', () => {
         map.setFilter('camels', null)
         toggleButtonCamels.innerText = 'Hide CAMELS basins';
         showCamels = true;
+    }
+});
+
+showNwm = false;
+const toggleButtonNwm = document.querySelector('#toggle-button-nwm');
+toggleButtonNwm.addEventListener('click', () => {
+    if (showNwm) {
+        map.setFilter('nwm_zarr_chunks', ['any'])
+        toggleButtonNwm.innerText = 'Overlay NWM chunks';
+        showNwm = false;
+    } else {
+        map.setFilter('nwm_zarr_chunks', null)
+        toggleButtonNwm.innerText = 'Hide NWM chunks';
+        showNwm = true;
+    }
+});
+
+showAorc = false;
+const toggleButtonAorc = document.querySelector('#toggle-button-aorc');
+toggleButtonAorc.addEventListener('click', () => {
+    if (showAorc) {
+        map.setFilter('aorc_zarr_chunks', ['any'])
+        toggleButtonAorc.innerText = 'Overlay AORC chunks';
+        showAorc = false;
+    } else {
+        map.setFilter('aorc_zarr_chunks', null)
+        toggleButtonAorc.innerText = 'Hide AORC chunks';
+        showAorc = true;
     }
 });
