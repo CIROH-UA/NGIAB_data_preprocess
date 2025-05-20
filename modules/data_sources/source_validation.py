@@ -23,6 +23,7 @@ S3_KEY = "hydrofabrics/community/conus_nextgen.tar.gz"
 S3_REGION = "us-east-1"
 hydrofabric_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
 
+
 def decompress_gzip_tar(file_path, output_dir):
     # use rich to display "decompressing" message with a progress bar that just counts down from 30s
     # actually measuring this is hard and it usually takes ~20s to decompress
@@ -30,7 +31,7 @@ def decompress_gzip_tar(file_path, output_dir):
     progress = Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        TimeElapsedColumn(),        
+        TimeElapsedColumn(),
     )
     task = progress.add_task("Decompressing", total=1)
     progress.start()

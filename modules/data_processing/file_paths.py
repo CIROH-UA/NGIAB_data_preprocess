@@ -6,6 +6,7 @@ class file_paths:
     This class contains all of the file paths used in the data processing
     workflow.
     """
+
     config_file = Path("~/.ngiab/preprocessor").expanduser()
     hydrofabric_dir = Path("~/.ngiab/hydrofabric/v2.2").expanduser()
     hydrofabric_download_log = Path("~/.ngiab/hydrofabric/v2.2/download_log.json").expanduser()
@@ -102,7 +103,7 @@ class file_paths:
     def append_cli_command(self, command: list[str]) -> None:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         command_string = " ".join(command)
-        history_file  = self.metadata_dir / "cli_commands_history.txt"
+        history_file = self.metadata_dir / "cli_commands_history.txt"
         if not history_file.parent.exists():
             history_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.metadata_dir / "cli_commands_history.txt", "a") as f:
