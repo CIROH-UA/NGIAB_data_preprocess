@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from dask.distributed import Client as DaskClient
-from dask.distributed import LocalCluster
 
 # Import the functions to test
 from data_processing.dataset_utils import interpolate_nan_values, save_to_cache
@@ -21,29 +19,29 @@ if not logging.getLogger().hasHandlers():
     )
 
 
-@pytest.fixture(scope="session")
-def dask_client():
-    """Setup a Dask LocalCluster for testing."""
-    logger.info("Setting up Dask LocalCluster for testing...")
-    cluster = None
-    client = None
+# @pytest.fixture(scope="session")
+# def dask_client():
+#     """Setup a Dask LocalCluster for testing."""
+#     logger.info("Setting up Dask LocalCluster for testing...")
+#     cluster = None
+#     client = None
 
-    try:
-        cluster = LocalCluster(processes=False, n_workers=2, threads_per_worker=1)
-        client = DaskClient(cluster)
-        logger.info(f"Dask client started: {client.dashboard_link}")
-        yield client
-    except Exception as e:
-        logger.error(
-            f"Failed to start Dask client: {e}. Some Dask-dependent tests might fail or run serially."
-        )
-        yield None
-    finally:
-        if client:
-            client.close()
-        if cluster:
-            cluster.close()
-        logger.info("Dask client and cluster for test shut down.")
+#     try:
+#         cluster = LocalCluster(processes=False, n_workers=2, threads_per_worker=1)
+#         client = DaskClient(cluster)
+#         logger.info(f"Dask client started: {client.dashboard_link}")
+#         yield client
+#     except Exception as e:
+#         logger.error(
+#             f"Failed to start Dask client: {e}. Some Dask-dependent tests might fail or run serially."
+#         )
+#         yield None
+#     finally:
+#         if client:
+#             client.close()
+#         if cluster:
+#             cluster.close()
+#         logger.info("Dask client and cluster for test shut down.")
 
 
 @pytest.fixture(scope="session")
@@ -111,7 +109,7 @@ def temp_dir():
 class TestInterpolation:
     """Tests for interpolate_nan_values function."""
 
-    def test_interpolate_nan_values(self, dask_client, test_datasets):
+    def test_interpolate_nan_values(self, test_datasets):
         """Test that NaNs are properly interpolated in numeric variables."""
         logger.info("Testing interpolate_nan_values")
 
@@ -135,41 +133,27 @@ class TestInterpolation:
 class TestSaveToCache:
     """Tests for save_to_cache function with different scenarios."""
 
-    def test_with_imputation_and_nans(self, dask_client, test_datasets, temp_dir):
+    def test_with_imputation_and_nans(self, test_datasets, temp_dir):
         """Test save_to_cache with imputation ON and NaNs present."""
         logger.info("Testing save_to_cache with imputation ON and NaNs present")
 
         cache_path = temp_dir / "cache_imputed.nc"
-        raw_cache_path = temp_dir / "cache_imputed_raw.nc"
 
         # Use a fresh copy
         test_ds = test_datasets["ds_with_nans"].copy(deep=True)
-        reopened = save_to_cache(
-            test_ds,
-            cache_path,
-            perform_nan_interpolation=True,
-            interpolation_verbosity=1,
-        )
+        reopened = save_to_cache(test_ds, cache_path)
 
         # Verify files were created
         assert cache_path.exists(), "Main cache file not created"
-        assert raw_cache_path.exists(), "Raw cache file not created"
 
         # Verify content of main cache (should have no NaNs)
         with xr.open_dataset(cache_path, engine="h5netcdf") as ds_final:
             assert ds_final["temperature"].isnull().sum().item() == 0, "NaNs found in imputed cache"
             assert ds_final["temperature"].dtype == np.float32, "Final imputed cache not float32"
 
-        # Verify content of raw cache (should have original NaNs)
-        with xr.open_dataset(raw_cache_path, engine="h5netcdf") as ds_raw:
-            assert ds_raw["temperature"].isnull().sum().item() == test_datasets["num_nans_temp"], (
-                f"Expected {test_datasets['num_nans_temp']} NaNs in raw cache"
-            )
-            assert ds_raw["temperature"].dtype == np.float32, "Raw cache not float32"
-
         reopened.close()  # Close the handle returned by save_to_cache
 
-    def test_with_imputation_no_nans(self, dask_client, test_datasets, temp_dir):
+    def test_with_imputation_no_nans(self, test_datasets, temp_dir):
         """Test save_to_cache with imputation ON and NO NaNs present."""
         logger.info("Testing save_to_cache with imputation ON and NO NaNs")
 
@@ -178,12 +162,7 @@ class TestSaveToCache:
 
         # Use a fresh copy
         test_ds = test_datasets["ds_no_nans"].copy(deep=True)
-        reopened = save_to_cache(
-            test_ds,
-            cache_path,
-            perform_nan_interpolation=True,
-            interpolation_verbosity=1,
-        )
+        reopened = save_to_cache(test_ds, cache_path)
 
         # Verify main cache exists but raw cache doesn't
         assert cache_path.exists(), "Main cache file not created"
@@ -196,25 +175,18 @@ class TestSaveToCache:
 
         reopened.close()
 
-    def test_without_imputation_with_nans(self, dask_client, test_datasets, temp_dir):
+    def test_without_imputation_with_nans(self, test_datasets, temp_dir):
         """Test save_to_cache with imputation OFF and NaNs present."""
         logger.info("Testing save_to_cache with imputation OFF and NaNs present")
 
         cache_path = temp_dir / "cache_imputation_off.nc"
-        raw_cache_path = temp_dir / "cache_imputation_off_raw.nc"
 
         # Use a fresh copy
         test_ds = test_datasets["ds_with_nans"].copy(deep=True)
-        reopened = save_to_cache(
-            test_ds,
-            cache_path,
-            perform_nan_interpolation=False,
-            interpolation_verbosity=1,
-        )
+        reopened = save_to_cache(test_ds, cache_path, interpolate_nans=False)
 
         # Verify main cache exists but raw cache doesn't
         assert cache_path.exists(), "Main cache file not created"
-        assert not raw_cache_path.exists(), "Raw cache file was created but shouldn't exist"
 
         # Verify content (should have original NaNs)
         with xr.open_dataset(cache_path, engine="h5netcdf") as ds_final:

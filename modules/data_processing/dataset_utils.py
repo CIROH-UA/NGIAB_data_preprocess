@@ -1,7 +1,6 @@
 import datetime
 import logging
 import os
-import shutil
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -9,6 +8,7 @@ import geopandas as gpd
 import numpy as np
 import xarray as xr
 from dask.distributed import Client, progress
+from data_processing.dask_utils import use_cluster
 
 logger = logging.getLogger(__name__)
 
@@ -223,8 +223,8 @@ def interpolate_nan_values(
     return processed_ds
 
 
-# 4. HELPER FOR CACHING
-def _save_dataset_to_netcdf(ds_to_save: xr.Dataset, target_path: Path, engine: str = "h5netcdf"):
+@use_cluster
+def save_dataset(ds_to_save: xr.Dataset, target_path: Path, engine: str = "h5netcdf"):
     """
     Helper function to compute and save an xarray.Dataset to a NetCDF file.
     Uses a temporary file and rename for atomicity.
@@ -232,226 +232,61 @@ def _save_dataset_to_netcdf(ds_to_save: xr.Dataset, target_path: Path, engine: s
     if not target_path.parent.exists():
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
-    temp_file_path = target_path.with_name(target_path.name + ".saving_temp.nc")
+    temp_file_path = target_path.with_name(target_path.name + ".saving.nc")
     if temp_file_path.exists():
-        try:
-            os.remove(temp_file_path)
-        except OSError as e:
-            logger.error(f"Could not remove existing temporary file {temp_file_path}: {e}")
-            # Depending on desired robustness, this could raise an error or try to proceed.
+        os.remove(temp_file_path)
 
-    logger.debug(f"Attempting to save dataset to temporary path: {temp_file_path}")
-    dask_client_locally_started = False
-    client = None
-    try:
-        client = Client.current()
-        logger.debug("Using existing Dask client for saving.")
-    except ValueError:  # No global client found
-        logger.info("No Dask client found for saving, starting a temporary local one.")
-        try:
-            # Using processes=False makes it a thread-based local cluster, often better for I/O bound tasks
-            cluster = LocalCluster(processes=False, n_workers=None, threads_per_worker=None)
-            client = Client(cluster)
-            dask_client_locally_started = True
-        except Exception as e_cluster:
-            logger.error(f"Failed to start local Dask client: {e_cluster}. Saving will be serial.")
-            client = None  # Ensure client is None if startup fails
-
-    try:
-        if client:
-            netcdf_write_future = ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False)
-            logger.debug(
-                f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
-            )
-            progress(netcdf_write_future)  # This is dask.distributed.progress
-            netcdf_write_future.result()
-        else:
-            logger.info(f"No Dask client. Saving serially to {temp_file_path}...")
-            ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=True)
-
-        if target_path.exists():  # Necessary for os.rename on some OS, and shutil.move robustness
-            os.remove(target_path)
-        shutil.move(str(temp_file_path), str(target_path))
-        logger.info(f"Successfully saved data to: {target_path}")
-
-    except Exception as e:
-        logger.error(f"Failed to save dataset to {target_path}. Error: {e}", exc_info=True)
-        if temp_file_path.exists():
-            try:
-                os.remove(temp_file_path)
-            except OSError as ose:
-                logger.error(f"Failed to remove temporary file {temp_file_path} after error: {ose}")
-        raise
-    finally:
-        if dask_client_locally_started and client:
-            try:
-                client.close()
-                if (
-                    hasattr(client, "cluster") and client.cluster is not None
-                ):  # Check if cluster object exists
-                    client.cluster.close()
-                logger.debug("Temporary Dask client and cluster for saving closed.")
-            except Exception as ce:
-                logger.warning(f"Could not close temporary Dask client/cluster: {ce}")
+    client = Client.current()
+    future = client.compute(ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False))
+    logger.debug(
+        f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
+    )
+    progress(future)
+    future.result()
+    os.rename(str(temp_file_path), str(target_path))
+    logger.info(f"Successfully saved data to: {target_path}")
 
 
-# 5. MAIN CACHING FUNCTIONS AND WORKFLOW
+@use_cluster
+def check_for_nans(ds: xr.Dataset) -> bool:
+    logger.debug("Checking for NaNs to determine if interpolation is necessary...")
+    nans_present = False
+    for name, var in ds.data_vars.items():
+        if np.issubdtype(var.dtype, np.number):
+            if var.isnull().any().compute():
+                nans_present = True
+                logger.warning(
+                    f"NaNs detected in variable '{name}' that may require interpolation."
+                )
+                break  # Found one, no need to check further
+    return nans_present
+
+
+@use_cluster
 def save_to_cache(
-    stores: xr.Dataset,
-    cached_nc_path: Path,
-    perform_nan_interpolation: bool = True,
-    interpolation_vars: Optional[List[str]] = None,
-    interpolation_dim: str = "time",
-    interpolation_method: str = "nearest",
-    interpolation_fill_value: str = "extrapolate",
-    interpolation_verbosity: int = 0,  # Matches verbosity of interpolate_nan_values
+    stores: xr.Dataset, cached_nc_path: Path, interpolate_nans: bool = True
 ) -> xr.Dataset:
     """
-    Casts data to float32. If imputation is enabled AND relevant NaNs are detected,
-    it first saves a float32 raw version (`*_raw.nc`), then imputes NaNs on the
-    original data (preserving original precision for interpolation step),
-    casts the imputed data to float32, and saves it as the primary cache file (`cached_nc_path`).
-    If imputation is disabled or no NaNs requiring imputation are found,
-    only the float32 cast version of the original data is saved to `cached_nc_path`,
-    and no `*_raw.nc` file is created.
-
-    Parameters
-    ----------
-    stores : xr.Dataset
-        Dataset to be cached. Can be Dask-backed.
-    cached_nc_path : Path
-        Base path for the cached NetCDF file. The final data will be saved here.
-    perform_nan_interpolation : bool, optional
-        Whether to perform NaN interpolation if NaNs are detected. Default is True.
-    interpolation_vars : Optional[List[str]], optional
-        List of variable names for NaN interpolation. Default is None (all suitable vars).
-    interpolation_dim : str, optional
-        Dimension for NaN interpolation. Default is "time".
-    interpolation_method : str, optional
-        Method for NaN interpolation. Default is "nearest".
-    interpolation_fill_value : str, optional
-        Fill value for NaN interpolation boundaries. Default is "extrapolate".
-    interpolation_verbosity : int, optional
-        Verbosity for NaN interpolation logging. Default is 0.
-
-    Returns
-    -------
-    xr.Dataset
-        The dataset, re-opened from the primary cache path (`cached_nc_path`).
+    Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
     """
     logger.info(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
 
-    # Check if any relevant NaNs exist before deciding on the workflow
-    needs_interpolation_check = False
-    if perform_nan_interpolation:
-        logger.debug("Checking for NaNs to determine if interpolation is necessary...")
-        # Create a shallow copy for checking to avoid modifying original 'stores' during check
-        # Dask operations like .isnull().any().compute() will trigger computation on this copy.
-        stores_check_copy = stores.copy(deep=False)
-        target_check_vars = (
-            interpolation_vars
-            if interpolation_vars is not None
-            else list(stores_check_copy.data_vars)
-        )
-        for var_name_check in target_check_vars:
-            if var_name_check in stores_check_copy.data_vars:
-                data_array_check = stores_check_copy[var_name_check]
-                if interpolation_dim in data_array_check.dims and np.issubdtype(
-                    data_array_check.dtype, np.number
-                ):
-                    # For Dask arrays, .isnull().any() returns a Dask scalar, so .compute() it.
-                    if data_array_check.isnull().any().compute():
-                        needs_interpolation_check = True
-                        logger.info(
-                            f"NaNs detected in variable '{var_name_check}' that may require interpolation."
-                        )
-                        break  # Found one, no need to check further
-        if not needs_interpolation_check:
-            logger.info(
-                "Imputation is enabled, but no NaNs requiring interpolation were detected with current settings."
-            )
+    # lasily cast all numbers to f32
+    for name, var in stores.data_vars.items():
+        if np.issubdtype(var.dtype, np.number):
+            stores[name] = var.astype("float32", casting="same_kind")
 
-    # This is the dataset that will eventually be saved to cached_nc_path
-    final_stores_to_save = None
+    # save dataset locally before manipulating it
+    save_dataset(stores, cached_nc_path)
+    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
 
-    if perform_nan_interpolation and needs_interpolation_check:
-        # --- Path 1: Imputation is ON and NaNs REQUIRING imputation were detected ---
-        raw_cached_nc_path = cached_nc_path.with_name(cached_nc_path.stem + "_raw.nc")
+    # returns true if nans are present
+    if check_for_nans(stores) and interpolate_nans:
+        final_stores_to_save = interpolate_nan_values(dataset=stores)
+        save_dataset(final_stores_to_save, cached_nc_path)
+        stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
 
-        # 1a. Prepare and save the "_raw.nc" version (float32 cast of original `stores`)
-        logger.info("Preparing raw data (casting to float32 for _raw.nc)...")
-        stores_for_raw_save = stores.copy(deep=False)
-        for var_name_raw in stores_for_raw_save.data_vars:
-            if np.issubdtype(stores_for_raw_save[var_name_raw].dtype, np.number):
-                stores_for_raw_save[var_name_raw] = stores_for_raw_save[var_name_raw].astype(
-                    "float32"
-                )
-
-        logger.info(f"Saving raw (float32 cast) version to: {raw_cached_nc_path}")
-        _save_dataset_to_netcdf(stores_for_raw_save, raw_cached_nc_path)
-        del stores_for_raw_save  # Free memory if possible
-
-        # 1b. Perform NaN Interpolation on the original `stores` (to use original precision if method sensitive)
-        # `interpolate_nan_values` works on its own copy of `stores`.
-        final_stores_to_save = interpolate_nan_values(
-            dataset=stores,
-            variables=interpolation_vars,
-            dim=interpolation_dim,
-            method=interpolation_method,
-            fill_value=interpolation_fill_value,
-            verbosity=interpolation_verbosity,  # Pass down verbosity
-        )
-        # Cast the imputed data to float32
-        logger.info("Casting imputed data to float32 for final cache...")
-        for var_name_final in final_stores_to_save.data_vars:
-            if (
-                np.issubdtype(final_stores_to_save[var_name_final].dtype, np.number)
-                and final_stores_to_save[var_name_final].dtype != np.float32
-            ):
-                final_stores_to_save[var_name_final] = final_stores_to_save[var_name_final].astype(
-                    "float32"
-                )
-    else:
-        # --- Path 2: Imputation is OFF or NO NaNs requiring imputation were detected ---
-        if not perform_nan_interpolation:
-            logger.info("NaN interpolation is disabled by user.")
-        # else: (already logged that no NaNs were found requiring interpolation)
-
-        logger.info("Preparing final cache (casting to float32, no NaN interpolation performed).")
-        final_stores_to_save = stores.copy(deep=False)
-        for var_name_final in final_stores_to_save.data_vars:
-            if np.issubdtype(final_stores_to_save[var_name_final].dtype, np.number):
-                final_stores_to_save[var_name_final] = final_stores_to_save[var_name_final].astype(
-                    "float32"
-                )
-        # No "_raw.nc" file is explicitly created here, as it would be identical to cached_nc_path.
-        # The user's request was "1st save the raw data ... then do the imputation and save it with the same naming"
-        # This implies *_raw.nc is an artifact of the imputation path.
-
-    # --- Save the `final_stores_to_save` version to the main `cached_nc_path` ---
-    logger.info(f"Saving final processed version to: {cached_nc_path}")
-    _save_dataset_to_netcdf(final_stores_to_save, cached_nc_path)
-
-    # --- Re-open and return the dataset from the final (primary) cache path ---
-    logger.info(f"Re-opening dataset from final cache: {cached_nc_path}")
-    try:
-        # Use chunks={} to allow Dask to manage chunking upon read if desired later
-        data = xr.open_dataset(cached_nc_path, engine="h5netcdf", chunks={})
-    except Exception as e_h5:
-        logger.warning(
-            f"Could not open cache {cached_nc_path} with h5netcdf (error: {e_h5}), trying default engine."
-        )
-        try:
-            data = xr.open_dataset(cached_nc_path, chunks={})  # Fallback
-        except Exception as e_def:
-            logger.error(f"Failed to re-open cached file {cached_nc_path} with any engine: {e_def}")
-            raise
-    return data
-
-
-# ========================================================================
-# >>>>> END OF NEW OR MODIFIED FUNCTIONS <<<<<
-# ========================================================================
+    return stores
 
 
 def check_local_cache(
