@@ -14,7 +14,9 @@ exclude = ["tests*"]
 minversion = "6.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
-
+filterwarnings = [
+    'ignore::DeprecationWarning:geopandas._compat'
+]
 [project]
 name = "ngiab_data_preprocess"
 #version = "0.0.1"

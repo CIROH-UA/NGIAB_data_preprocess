@@ -1,6 +1,6 @@
-import datetime
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -119,11 +119,10 @@ def interpolate_nan_values(
     dim: str = "time",
     method: str = "nearest",
     fill_value: str = "extrapolate",
-    verbosity: int = 0,
-) -> xr.Dataset:
+) -> None:
     """
     Interpolates NaN values in specified (or all numeric time-dependent)
-    variables of an xarray.Dataset. Operates on a copy of the dataset.
+    variables of an xarray.Dataset. Operates inplace on the dataset.
 
     Parameters
     ----------
@@ -141,86 +140,20 @@ def interpolate_nan_values(
         Method for filling NaNs at the start/end of the series after interpolation.
         Set to "extrapolate" to fill with the nearest valid value when using 'nearest' or 'linear'.
         Default is "extrapolate".
-    verbosity : int, optional
-        Verbosity level for logging. 0 = silent (except warnings/errors),
-        1 = info, 2 = debug using the module's logger. Default is 0.
-
-    Returns
-    -------
-    xr.Dataset
-        A new dataset with NaN values interpolated in the specified variables.
     """
-    # This function uses the module-level 'logger'
-    if verbosity >= 1:
-        logger.info(f"Starting NaN interpolation for dimension '{dim}' using method '{method}'.")
-
-    processed_ds = dataset.copy(deep=True)
-    nan_found_overall = False
-    actual_vars_considered_for_nan = []
-
-    target_vars = variables if variables is not None else list(processed_ds.data_vars)
-
-    for var_name in target_vars:
-        if var_name not in processed_ds.data_vars:
-            if verbosity >= 1 and variables is not None:
-                logger.warning(
-                    f"Variable '{var_name}' specified for interpolation not found. Skipping."
-                )
+    for name, var in dataset.data_vars.items():
+        # if the variable is non-numeric, skip
+        if not np.issubdtype(var.dtype, np.number):
+            continue
+        # if there are no NANs, skip
+        if not var.isnull().any().compute():
             continue
 
-        data_array = processed_ds[var_name]
-
-        if dim not in data_array.dims:
-            if verbosity >= 2 and (variables is not None or verbosity >= 2):
-                logger.debug(f"Skipping variable '{var_name}': dimension '{dim}' not found.")
-            continue
-
-        if not np.issubdtype(data_array.dtype, np.number):
-            if verbosity >= 2 and (variables is not None or verbosity >= 2):
-                logger.debug(
-                    f"Skipping variable '{var_name}': not a numeric data type ({data_array.dtype})."
-                )
-            continue
-
-        actual_vars_considered_for_nan.append(var_name)
-        # Check for NaNs, .compute() if it's a Dask array to get a boolean
-        has_nans = data_array.isnull().any()
-        if isinstance(has_nans, xr.DataArray):  # If Dask-backed, it will be a DataArray
-            has_nans = has_nans.compute()
-
-        if has_nans:
-            nan_found_overall = True
-            if verbosity >= 1:
-                logger.info(f"NaNs found in variable '{var_name}'. Interpolating...")
-
-            processed_ds[var_name] = data_array.interpolate_na(
-                dim=dim,
-                method=method,
-                fill_value=fill_value if method in ["nearest", "linear"] else None,
-            )
-
-            # Re-check for NaNs after interpolation
-            still_has_nans = processed_ds[var_name].isnull().any()
-            if isinstance(still_has_nans, xr.DataArray):
-                still_has_nans = still_has_nans.compute()
-
-            if verbosity >= 1 and still_has_nans:
-                logger.warning(
-                    f"NaNs still present in '{var_name}' after interpolation. "
-                    "This might occur if all values along the dimension are NaN "
-                    "or due to limitations of the extrapolation for the chosen method."
-                )
-        elif verbosity >= 2:
-            logger.debug(f"No NaNs found in variable '{var_name}'.")
-
-    if not nan_found_overall and verbosity >= 1 and actual_vars_considered_for_nan:
-        logger.info("No NaNs found needing interpolation in the processed variables.")
-    elif nan_found_overall and verbosity >= 1:
-        logger.info("NaN interpolation process completed for relevant variables.")
-    elif not actual_vars_considered_for_nan and verbosity >= 1:
-        logger.info("No suitable variables found for NaN interpolation with current settings.")
-
-    return processed_ds
+        dataset[name] = var.interpolate_na(
+            dim=dim,
+            method=method,
+            fill_value=fill_value if method in ["nearest", "linear"] else None,
+        )
 
 
 @use_cluster
@@ -248,21 +181,6 @@ def save_dataset(ds_to_save: xr.Dataset, target_path: Path, engine: str = "h5net
 
 
 @use_cluster
-def check_for_nans(ds: xr.Dataset) -> bool:
-    logger.debug("Checking for NaNs to determine if interpolation is necessary...")
-    nans_present = False
-    for name, var in ds.data_vars.items():
-        if np.issubdtype(var.dtype, np.number):
-            if var.isnull().any().compute():
-                nans_present = True
-                logger.warning(
-                    f"NaNs detected in variable '{name}' that may require interpolation."
-                )
-                break  # Found one, no need to check further
-    return nans_present
-
-
-@use_cluster
 def save_to_cache(
     stores: xr.Dataset, cached_nc_path: Path, interpolate_nans: bool = True
 ) -> xr.Dataset:
@@ -280,10 +198,9 @@ def save_to_cache(
     save_dataset(stores, cached_nc_path)
     stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
 
-    # returns true if nans are present
-    if check_for_nans(stores) and interpolate_nans:
-        final_stores_to_save = interpolate_nan_values(dataset=stores)
-        save_dataset(final_stores_to_save, cached_nc_path)
+    if interpolate_nans:
+        interpolate_nan_values(dataset=stores)
+        save_dataset(stores, cached_nc_path)
         stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
 
     return stores
@@ -342,8 +259,8 @@ def check_local_cache(
 def save_and_clip_dataset(
     dataset: xr.Dataset,
     gdf: gpd.GeoDataFrame,
-    start_time: datetime.datetime,
-    end_time: datetime.datetime,
+    start_time: datetime,
+    end_time: datetime,
     cache_location: Path,
 ) -> xr.Dataset:
     """convenience function clip the remote dataset, and either load from cache or save to cache if it's not present"""

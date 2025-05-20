@@ -115,17 +115,17 @@ class TestInterpolation:
 
         # Use a fresh copy for the test
         test_ds = test_datasets["ds_with_nans"].copy(deep=True)
-        interpolated_ds = interpolate_nan_values(test_ds, verbosity=1)
+        interpolate_nan_values(test_ds)
 
         # Check numeric variables were interpolated
-        temp_nans_after = interpolated_ds["temperature"].isnull().sum().item()
-        precip_nans_after = interpolated_ds["precipitation"].isnull().sum().item()
+        temp_nans_after = test_ds["temperature"].isnull().sum().item()
+        precip_nans_after = test_ds["precipitation"].isnull().sum().item()
 
         assert temp_nans_after == 0, "Temperature NaNs remain after interpolation"
         assert precip_nans_after == 0, "Precipitation NaNs remain after interpolation"
 
         # Check non-numeric variables were not modified
-        assert interpolated_ds["non_numeric_var"].equals(
+        assert test_ds["non_numeric_var"].equals(
             test_datasets["ds_with_nans"]["non_numeric_var"]
         ), "Non-numeric variable was incorrectly modified"
 
