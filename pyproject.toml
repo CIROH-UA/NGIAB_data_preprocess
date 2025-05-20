@@ -10,6 +10,11 @@ where = ["modules"]
 namespaces = true
 exclude = ["tests*"]
 
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+
 [project]
 name = "ngiab_data_preprocess"
 #version = "0.0.1"
@@ -46,7 +51,7 @@ dependencies = [
     "colorama==0.4.6",
     "bokeh==3.5.1",
     "boto3",
-    "numcodecs<0.16.0"
+    "numcodecs<0.16.0",
 ]
 
 [project.optional-dependencies]
@@ -66,3 +71,6 @@ forcings = "ngiab_data_cli.forcing_cli:main"
 # scm adds files tracked by git to the package
 requires = ["setuptools>=69.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = ["pytest>=8.3.5"]
