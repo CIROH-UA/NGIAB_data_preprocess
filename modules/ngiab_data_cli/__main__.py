@@ -2,25 +2,25 @@ import rich.status
 
 # add a status bar for these imports so the cli feels more responsive
 with rich.status.Status("Initializing...") as status:
-    from data_sources.source_validation import validate_all
-    from ngiab_data_cli.custom_logging import setup_logging, set_logging_to_critical_only
-    from ngiab_data_cli.arguments import parse_arguments
-    from data_processing.file_paths import file_paths
     import argparse
     import logging
-    import time
-    from typing import List
     import subprocess
     import time
-    from dask.distributed import Client
-    from data_processing.gpkg_utils import get_catid_from_point, get_cat_from_gage_id
+    from typing import List
+
+    import geopandas as gpd
+    from data_processing.create_realization import create_em_realization, create_realization
+    from data_processing.dask_utils import shutdown_cluster
+    from data_processing.dataset_utils import save_and_clip_dataset
+    from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
+    from data_processing.file_paths import file_paths
+    from data_processing.forcings import create_forcings
+    from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
     from data_processing.subset import subset, subset_vpu
-    from data_processing.forcings import create_forcings
-    from data_processing.create_realization import create_realization, create_em_realization
-    from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-    from data_processing.dataset_utils import save_and_clip_dataset
-    import geopandas as gpd
+    from data_sources.source_validation import validate_all
+    from ngiab_data_cli.arguments import parse_arguments
+    from ngiab_data_cli.custom_logging import set_logging_to_critical_only, setup_logging
 
 
 def validate_input(args: argparse.Namespace) -> None:
@@ -79,7 +79,6 @@ def get_cat_id_from_lat_lon(input_feature: str) -> List[str]:
 
 
 def set_dependent_flags(args, paths: file_paths):
-
     # if validate is set, run everything that is missing
     if args.validate:
         logging.info("Running all missing steps required to run ngiab.")
@@ -146,11 +145,15 @@ def main() -> None:
                 subset_vpu(args.vpu, output_gpkg_path=paths.geopackage_path)
                 logging.info("Subsetting complete.")
             else:
-                logging.info(f"Subsetting hydrofabric")
+                logging.info("Subsetting hydrofabric")
                 include_outlet = True
                 if args.gage:
                     include_outlet = False
-                subset(feature_to_subset, output_gpkg_path=paths.geopackage_path, include_outlet=include_outlet)
+                subset(
+                    feature_to_subset,
+                    output_gpkg_path=paths.geopackage_path,
+                    include_outlet=include_outlet,
+                )
                 logging.info("Subsetting complete.")
 
         if args.forcings:
@@ -189,14 +192,6 @@ def main() -> None:
                 )
             logging.info("Realization creation complete.")
 
-        # check if the dask client is still running and close it
-        try:
-            client = Client.current()
-            client.shutdown()
-        except ValueError:
-            # value error is raised if no client is running
-            pass
-
         if args.run:
             logging.info("Running Next Gen using NGIAB...")
             # open the partitions.json file and get the number of partitions
@@ -218,7 +213,8 @@ def main() -> None:
         if args.eval:
             plot = False
             try:
-                import seaborn, matplotlib
+                import matplotlib
+                import seaborn
 
                 plot = True
             except ImportError:
@@ -254,6 +250,7 @@ def main() -> None:
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         raise
+    shutdown_cluster()
 
 
 if __name__ == "__main__":

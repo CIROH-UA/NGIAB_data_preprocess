@@ -1,19 +1,17 @@
-from data_sources.source_validation import validate_all
-from ngiab_data_cli.custom_logging import setup_logging
-from data_processing.forcings import compute_zonal_stats
-from data_processing.dataset_utils import check_local_cache, save_to_cache, clip_dataset_to_bounds
-from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-from data_processing.file_paths import file_paths
 import argparse
 import logging
+import shutil
 import time
-import xarray as xr
-import geopandas as gpd
 from datetime import datetime
 from pathlib import Path
-import shutil
 
-from dask.distributed import Client, LocalCluster
+import geopandas as gpd
+from data_processing.dask_utils import shutdown_cluster
+from data_processing.dataset_utils import check_local_cache, clip_dataset_to_bounds, save_to_cache
+from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
+from data_processing.forcings import compute_zonal_stats
+from data_sources.source_validation import validate_all
+from ngiab_data_cli.custom_logging import setup_logging
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
@@ -69,6 +67,7 @@ def parse_arguments() -> argparse.Namespace:
 
     return parser.parse_args()
 
+
 def main() -> None:
     time.sleep(0.01)
     setup_logging()
@@ -111,15 +110,7 @@ def main() -> None:
     # remove the working directory
     shutil.rmtree(forcing_working_dir)
 
-    try:
-        client = Client.current()
-    except ValueError:
-        cluster = LocalCluster()
-        client = Client(cluster)
-        cluster.close()
-
-    # shut down the client and cluster
-    client.close()
+    shutdown_cluster()
 
 
 if __name__ == "__main__":
