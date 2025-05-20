@@ -12,23 +12,23 @@ var colorDict = {
 
 // A function that creates a cli command from the interface
 function create_cli_command() {
-    const cliPrefix = document.getElementById('cli-prefix');
-    cliPrefix.style.opacity = 1;
-    var selected_basins = $('#selected-basins').text();
-    var start_time = document.getElementById('start-time').value.split('T')[0];
-    var end_time = document.getElementById('end-time').value.split('T')[0];
-    var command = `-i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
-    var command_all = `-i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
-    if (selected_basins != "None - get clicking!") {
-        $('#cli-command').text(command);
-    }
+  const cliPrefix = document.getElementById("cli-prefix");
+  cliPrefix.style.opacity = 1;
+  var selected_basins = $("#selected-basins").text();
+  var start_time = document.getElementById("start-time").value.split("T")[0];
+  var end_time = document.getElementById("end-time").value.split("T")[0];
+  var command = `-i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
+  var command_all = `-i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
+  if (selected_basins != "None - get clicking!") {
+    $("#cli-command").text(command);
+  }
 }
 
-function updateCommandPrefix(){
-  const toggleInput = document.getElementById('runcmd-toggle');
-  const cliPrefix = document.getElementById('cli-prefix');
-  const uvxText = "uvx --from ngiab_data_preprocess cli"
-  const pythonText = "python -m ngiab_data_cli"
+function updateCommandPrefix() {
+  const toggleInput = document.getElementById("runcmd-toggle");
+  const cliPrefix = document.getElementById("cli-prefix");
+  const uvxText = "uvx --from ngiab_data_preprocess cli";
+  const pythonText = "python -m ngiab_data_cli";
   // Set initial handle text based on the default state using data attribute
   cliPrefix.textContent = toggleInput.checked ? pythonText : uvxText;
 }
@@ -41,7 +41,7 @@ document.getElementById('end-time').addEventListener('change', create_cli_comman
 
 
 // add the PMTiles plugin to the maplibregl global.
-let protocol = new pmtiles.Protocol({metadata: true});
+let protocol = new pmtiles.Protocol({ metadata: true });
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
 // select light-style if the browser is in light mode
@@ -53,110 +53,81 @@ if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').match
     colorScheme = "dark";
 }
 var map = new maplibregl.Map({
-    container: 'map', // container id
-    style: style, // style URL
-    center: [-96, 40], // starting position [lng, lat]
-    zoom: 4 // starting zoom
+  container: "map", // container id
+  style: style, // style URL
+  center: [-96, 40], // starting position [lng, lat]
+  zoom: 4, // starting zoom
 });
 
-map.on('load', () => {
-       map.addSource('camels_basins', {
-           'type': 'vector',
-           'url': 'pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/camels.pmtiles'
-       });
-       map.addLayer({       
-         "id": "camels",
-         "type": "line",
-         "source": "camels_basins",
-         "source-layer": "camels_basins",
-         "layout": {},
-         "filter": ["any", ["==", "hru_id", ""]],
-         "paint": {
-           "line-width": 1.5,
-           "line-color": ["rgba", 134, 30, 232, 1]
-         }       
-       });
+map.on("load", () => {
+  map.addSource("camels_basins", {
+    type: "vector",
+    url: "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/camels.pmtiles",
+  });
+  map.addLayer({
+    id: "camels",
+    type: "line",
+    source: "camels_basins",
+    "source-layer": "camels_basins",
+    layout: {},
+    filter: ["any", ["==", "hru_id", ""]],
+    paint: {
+      "line-width": 1.5,
+      "line-color": ["rgba", 134, 30, 232, 1],
+    },
+  });
 });
 
 if (colorScheme == "light") {
-    map.on('load', () => {
-            map.addSource('nwm_zarr_chunks', {
-            'type': 'vector',
-            'url': 'pmtiles://http://10.116.34.226:8081/nwm_zarr_tessellation.pmtiles' // CHANGE THIS
-        });
-        map.addLayer({       
-            "id": "nwm_zarr_chunks",
-            "type": "line",
-            "source": "nwm_zarr_chunks",
-            "source-layer": "nwm_zarr_chunks",
-            "layout": {},
-            "filter": ["any"],
-            "paint": {
-            "line-width": 1,
-            "line-color": ["rgba", 0, 0, 0, 1]
-            }       
-        });
-    });
-
-    map.on('load', () => {
-        map.addSource('aorc_zarr_chunks', {
-            'type': 'vector',
-            'url': 'pmtiles://http://10.116.34.226:8081/aorc_zarr_fishnet.pmtiles' // CHANGE THIS
-        });
-        map.addLayer({       
-            "id": "aorc_zarr_chunks",
-            "type": "line",
-            "source": "aorc_zarr_chunks",
-            "source-layer": "aorc_zarr_chunks",
-            "layout": {},
-            "filter": ["any"],
-            "paint": {
-            "line-width": 1,
-            "line-color": ["rgba", 71, 58, 222, 1]
-            }       
-        });
-    });
+  nwm_paint = {
+    "line-width": 1,
+    "line-color": ["rgba", 0, 0, 0, 1],
+  };
+  aorc_paint = {
+    "line-width": 1,
+    "line-color": ["rgba", 71, 58, 222, 1],
+  };
+}
+if (colorScheme == "dark") {    
+  nwm_paint = {
+    "line-width": 1,
+    "line-color": ["rgba", 255, 255, 255, 1],
+  };
+  aorc_paint = {
+    "line-width": 1,
+    "line-color": ["rgba", 242, 252, 126, 1],
+  };
 }
 
-if (colorScheme == "dark") {
-    map.on('load', () => {
-            map.addSource('nwm_zarr_chunks', {
-            'type': 'vector',
-            'url': 'pmtiles://http://10.116.34.226:8081/nwm_zarr_tessellation.pmtiles' // CHANGE THIS
-        });
-        map.addLayer({       
-            "id": "nwm_zarr_chunks",
-            "type": "line",
-            "source": "nwm_zarr_chunks",
-            "source-layer": "nwm_zarr_chunks",
-            "layout": {},
-            "filter": ["any"],
-            "paint": {
-            "line-width": 1,
-            "line-color": ["rgba", 255, 255, 255, 1]
-            }       
-        });
-    });
 
-    map.on('load', () => {
-        map.addSource('aorc_zarr_chunks', {
-            'type': 'vector',
-            'url': 'pmtiles://http://10.116.34.226:8081/aorc_zarr_fishnet.pmtiles'
-        });
-        map.addLayer({       
-            "id": "aorc_zarr_chunks",
-            "type": "line",
-            "source": "aorc_zarr_chunks",
-            "source-layer": "aorc_zarr_chunks",
-            "layout": {},
-            "filter": ["any"],
-            "paint": {
-            "line-width": 1,
-            "line-color": ["rgba", 242, 252, 126, 1]
-            }       
-        });
-    });
-}
+map.on("load", () => {
+  map.addSource("nwm_zarr_chunks", {
+    type: "vector",
+    url: "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/forcing_chunks/nwm_retro_v3_zarr_chunks.pmtiles",
+  });
+  map.addSource("aorc_zarr_chunks", {
+    type: "vector",
+    url: "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/forcing_chunks/aorc_zarr_chunks.pmtiles",
+  });
+  map.addLayer({
+    id: "nwm_zarr_chunks",
+    type: "line",
+    source: "nwm_zarr_chunks",
+    "source-layer": "nwm_zarr_chunks",
+    layout: {},
+    filter: ["any"],
+    paint: nwm_paint,
+  });
+  map.addLayer({
+    id: "aorc_zarr_chunks",
+    type: "line",
+    source: "aorc_zarr_chunks",
+    "source-layer": "aorc_zarr_chunks",
+    layout: {},
+    filter: ["any"],
+    paint: aorc_paint,
+  });
+});
 
 function update_map(cat_id, e) {
     $('#selected-basins').text(cat_id)
@@ -209,97 +180,101 @@ map.on('mouseenter', 'conus_gages', (e) => {
     popup.setLngLat(coordinates).setHTML(description).addTo(map);
 });
 
-map.on('mouseleave', 'conus_gages', () => {
-    map.getCanvas().style.cursor = '';
-    popup.remove();
+map.on("mouseleave", "conus_gages", () => {
+  map.getCanvas().style.cursor = "";
+  popup.remove();
 });
 
-map.on('click', 'conus_gages', (e) => {
-    //  https://waterdata.usgs.gov/monitoring-location/02465000
-    window.open("https://waterdata.usgs.gov/monitoring-location/" + e.features[0].properties.hl_link, '_blank');
-}
-);
+map.on("click", "conus_gages", (e) => {
+  //  https://waterdata.usgs.gov/monitoring-location/02465000
+  window.open(
+    "https://waterdata.usgs.gov/monitoring-location/" +
+      e.features[0].properties.hl_link,
+    "_blank",
+  );
+});
 show = false;
 
 // TOGGLE BUTTON LOGIC
 function initializeToggleSwitches() {
-    // Find all toggle switches
-    const toggleSwitches = document.querySelectorAll('.toggle-switch');
-    // Process each toggle switch
-    toggleSwitches.forEach(toggleSwitch => {
-        const toggleInput = toggleSwitch.querySelector('.toggle-input');
-        const toggleHandle = toggleSwitch.querySelector('.toggle-handle');
-        const leftText = toggleSwitch.querySelector('.toggle-text-left').textContent;
-        const rightText = toggleSwitch.querySelector('.toggle-text-right').textContent;
-        // Set initial handle text based on the default state using data attribute
-        toggleHandle.textContent = toggleInput.checked ? rightText : leftText;
-        // Add event listener
-        toggleInput.addEventListener('change', function() {
-            setTimeout(() => {
-                if (this.checked) {
-                    toggleHandle.textContent = rightText;
-                } else {
-                    toggleHandle.textContent = leftText;
-                }
-            }, 180);
-        });
+  // Find all toggle switches
+  const toggleSwitches = document.querySelectorAll(".toggle-switch");
+  // Process each toggle switch
+  toggleSwitches.forEach((toggleSwitch) => {
+    const toggleInput = toggleSwitch.querySelector(".toggle-input");
+    const toggleHandle = toggleSwitch.querySelector(".toggle-handle");
+    const leftText =
+      toggleSwitch.querySelector(".toggle-text-left").textContent;
+    const rightText =
+      toggleSwitch.querySelector(".toggle-text-right").textContent;
+    // Set initial handle text based on the default state using data attribute
+    toggleHandle.textContent = toggleInput.checked ? rightText : leftText;
+    // Add event listener
+    toggleInput.addEventListener("change", function () {
+      setTimeout(() => {
+        if (this.checked) {
+          toggleHandle.textContent = rightText;
+        } else {
+          toggleHandle.textContent = leftText;
+        }
+      }, 180);
     });
+  });
 }
-document.addEventListener('DOMContentLoaded', initializeToggleSwitches);
-
+document.addEventListener("DOMContentLoaded", initializeToggleSwitches);
 
 showGages = false;
-const toggleButtonGages = document.querySelector('#toggle-button-gages');
-toggleButtonGages.addEventListener('click', () => {
-    if (showGages) {
-        map.setFilter('conus_gages', ['any', ['==', 'hl_uri', ""]])
-        toggleButtonGages.innerText = 'Show gages';
-        showGages = false;
-    } else {
-        map.setFilter('conus_gages', null)
-        toggleButtonGages.innerText = 'Hide gages';
-        showGages = true;
-    }
+const toggleButtonGages = document.querySelector("#toggle-button-gages");
+toggleButtonGages.addEventListener("click", () => {
+  if (showGages) {
+    map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]);
+    toggleButtonGages.innerText = "Show gages";
+    showGages = false;
+  } else {
+    map.setFilter("conus_gages", null);
+    toggleButtonGages.innerText = "Hide gages";
+    showGages = true;
+  }
 });
 
 showCamels = false;
-const toggleButtonCamels = document.querySelector('#toggle-button-camels');
-toggleButtonCamels.addEventListener('click', () => {
-    if (showCamels) {
-        map.setFilter('camels', ['any', ['==', 'hru_id', ""]])
-        toggleButtonCamels.innerText = 'Show CAMELS basins';
-        showCamels = false;
-    } else {
-        map.setFilter('camels', null)
-        toggleButtonCamels.innerText = 'Hide CAMELS basins';
-        showCamels = true;
-    }
+const toggleButtonCamels = document.querySelector("#toggle-button-camels");
+toggleButtonCamels.addEventListener("click", () => {
+  if (showCamels) {
+    map.setFilter("camels", ["any", ["==", "hru_id", ""]]);
+    toggleButtonCamels.innerText = "Show CAMELS basins";
+    showCamels = false;
+  } else {
+    map.setFilter("camels", null);
+    toggleButtonCamels.innerText = "Hide CAMELS basins";
+    showCamels = true;
+  }
 });
 
 showNwm = false;
-const toggleButtonNwm = document.querySelector('#toggle-button-nwm');
-toggleButtonNwm.addEventListener('click', () => {
-    if (showNwm) {
-        map.setFilter('nwm_zarr_chunks', ['any'])
-        toggleButtonNwm.innerText = 'Overlay NWM chunks';
-        showNwm = false;
-    } else {
-        map.setFilter('nwm_zarr_chunks', null)
-        toggleButtonNwm.innerText = 'Hide NWM chunks';
-        showNwm = true;
-    }
+const toggleButtonNwm = document.querySelector("#toggle-button-nwm");
+toggleButtonNwm.addEventListener("click", () => {
+  if (showNwm) {
+    map.setFilter("nwm_zarr_chunks", ["any"]);
+    toggleButtonNwm.innerText = "Overlay NWM chunks";
+    showNwm = false;
+  } else {
+    map.setFilter("nwm_zarr_chunks", null);
+    toggleButtonNwm.innerText = "Hide NWM chunks";
+    showNwm = true;
+  }
 });
 
 showAorc = false;
-const toggleButtonAorc = document.querySelector('#toggle-button-aorc');
-toggleButtonAorc.addEventListener('click', () => {
-    if (showAorc) {
-        map.setFilter('aorc_zarr_chunks', ['any'])
-        toggleButtonAorc.innerText = 'Overlay AORC chunks';
-        showAorc = false;
-    } else {
-        map.setFilter('aorc_zarr_chunks', null)
-        toggleButtonAorc.innerText = 'Hide AORC chunks';
-        showAorc = true;
-    }
+const toggleButtonAorc = document.querySelector("#toggle-button-aorc");
+toggleButtonAorc.addEventListener("click", () => {
+  if (showAorc) {
+    map.setFilter("aorc_zarr_chunks", ["any"]);
+    toggleButtonAorc.innerText = "Overlay AORC chunks";
+    showAorc = false;
+  } else {
+    map.setFilter("aorc_zarr_chunks", null);
+    toggleButtonAorc.innerText = "Hide AORC chunks";
+    showAorc = true;
+  }
 });
