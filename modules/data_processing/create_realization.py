@@ -319,15 +319,14 @@ def create_realization(
     if gage_id is not None:
         # try and download s3:communityhydrofabric/hydrofabrics/community/gage_parameters/gage_id
         # if it doesn't exist, use the default
-        try:
-            url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
-
+        url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
             new_template = requests.get(url).json()
-            template_path = paths.config_dir / "calibrated_params.json"
+            template_path = paths.config_dir / "downloaded_params.json"
             with open(template_path, "w") as f:
                 json.dump(new_template, f)
-        except Exception:
-            logger.warning("Failed to download gage parameters")
+            logger.info(f"downloaded calibrated parameters for {gage_id}")
 
     conf_df = get_model_attributes(paths.geopackage_path)
 

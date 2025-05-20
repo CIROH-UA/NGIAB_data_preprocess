@@ -69,7 +69,6 @@ def subset(
     output_gpkg_path: Path = Path(),
     include_outlet: bool = True,
 ):
-    print(cat_ids)
     upstream_ids = list(get_upstream_ids(cat_ids, include_outlet))
 
     if not output_gpkg_path:

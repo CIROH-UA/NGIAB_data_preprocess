@@ -507,7 +507,7 @@ def setup_directories(cat_id: str) -> file_paths:
 def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     validate_dataset_format(dataset)
     forcing_paths = setup_directories(output_folder_name)
-    print(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
+    logger.debug(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
     gdf = gdf.to_crs(dataset.crs)

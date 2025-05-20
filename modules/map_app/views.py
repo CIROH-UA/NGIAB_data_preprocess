@@ -3,21 +3,21 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+import geopandas as gpd
 from data_processing.create_realization import create_realization
+from data_processing.dataset_utils import save_and_clip_dataset
+from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import file_paths
 from data_processing.forcings import create_forcings
-from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
-
-import geopandas as gpd
 
 main = Blueprint("main", __name__)
 intra_module_db = {}
 
 logger = logging.getLogger(__name__)
+
 
 @main.route("/")
 def index():
@@ -86,8 +86,8 @@ def get_forcings():
     app = intra_module_db["app"]
     debug_enabled = app.debug
     app.debug = False
-    logger.info(f"get_forcings() disabled debug mode at {datetime.now()}")
-    print(f"forcing_dir: {output_folder}")
+    logger.debug(f"get_forcings() disabled debug mode at {datetime.now()}")
+    logger.debug(f"forcing_dir: {output_folder}")
     try:
         if data_source == "aorc":
             data = load_aorc_zarr(start_time.year, end_time.year)
@@ -138,5 +138,5 @@ def get_logs():
                 if len(reversed_lines) > 100:
                     break
             return jsonify({"logs": reversed_lines}), 200
-    except Exception as e:
+    except Exception:
         return jsonify({"error": "unable to fetch logs"})

@@ -28,10 +28,9 @@ main {
 
 .maplibregl-popup-content {
   background: var(--surface-color) !important;
-
 }
 
-#toggle-button {
+#toggle-button-gages, #toggle-button-camels {
   position: relative;
   top: 20px;
   left: 20px;
@@ -46,9 +45,13 @@ main {
   z-index: 1;
 }
 
-#toggle-button:hover {
+#toggle-button-gages:hover, #toggle-button-camels:hover {
   scale: 1.1;
   box-shadow: var(--shadow-md);
+}
+
+#toggle-button-camels {
+  left: 30px;
 }
 
 body {
@@ -109,7 +112,7 @@ h2 {
 }
 
 #selected-basins,
-#cli-command {
+#cli-command,#cli-prefix {
   background: var(--code-bg);
   padding: 16px;
   border-radius: var(--border-radius);
@@ -118,6 +121,7 @@ h2 {
   font-size: 0.9rem;
   color: var(--text-color);
 }
+
 
 button {
   background-color: var(--primary-color);
@@ -204,6 +208,11 @@ input[type="datetime-local"] {
   display: inline-block;
 }
 
+#command-builder{
+    display: inline-block;
+    padding:16px ;
+}
+
 .command-container {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
@@ -222,7 +231,7 @@ input[type="datetime-local"] {
   border-top-right-radius: var(--border-radius);
 }
 
-.command-header span {
+.command-header>span {
   font-size: 0.875rem;
   color: var(--secondary-text);
   font-weight: 500;
@@ -254,7 +263,8 @@ input[type="datetime-local"] {
 }
 
 .command-content {
-  padding: 16px;
+    display:inline;
+  padding: 0px !important;
   background: var(--code-bg);
   font-family: 'Monaco', 'Consolas', monospace;
   font-size: 0.875rem;
@@ -263,6 +273,11 @@ input[type="datetime-local"] {
   border-bottom-left-radius: var(--border-radius);
   border-bottom-right-radius: var(--border-radius);
   color: var(--text-color);
+
+}
+
+#cli-prefix{
+    opacity: 0;
 }
 
 .copy-button.copied {
@@ -281,16 +296,16 @@ input[type="datetime-local"] {
   body {
       padding: 16px;
   }
-  
+
   main {
       width: 90vw;
   }
-  
+
   .time-input {
       flex-direction: column;
       align-items: flex-start;
   }
-  
+
   input[type="datetime-local"] {
       width: 100%;
   }
