@@ -12,7 +12,13 @@ from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
 from data_processing.file_paths import file_paths
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (Progress, 
+                           SpinnerColumn, 
+                           TextColumn, 
+                           TimeElapsedColumn, 
+                           BarColumn, 
+                           DownloadColumn, 
+                           TransferSpeedColumn)
 from rich.prompt import Prompt
 from tqdm import TqdmExperimentalWarning
 
@@ -105,8 +111,13 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
     )
 
     try:
+        dl_progress = Progress(BarColumn(), DownloadColumn(), TransferSpeedColumn())
         # Download file using optimized transfer config
-        s3_client.download_file(Bucket=bucket, Key=key, Filename=save_path, Config=config)
+        with dl_progress:
+            task = dl_progress.add_task("Downloading...", total=total_size)
+            s3_client.download_file(Bucket=bucket, Key=key, Filename=save_path, Config=config,
+                                    Callback=lambda bytes_downloaded: dl_progress.update(
+                                        task, advance=bytes_downloaded))
         return True
     except Exception as e:
         console.print(f"Error downloading file: {e}", style="bold red")
