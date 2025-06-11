@@ -92,9 +92,6 @@ def add_triggers_to_gpkg(gpkg: Path) -> None:
     logger.debug(f"Added triggers to subset gpkg {gpkg}")
 
 
-# whenever this is imported, check if the indices are correct
-if file_paths.conus_hydrofabric.is_file():
-    verify_indices()
 
 
 def blob_to_geometry(blob: bytes) -> Union[Point, Polygon]:

@@ -21,6 +21,8 @@ from rich.progress import (Progress,
                            TransferSpeedColumn)
 from rich.prompt import Prompt
 from tqdm import TqdmExperimentalWarning
+from data_processing.gpkg_utils import verify_indices
+import sqlite3
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
@@ -41,15 +43,16 @@ def decompress_gzip_tar(file_path, output_dir):
         TimeElapsedColumn(),
     )
     task = progress.add_task("Decompressing", total=1)
-    progress.start()
-    with gzip.open(file_path, "rb") as f_in:
-        with tarfile.open(fileobj=f_in) as tar:
-            # Extract all contents
-            for member in tar:
-                tar.extract(member, path=output_dir)
-                # Update the progress bar
-    progress.update(task, completed=1)
-    progress.stop()
+    with progress:
+        with gzip.open(file_path, "rb") as f_in:
+            with tarfile.open(fileobj=f_in) as tar:
+                # Extract all contents
+                for member in tar:
+                    tar.extract(member, path=output_dir)
+                    progress.update(task, advance=1 / len(tar.getmembers()))
+                    # Update the progress bar
+    # progress.update(task, completed=1)
+    # progress.stop()
 
 
 def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
@@ -100,15 +103,15 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         use_threads=True,
     )
 
-    console.print(f"Downloading {key} to {save_path}...", style="bold green")
-    console.print(
-        "The file downloads faster with no progress indicator, this should take around 30s",
-        style="bold yellow",
-    )
-    console.print(
-        "Please use network monitoring on your computer if you wish to track the download",
-        style="green",
-    )
+    # console.print(f"Downloading {key} to {save_path}...", style="bold green")
+    # console.print(
+    #     "The file downloads faster with no progress indicator, this should take around 30s",
+    #     style="bold yellow",
+    # )
+    # console.print(
+    #     "Please use network monitoring on your computer if you wish to track the download",
+    #     style="green",
+    # )
 
     try:
         dl_progress = Progress(BarColumn(), DownloadColumn(), TransferSpeedColumn())
@@ -135,6 +138,14 @@ def get_headers():
 
 
 def download_and_update_hf():
+
+    if file_paths.conus_hydrofabric.is_file():
+        console.print(
+            f"Hydrofabric already exists at {file_paths.conus_hydrofabric}, removing it to download the latest version.",
+            style="bold yellow",
+        )
+        file_paths.conus_hydrofabric.unlink()
+        
     download_from_s3(
         file_paths.conus_hydrofabric.with_suffix(".tar.gz"),
         bucket="communityhydrofabric",
@@ -220,6 +231,17 @@ def validate_hydrofabric():
             )
             sleep(2)
             return
+    
+    # moved this from gpkg_utils to here to avoid potential nested rich live displays
+    if file_paths.conus_hydrofabric.is_file():
+        valid_hf = False
+        while not valid_hf:
+            try:
+                verify_indices()
+                valid_hf = True
+            except sqlite3.DatabaseError:
+                console.print(f"Hydrofabric {file_paths.conus_hydrofabric} is corrupted. Redownloading...", style="red")
+                download_and_update_hf()
 
 
 def validate_output_dir():
