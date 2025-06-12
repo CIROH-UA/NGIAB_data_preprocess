@@ -10,6 +10,7 @@ import psutil
 import requests
 from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
+import botocore
 from data_processing.file_paths import file_paths
 from rich.console import Console
 from rich.progress import (Progress, 
@@ -64,10 +65,13 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
     if os.path.exists(save_path):
         console.print(f"File already exists: {save_path}", style="bold yellow")
         os.remove(save_path)
-
+    
+    client_config = botocore.config.Config(
+        max_pool_connections=75
+    )
     # Initialize S3 client
     s3_client = boto3.client(
-        "s3", aws_access_key_id="", aws_secret_access_key="", region_name=region
+        "s3", aws_access_key_id="", aws_secret_access_key="", region_name=region, config=client_config
     )
     # Disable request signing for public buckets
     s3_client._request_signer.sign = lambda *args, **kwargs: None
