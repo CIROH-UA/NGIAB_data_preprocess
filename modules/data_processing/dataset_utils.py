@@ -2,13 +2,12 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
 import xarray as xr
 from xarray.core.types import InterpOptions
-from xarray.backends.api import T_NetcdfEngine
 from dask.distributed import Client, progress, Future
 from data_processing.dask_utils import use_cluster
 
@@ -162,7 +161,11 @@ def interpolate_nan_values(
 
 
 @use_cluster
-def save_dataset(ds_to_save: xr.Dataset, target_path: Path, engine: T_NetcdfEngine = "h5netcdf"):
+def save_dataset(
+    ds_to_save: xr.Dataset,
+    target_path: Path,
+    engine: Literal["netcdf4", "scipy", "h5netcdf"] = "h5netcdf",
+):
     """
     Helper function to compute and save an xarray.Dataset to a NetCDF file.
     Uses a temporary file and rename for atomicity.
