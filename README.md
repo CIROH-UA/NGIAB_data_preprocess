@@ -13,9 +13,8 @@ This repository contains tools for preparing data to run a [next gen](https://gi
 5. [Usage](#usage)
 6. [CLI Documentation](#cli-documentation)
    - [Arguments](#arguments)
+   - [Usage Notes](#usage-notes)
    - [Examples](#examples)
-   - [File Formats](#file-formats)
-   - [Output](#output)
 
 ## What does this tool do?
 
