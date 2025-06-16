@@ -189,12 +189,12 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 
 3. Create realization using a lat/lon pair and output to a named folder:
    ```bash
-   python -m ngiab_data_cli -i 54.33,-69.4 -l -r --start 2022-01-01 --end 2022-02-28 -o custom_output
+   python -m ngiab_data_cli -i 33.22,-87.54 -l -r --start 2022-01-01 --end 2022-02-28 -o custom_output
    ```
 
 4. Perform all operations using a lat/lon pair:
    ```bash
-   python -m ngiab_data_cli -i 54.33,-69.4 -l -s -f -r --start 2022-01-01 --end 2022-02-28
+   python -m ngiab_data_cli -i 33.22,-87.54 -l -s -f -r --start 2022-01-01 --end 2022-02-28
    ```
 
 5. Subset hydrofabric using gage ID:
