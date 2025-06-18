@@ -51,9 +51,6 @@ def decompress_gzip_tar(file_path, output_dir):
                 for member in tar:
                     tar.extract(member, path=output_dir)
                     progress.update(task, advance=1 / len(tar.getmembers()))
-                    # Update the progress bar
-    # progress.update(task, completed=1)
-    # progress.stop()
 
 
 def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
@@ -107,15 +104,6 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         use_threads=True,
     )
 
-    # console.print(f"Downloading {key} to {save_path}...", style="bold green")
-    # console.print(
-    #     "The file downloads faster with no progress indicator, this should take around 30s",
-    #     style="bold yellow",
-    # )
-    # console.print(
-    #     "Please use network monitoring on your computer if you wish to track the download",
-    #     style="green",
-    # )
 
     try:
         dl_progress = Progress(BarColumn(), DownloadColumn(), TransferSpeedColumn())
