@@ -92,6 +92,7 @@ def get_cell_weights(raster: xr.Dataset, gdf: gpd.GeoDataFrame, wkt: str) -> pd.
         DataFrame indexed by divide_id that contains information about coverage
         for each raster cell in gridded forcing file.
     """
+    logger.debug(raster)
     xmin = min(raster.x)
     xmax = max(raster.x)
     ymin = min(raster.y)

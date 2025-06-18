@@ -120,7 +120,7 @@ h2 {
 }
 
 #selected-basins,
-#cli-command,#cli-prefix {
+#cli-command,#cli-prefix,#hydrofabric {
   background: var(--code-bg);
   padding: 16px;
   border-radius: var(--border-radius);

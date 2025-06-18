@@ -64,6 +64,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Use gage ID instead of catid, expects a single gage ID via the cli \n e.g. python -m ngiab_data_cli -i 01646500 -g -s",
     )
     parser.add_argument(
+        "--location",
+        type=str,
+        help="Location of the feature, e.g. 'conus', 'hi'",
+        choices=["conus", "hi"],
+    )
+    parser.add_argument(
         "-s",
         "--subset",
         action="store_true",

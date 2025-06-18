@@ -10,6 +10,7 @@ from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import file_paths
 from data_processing.forcings import create_forcings
 from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
+from data_processing.gpkg_utils import convert_gpkg_to_5070
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
 
@@ -26,28 +27,33 @@ def index():
 
 @main.route("/get_upstream_catids", methods=["POST"])
 def get_upstream_catids():
-    cat_id = json.loads(request.data.decode("utf-8"))
-    upstream_cats = get_upstream_cats(cat_id)
+    payload = json.loads(request.data.decode("utf-8"))
+    cat_id = payload.get("cat_id")
+    hf = payload.get("hf")
+    upstream_cats = get_upstream_cats(cat_id, location=hf)
     if cat_id in upstream_cats:
         upstream_cats.remove(cat_id)
     return list(upstream_cats), 200
 
 
-@main.route("/get_upstream_wbids", methods=["POST"])
+@main.route("/get_upstream_wbids", methods=["POST"]) # don't think this function gets used so I didn't change it
 def get_upstream_wbids():
     cat_id = json.loads(request.data.decode("utf-8"))
-    upstream_ids = get_upstream_ids(cat_id)
+    upstream_ids = get_upstream_ids(cat_id, location="conus")
     # remove the selected cat_id from the set
     return [id for id in upstream_ids if id.startswith("wb")], 200
 
 
 @main.route("/subset", methods=["POST"])
 def subset_selection():
-    cat_ids = list(json.loads(request.data.decode("utf-8")))
+    payload = json.loads(request.data.decode("utf-8"))
+    cat_ids = payload.get("cat_id")
+    hf = payload.get("hf")
     logger.info(cat_ids)
-    subset_name = cat_ids[0]
-    run_paths = file_paths(subset_name)
-    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path)
+    subset_name = [cat_ids]
+    logger.info(subset_name)
+    run_paths = file_paths(f"{hf}-{cat_ids}")
+    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, location=hf)
     return str(run_paths.geopackage_path), 200
 
 
@@ -68,7 +74,7 @@ def subset_to_file():
 
 @main.route("/forcings", methods=["POST"])
 def get_forcings():
-    # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time}),
+    # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time, 'hf': hf}),
     data = json.loads(request.data.decode("utf-8"))
     subset_gpkg = Path(data.get("forcing_dir").split("subset to ")[-1])
     output_folder = Path(subset_gpkg.parent.parent)
@@ -76,6 +82,7 @@ def get_forcings():
 
     start_time = data.get("start_time")
     end_time = data.get("end_time")
+    hf = data.get("hf")
 
     # get the selected data source
     data_source = data.get("source")
@@ -90,13 +97,19 @@ def get_forcings():
     logger.debug(f"forcing_dir: {output_folder}")
     try:
         if data_source == "aorc":
+            if hf == "hi":
+                return jsonify({"error": "AORC data is not available for Hawaii"})
             data = load_aorc_zarr(start_time.year, end_time.year)
         elif data_source == "nwm":
-            data = load_v3_retrospective_zarr()
+            data = load_v3_retrospective_zarr(location=hf)
         gdf = gpd.read_file(paths.geopackage_path, layer="divides")
         cached_data = save_and_clip_dataset(data, gdf, start_time, end_time, paths.cached_nc_file)
 
         create_forcings(cached_data, paths.output_dir.stem)
+
+        if hf == "hi":
+            convert_gpkg_to_5070(paths.geopackage_path)
+            logging.info(f"Transform complete. Output saved to {paths.geopackage_path}")
     except Exception as e:
         logger.info(f"get_forcings() failed with error: {str(e)}")
         return jsonify({"error": str(e)}), 500

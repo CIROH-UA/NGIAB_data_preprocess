@@ -9,6 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/toggle.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='resources/light-style.json') }}"> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='resources/dark-style.json') }}"> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='resources/merged2.pmtiles') }}"> 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://unpkg.com/maplibre-gl@^5.2.0/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/pmtiles@latest/dist/pmtiles.js"></script>
@@ -88,6 +91,8 @@
         <section id="basins-container">
             <h2>Selected Basins</h2>
             <div id="selected-basins">None - get clicking!</div>
+            <h3>Selected hydrofabric</h3>
+            <div id="hydrofabric">None - get clicking!</div>
             <button id="subset-button">Create subset gpkg</button>
             <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
                 id="subset-loading">

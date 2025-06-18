@@ -1,0 +1,278 @@
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "gpkg_spatial_ref_sys" (
+	"srs_name"	TEXT NOT NULL,
+	"srs_id"	INTEGER NOT NULL,
+	"organization"	TEXT NOT NULL,
+	"organization_coordsys_id"	INTEGER NOT NULL,
+	"definition"	TEXT NOT NULL,
+	"description"	TEXT,
+	PRIMARY KEY("srs_id")
+);
+CREATE TABLE IF NOT EXISTS "gpkg_contents" (
+	"table_name"	TEXT NOT NULL,
+	"data_type"	TEXT NOT NULL,
+	"identifier"	TEXT UNIQUE,
+	"description"	TEXT DEFAULT '',
+	"last_change"	DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+	"min_x"	DOUBLE,
+	"min_y"	DOUBLE,
+	"max_x"	DOUBLE,
+	"max_y"	DOUBLE,
+	"srs_id"	INTEGER,
+	PRIMARY KEY("table_name"),
+	CONSTRAINT "fk_gc_r_srs_id" FOREIGN KEY("srs_id") REFERENCES "gpkg_spatial_ref_sys"("srs_id")
+);
+CREATE TABLE IF NOT EXISTS "gpkg_ogr_contents" (
+	"table_name"	TEXT NOT NULL,
+	"feature_count"	INTEGER DEFAULT NULL,
+	PRIMARY KEY("table_name")
+);
+CREATE TABLE IF NOT EXISTS "gpkg_geometry_columns" (
+	"table_name"	TEXT NOT NULL,
+	"column_name"	TEXT NOT NULL,
+	"geometry_type_name"	TEXT NOT NULL,
+	"srs_id"	INTEGER NOT NULL,
+	"z"	TINYINT NOT NULL,
+	"m"	TINYINT NOT NULL,
+	CONSTRAINT "fk_gc_tn" FOREIGN KEY("table_name") REFERENCES "gpkg_contents"("table_name"),
+	CONSTRAINT "fk_gc_srs" FOREIGN KEY("srs_id") REFERENCES "gpkg_spatial_ref_sys"("srs_id"),
+	CONSTRAINT "pk_geom_cols" PRIMARY KEY("table_name","column_name"),
+	CONSTRAINT "uk_gc_table_name" UNIQUE("table_name")
+);
+CREATE TABLE IF NOT EXISTS "gpkg_tile_matrix_set" (
+	"table_name"	TEXT NOT NULL,
+	"srs_id"	INTEGER NOT NULL,
+	"min_x"	DOUBLE NOT NULL,
+	"min_y"	DOUBLE NOT NULL,
+	"max_x"	DOUBLE NOT NULL,
+	"max_y"	DOUBLE NOT NULL,
+	PRIMARY KEY("table_name"),
+	CONSTRAINT "fk_gtms_table_name" FOREIGN KEY("table_name") REFERENCES "gpkg_contents"("table_name"),
+	CONSTRAINT "fk_gtms_srs" FOREIGN KEY("srs_id") REFERENCES "gpkg_spatial_ref_sys"("srs_id")
+);
+CREATE TABLE IF NOT EXISTS "gpkg_tile_matrix" (
+	"table_name"	TEXT NOT NULL,
+	"zoom_level"	INTEGER NOT NULL,
+	"matrix_width"	INTEGER NOT NULL,
+	"matrix_height"	INTEGER NOT NULL,
+	"tile_width"	INTEGER NOT NULL,
+	"tile_height"	INTEGER NOT NULL,
+	"pixel_x_size"	DOUBLE NOT NULL,
+	"pixel_y_size"	DOUBLE NOT NULL,
+	CONSTRAINT "pk_ttm" PRIMARY KEY("table_name","zoom_level"),
+	CONSTRAINT "fk_tmm_table_name" FOREIGN KEY("table_name") REFERENCES "gpkg_contents"("table_name")
+);
+CREATE TABLE IF NOT EXISTS "gpkg_extensions" (
+	"table_name"	TEXT,
+	"column_name"	TEXT,
+	"extension_name"	TEXT NOT NULL,
+	"definition"	TEXT NOT NULL,
+	"scope"	TEXT NOT NULL,
+	CONSTRAINT "ge_tce" UNIQUE("table_name","column_name","extension_name")
+);
+CREATE TABLE IF NOT EXISTS "flowpaths" (
+	"fid"	INTEGER NOT NULL,
+	"geom"	GEOMETRY,
+	"id"	TEXT,
+	"toid"	TEXT,
+	"mainstem"	REAL,
+	"order"	REAL,
+	"hydroseq"	MEDIUMINT,
+	"lengthkm"	REAL,
+	"areasqkm"	REAL,
+	"tot_drainage_areasqkm"	REAL,
+	"has_divide"	BOOLEAN,
+	"divide_id"	TEXT,
+	"poi_id"	TEXT,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "divides" (
+	"fid"	INTEGER NOT NULL,
+	"geom"	POLYGON,
+	"divide_id"	TEXT,
+	"toid"	TEXT,
+	"type"	TEXT,
+	"ds_id"	REAL,
+	"areasqkm"	REAL,
+	"id"	TEXT,
+	"lengthkm"	REAL,
+	"tot_drainage_areasqkm"	REAL,
+	"has_flowline"	BOOLEAN,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "lakes" (
+	"fid"	INTEGER NOT NULL,
+	"geom"	POINT,
+	"lake_id"	REAL,
+	"LkArea"	REAL,
+	"LkMxE"	REAL,
+	"WeirC"	REAL,
+	"WeirL"	REAL,
+	"OrificeC"	REAL,
+	"OrificeA"	REAL,
+	"OrificeE"	REAL,
+	"WeirE"	REAL,
+	"ifd"	REAL,
+	"Dam_Length"	REAL,
+	"domain"	TEXT,
+	"poi_id"	MEDIUMINT,
+	"hf_id"	REAL,
+	"reservoir_index_AnA"	REAL,
+	"reservoir_index_Extended_AnA"	REAL,
+	"reservoir_index_GDL_AK"	REAL,
+	"reservoir_index_Medium_Range"	REAL,
+	"reservoir_index_Short_Range"	REAL,
+	"res_id"	TEXT,
+	"vpuid"	TEXT,
+	"lake_x"	REAL,
+	"lake_y"	REAL,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "pois" (
+	"fid"	INTEGER NOT NULL,
+	"poi_id"	MEDIUMINT,
+	"id"	TEXT,
+	"nex_id"	TEXT,
+	"vpuid"	TEXT,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "hydrolocations" (
+	"fid"	INTEGER NOT NULL,
+	"poi_id"	MEDIUMINT,
+	"id"	TEXT,
+	"nex_id"	TEXT,
+	"hl_link"	TEXT,
+	"hl_reference"	TEXT,
+	"hl_source"	TEXT,
+	"hf_id"	REAL,
+	"hl_uri"	TEXT,
+	"vpuid"	TEXT,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "flowpath-attributes" (
+	"fid"	INTEGER NOT NULL,
+	"link"	TEXT,
+	"to"	TEXT,
+	"Length_m"	REAL,
+	"Y"	REAL,
+	"n"	REAL,
+	"nCC"	REAL,
+	"BtmWdth"	REAL,
+	"TopWdth"	REAL,
+	"TopWdthCC"	REAL,
+	"ChSlp"	REAL,
+	"alt"	REAL,
+	"So"	REAL,
+	"MusX"	REAL,
+	"MusK"	REAL,
+	"gage"	TEXT,
+	"gage_nex_id"	TEXT,
+	"WaterbodyID"	TEXT,
+	"waterbody_nex_id"	TEXT,
+	"id"	TEXT,
+	"toid"	TEXT,
+	"vpuid"	TEXT,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "network" (
+	"fid"	INTEGER NOT NULL,
+	"id"	TEXT,
+	"toid"	TEXT,
+	"divide_id"	TEXT,
+	"ds_id"	REAL,
+	"mainstem"	REAL,
+	"hydroseq"	MEDIUMINT,
+	"hf_source"	TEXT,
+	"hf_id"	REAL,
+	"lengthkm"	REAL,
+	"areasqkm"	REAL,
+	"tot_drainage_areasqkm"	REAL,
+	"type"	TEXT,
+	"vpuid"	TEXT,
+	"hf_hydroseq"	REAL,
+	"hf_lengthkm"	REAL,
+	"hf_mainstem"	REAL,
+	"topo"	TEXT,
+	"poi_id"	MEDIUMINT,
+	"hl_uri"	TEXT,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "nexus" (
+	"fid"	INTEGER NOT NULL,
+	"geom"	POINT,
+	"id"	TEXT,
+	"toid"	TEXT,
+	"type"	TEXT,
+	"poi_id"	MEDIUMINT,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "divide-attributes" (
+	"fid"	INTEGER NOT NULL,
+	"divide_id"	TEXT,
+	"mode.bexp_soil_layers_stag=1"	REAL,
+	"mode.bexp_soil_layers_stag=2"	REAL,
+	"mode.bexp_soil_layers_stag=3"	REAL,
+	"mode.bexp_soil_layers_stag=4"	REAL,
+	"mode.ISLTYP"	REAL,
+	"mode.IVGTYP"	REAL,
+	"geom_mean.dksat_soil_layers_stag=1"	REAL,
+	"geom_mean.dksat_soil_layers_stag=2"	REAL,
+	"geom_mean.dksat_soil_layers_stag=3"	REAL,
+	"geom_mean.dksat_soil_layers_stag=4"	REAL,
+	"geom_mean.psisat_soil_layers_stag=1"	REAL,
+	"geom_mean.psisat_soil_layers_stag=2"	REAL,
+	"geom_mean.psisat_soil_layers_stag=3"	REAL,
+	"geom_mean.psisat_soil_layers_stag=4"	REAL,
+	"mean.cwpvt"	REAL,
+	"mean.mfsno"	REAL,
+	"mean.mp"	REAL,
+	"mean.refkdt"	REAL,
+	"mean.slope_1km"	REAL,
+	"mean.smcmax_soil_layers_stag=1"	REAL,
+	"mean.smcmax_soil_layers_stag=2"	REAL,
+	"mean.smcmax_soil_layers_stag=3"	REAL,
+	"mean.smcmax_soil_layers_stag=4"	REAL,
+	"mean.smcwlt_soil_layers_stag=1"	REAL,
+	"mean.smcwlt_soil_layers_stag=2"	REAL,
+	"mean.smcwlt_soil_layers_stag=3"	REAL,
+	"mean.smcwlt_soil_layers_stag=4"	REAL,
+	"mean.vcmx25"	REAL,
+	"mean.Coeff"	REAL,
+	"mean.Zmax"	REAL,
+	"mode.Expon"	REAL,
+	"centroid_x"	REAL,
+	"centroid_y"	REAL,
+	"mean.impervious"	REAL,
+	"mean.elevation"	REAL,
+	"mean.slope"	REAL,
+	"circ_mean.aspect"	REAL,
+	"dist_4.twi"	TEXT,
+	"vpuid"	TEXT,
+	PRIMARY KEY("fid" AUTOINCREMENT)
+);
+INSERT INTO "gpkg_spatial_ref_sys" VALUES ('Undefined Cartesian SRS',-1,'NONE',-1,'undefined','undefined Cartesian coordinate reference system'),
+ ('Undefined geographic SRS',0,'NONE',0,'undefined','undefined geographic coordinate reference system'),
+ ('WGS 84 geodetic',4326,'EPSG',4326,'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]]','longitude/latitude coordinates in decimal degrees on the WGS 84 spheroid'),
+ ('NAD83 / Conus Albers',5070,'EPSG',5070,'PROJCS["NAD83 / Conus Albers",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["latitude_of_center",23],PARAMETER["longitude_of_center",-96],PARAMETER["standard_parallel_1",29.5],PARAMETER["standard_parallel_2",45.5],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","5070"]]',NULL),
+ ('Hawaii Albers Equal Area Conic',102007,'ESRI',102007,'PROJCRS["Hawaii_Albers_Equal_Area_Conic", BASEGEOGCRS["NAD83", DATUM["North American Datum 1983", ELLIPSOID["GRS 1980",6378137,298.257222101, LENGTHUNIT["metre",1]]], PRIMEM["Greenwich",0, ANGLEUNIT["degree",0.0174532925199433]], ID["EPSG",4269]], CONVERSION["unnamed", METHOD["Albers Equal Area", ID["EPSG",9822]], PARAMETER["Latitude of false origin",13, ANGLEUNIT["degree",0.0174532925199433], ID["EPSG",8821]], PARAMETER["Longitude of false origin",-157, ANGLEUNIT["degree",0.0174532925199433], ID["EPSG",8822]], PARAMETER["Latitude of 1st standard parallel",8, ANGLEUNIT["degree",0.0174532925199433], ID["EPSG",8823]], PARAMETER["Latitude of 2nd standard parallel",18, ANGLEUNIT["degree",0.0174532925199433], ID["EPSG",8824]], PARAMETER["Easting at false origin",0, LENGTHUNIT["metre",1], ID["EPSG",8826]], PARAMETER["Northing at false origin",0, LENGTHUNIT["metre",1], ID["EPSG",8827]]], CS[Cartesian,2], AXIS["easting",east, ORDER[1], LENGTHUNIT["metre",1]], AXIS["northing",north, ORDER[2], LENGTHUNIT["metre",1]], ID["ESRI",102007]]',NULL);
+INSERT INTO "gpkg_contents" VALUES 
+-- ('flowpaths','features','flowpaths','','2024-10-02T21:39:27.356Z',-2355820.00101573,310953.68219087,2255727.42647687,3163261.03986518,5070),
+--  ('divides','features','divides','','2024-10-02T21:40:02.814Z',-2356125.0012,209715.0003,2258234.9955,3506235.0003,5070),
+--  ('lakes','features','lakes','','2024-10-02T21:40:03.033Z',-2306232.84864919,329124.789725057,2240264.19930738,3149850.04714446,5070),
+ ('pois','attributes','pois','','2024-10-02T21:40:34.220Z',NULL,NULL,NULL,NULL,0),
+--  ('hydrolocations','attributes','hydrolocations','','2024-10-02T21:40:35.451Z',NULL,NULL,NULL,NULL,0),
+ ('flowpath-attributes','attributes','flowpath-attributes','','2024-10-02T21:40:43.663Z',NULL,NULL,NULL,NULL,0),
+ ('network','attributes','network','','2024-10-02T21:42:24.445Z',NULL,NULL,NULL,NULL,0),
+--  ('nexus','features','nexus','','2024-10-02T21:42:40.611Z',-2355820.00101573,299144.998892077,2255727.42647687,3163919.99977937,5070),
+ ('divide-attributes','attributes','divide-attributes','','2024-10-02T21:43:31.277Z',NULL,NULL,NULL,NULL,0);
+INSERT INTO "gpkg_geometry_columns" VALUES ('flowpaths','geom','GEOMETRY',102007,0,0),
+ ('divides','geom','POLYGON',102007,0,0),
+ ('lakes','geom','POINT',102007,0,0),
+ ('nexus','geom','POINT',102007,0,0),
+ ('hydrolocations','geom','POINT',102007,0,0);
+INSERT INTO "gpkg_extensions" VALUES ('flowpaths','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
+ ('divides','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
+ ('lakes','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
+ ('nexus','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only'),
+ ('hydrolocations','geom','gpkg_rtree_index','http://www.geopackage.org/spec120/#extension_rtree','write-only');
+COMMIT;

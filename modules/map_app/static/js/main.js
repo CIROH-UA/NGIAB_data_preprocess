@@ -11,14 +11,19 @@ var colorDict = {
 };
 
 // A function that creates a cli command from the interface
-function create_cli_command() {
+function create_cli_command(hf) {
   const cliPrefix = document.getElementById("cli-prefix");
   cliPrefix.style.opacity = 1;
   var selected_basins = $("#selected-basins").text();
   var start_time = document.getElementById("start-time").value.split("T")[0];
   var end_time = document.getElementById("end-time").value.split("T")[0];
-  var command = `-i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
-  var command_all = `-i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
+  if (hf == "conus") {
+    var loc = "conus";
+  } else if (hf == "hi") {
+    var loc = "hi";
+  }
+  var command = `-i ${selected_basins} --subset --location ${loc} --start ${start_time} --end ${end_time} --forcings --realization --run`;
+  var command_all = `-i ${selected_basins} --location ${loc} --start ${start_time} --end ${end_time} --all`;
   if (selected_basins != "None - get clicking!") {
     $("#cli-command").text(command);
   }
@@ -35,7 +40,6 @@ function updateCommandPrefix() {
 document.getElementById("runcmd-toggle").addEventListener('change', updateCommandPrefix);
 
 // These functions are exported by data_processing.js
-document.getElementById('map').addEventListener('click', create_cli_command);
 document.getElementById('start-time').addEventListener('change', create_cli_command);
 document.getElementById('end-time').addEventListener('change', create_cli_command);
 
@@ -46,10 +50,10 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 
 // select light-style if the browser is in light mode
 // select dark-style if the browser is in dark mode
-var style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json';
+var style = '/static/resources/light-style.json'; // change this
 var colorScheme = "light";
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json';
+  style = '/static/resources/dark-style.json'; // change this
   colorScheme = "dark";
 }
 var map = new maplibregl.Map({
@@ -129,19 +133,28 @@ map.on("load", () => {
   });
 });
 
-function update_map(cat_id, e) {
+function update_map(cat_id, hf, e) {
   $('#selected-basins').text(cat_id)
-  map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
-  map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
-
+  $('#hydrofabric').text(hf)
+  if (hf == "conus") {
+    map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
+    map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
+  } else if (hf == "hi") {
+    map.setFilter('hi-selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
+    map.setFilter('hi-upstream-catchments', ['any', ['in', 'divide_id', ""]])
+  }
   fetch('/get_upstream_catids', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cat_id),
+    body: JSON.stringify({cat_id: cat_id, hf: hf}),
   })
   .then(response => response.json())
   .then(data => {
-    map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+    if (hf == "conus") {
+      map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+    } else if (hf == "hi") {
+      map.setFilter('hi-upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+    }
     if (data.length === 0) {
       new maplibregl.Popup()
         .setLngLat(e.lngLat)
@@ -152,7 +165,16 @@ function update_map(cat_id, e) {
 }
 map.on('click', 'catchments', (e) => {
   cat_id = e.features[0].properties.divide_id;
-  update_map(cat_id, e);
+  hf = "conus";
+  update_map(cat_id, hf, e);
+  document.getElementById('map').addEventListener('click', create_cli_command(hf="conus"));
+});
+
+map.on('click', 'hi_catchments', (e) => {
+  cat_id = e.features[0].properties.divide_id;
+  hf = "hi";
+  update_map(cat_id, hf, e);
+  document.getElementById('map').addEventListener('click', create_cli_command(hf="hi"));
 });
 
 // Create a popup, but don't add it to the map yet.
@@ -193,6 +215,106 @@ map.on("click", "conus_gages", (e) => {
     "_blank",
   );
 });
+
+map.on('mouseenter', 'hi_gages', (e) => {
+  // Change the cursor style as a UI indicator.
+  map.getCanvas().style.cursor = 'pointer';
+
+  const coordinates = e.features[0].geometry.coordinates.slice();
+  const description = "gages-" + e.features[0].properties.site_no + "<br> click for more info";
+
+  // Ensure that if the map is zoomed out such that multiple
+  // copies of the feature are visible, the popup appears
+  // over the copy being pointed to.
+  while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+  }
+
+  // Populate the popup and set its coordinates
+  // based on the feature found.
+  popup.setLngLat(coordinates).setHTML(description).addTo(map);
+});
+
+map.on("mouseleave", "hi_gages", () => {
+  map.getCanvas().style.cursor = "";
+  popup.remove();
+});
+
+map.on("click", "hi_gages", (e) => {
+  //  https://waterdata.usgs.gov/monitoring-location/02465000
+  window.open(
+    "https://waterdata.usgs.gov/monitoring-location/" +
+    e.features[0].properties.site_no,
+    "_blank",
+  );
+});
+
+map.on('mouseenter', 'ak_gages', (e) => {
+  // Change the cursor style as a UI indicator.
+  map.getCanvas().style.cursor = 'pointer';
+
+  const coordinates = e.features[0].geometry.coordinates.slice();
+  const description = "gages-" + e.features[0].properties.site_no + "<br> click for more info";
+
+  // Ensure that if the map is zoomed out such that multiple
+  // copies of the feature are visible, the popup appears
+  // over the copy being pointed to.
+  while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+  }
+
+  // Populate the popup and set its coordinates
+  // based on the feature found.
+  popup.setLngLat(coordinates).setHTML(description).addTo(map);
+});
+
+map.on("mouseleave", "ak_gages", () => {
+  map.getCanvas().style.cursor = "";
+  popup.remove();
+});
+
+map.on("click", "ak_gages", (e) => {
+  //  https://waterdata.usgs.gov/monitoring-location/02465000
+  window.open(
+    "https://waterdata.usgs.gov/monitoring-location/" +
+    e.features[0].properties.site_no,
+    "_blank",
+  );
+});
+
+map.on('mouseenter', 'prvi_gages', (e) => {
+  // Change the cursor style as a UI indicator.
+  map.getCanvas().style.cursor = 'pointer';
+
+  const coordinates = e.features[0].geometry.coordinates.slice();
+  const description = "gages-" + e.features[0].properties.site_no + "<br> click for more info";
+
+  // Ensure that if the map is zoomed out such that multiple
+  // copies of the feature are visible, the popup appears
+  // over the copy being pointed to.
+  while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+  }
+
+  // Populate the popup and set its coordinates
+  // based on the feature found.
+  popup.setLngLat(coordinates).setHTML(description).addTo(map);
+});
+
+map.on("mouseleave", "prvi_gages", () => {
+  map.getCanvas().style.cursor = "";
+  popup.remove();
+});
+
+map.on("click", "prvi_gages", (e) => {
+  //  https://waterdata.usgs.gov/monitoring-location/02465000
+  window.open(
+    "https://waterdata.usgs.gov/monitoring-location/" +
+    e.features[0].properties.site_no,
+    "_blank",
+  );
+});
+
 show = false;
 
 // TOGGLE BUTTON LOGIC
@@ -228,10 +350,16 @@ const toggleButtonGages = document.querySelector("#toggle-button-gages");
 toggleButtonGages.addEventListener("click", () => {
   if (showGages) {
     map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]);
+    map.setFilter("hi_gages", ["any", ["==", "hl_uri", ""]]);
+    map.setFilter("ak_gages", ["any", ["==", "hl_uri", ""]]);
+    map.setFilter("prvi_gages", ["any", ["==", "hl_uri", ""]]);
     toggleButtonGages.innerText = "Show gages";
     showGages = false;
   } else {
     map.setFilter("conus_gages", null);
+    map.setFilter("hi_gages", null);
+    map.setFilter("ak_gages", null);
+    map.setFilter("prvi_gages", null);
     toggleButtonGages.innerText = "Hide gages";
     showGages = true;
   }

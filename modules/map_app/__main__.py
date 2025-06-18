@@ -5,7 +5,7 @@ import webbrowser
 from threading import Timer
 
 from data_processing.file_paths import file_paths
-from data_processing.graph_utils import get_graph
+from data_processing.graph_utils import get_conus_graph, get_hawaii_graph
 from map_app import app, console_handler
 
 
@@ -33,7 +33,8 @@ def set_logs_to_warning():
 
 def main():
     # call this once to cache the graph
-    Timer(1, get_graph).start()
+    Timer(1, get_conus_graph).start()
+    Timer(1, get_hawaii_graph).start()
 
     if file_paths.dev_file.is_file():
         Timer(2, set_logs_to_warning).start()

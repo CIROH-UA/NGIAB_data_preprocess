@@ -10,15 +10,21 @@ logger = logging.getLogger(__name__)
 
 
 @use_cluster
-def load_v3_retrospective_zarr(forcing_vars: list[str] = None) -> xr.Dataset:
+def load_v3_retrospective_zarr(location: str, forcing_vars: list[str] = None) -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
     # if a LocalCluster is not already running, start one
     if not forcing_vars:
         forcing_vars = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]
 
-    s3_urls = [
-        f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/zarr/forcing/{var}.zarr" for var in forcing_vars
-    ]
+    if location == "conus":
+        s3_urls = [
+            f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/zarr/forcing/{var}.zarr" for var in forcing_vars
+        ]
+    elif location == "hi":
+        s3_urls = ["s3://noaa-nwm-retrospective-3-0-pds/Hawaii/zarr/forcing.zarr"]
+        # only one forcing zarr store for hawaii, contains all variables
+    else:
+        raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
     # default cache is readahead which is detrimental to performance in this case
     fs = S3ParallelFileSystem(anon=True, default_cache_type="none")  # default_block_size
     s3_stores = [s3fs.S3Map(url, s3=fs) for url in s3_urls]

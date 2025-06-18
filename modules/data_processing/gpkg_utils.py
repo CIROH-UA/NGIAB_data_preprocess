@@ -9,6 +9,9 @@ from data_processing.file_paths import file_paths
 from shapely.geometry import Point, Polygon
 from shapely.ops import transform
 from shapely.wkb import loads
+import geopandas as gpd
+import pandas as pd
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -69,23 +72,35 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     con.close()
 
 
-def create_empty_gpkg(gpkg: Path) -> None:
+def create_empty_gpkg(gpkg: Path, location: str) -> None:
     """
     Create an empty geopackage with the necessary tables and indices.
     """
-    with open(file_paths.template_sql) as f:
-        sql_script = f.read()
+    if location == 'conus':
+        with open(file_paths.template_sql) as f:
+            sql_script = f.read()
+    elif location == 'hi':
+        with open(file_paths.hawaii_template_sql) as f:
+            sql_script = f.read()
+    else:
+        raise ValueError("Invalid location: must be conus or hi")
 
     with sqlite3.connect(gpkg) as conn:
         conn.executescript(sql_script)
 
 
-def add_triggers_to_gpkg(gpkg: Path) -> None:
+def add_triggers_to_gpkg(gpkg: Path, location: str) -> None:
     """
     Adds geopackage triggers required to maintain spatial index integrity
     """
-    with open(file_paths.triggers_sql) as f:
-        triggers = f.read()
+    if location == 'conus':
+        with open(file_paths.triggers_sql) as f:
+            triggers = f.read()
+    elif location == 'hi':
+        with open(file_paths.hawaii_triggers_sql) as f:
+            triggers = f.read()
+    else:
+        raise ValueError("Invalid location: must be conus or hi")
     with sqlite3.connect(gpkg) as conn:
         conn.executescript(triggers)
 
@@ -151,7 +166,7 @@ def blob_to_centre_point(blob: bytes) -> Point:
     return Point(x, y)
 
 
-def convert_to_5070(shapely_geometry):
+def convert_to_5070(shapely_geometry): # CONUS transformation
     # convert to web mercator
     if shapely_geometry.is_empty:
         return shapely_geometry
@@ -163,6 +178,46 @@ def convert_to_5070(shapely_geometry):
     logger.debug(f"old geometry: {shapely_geometry}")
     return new_geometry
 
+def convert_to_esri102007(shapely_geometry): # Hawaii transformation
+    """
+    Convert a shapely geometry to ESRI 102007 (Hawaii Albers) coordinate system.
+    """
+    if shapely_geometry.is_empty:
+        return shapely_geometry
+    source_crs = pyproj.CRS("EPSG:4326")
+    target_crs = pyproj.CRS("ESRI:102007")
+    project = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True).transform
+    new_geometry = transform(project, shapely_geometry)
+    logger.debug(f" new geometry: {new_geometry}")
+    logger.debug(f"old geometry: {shapely_geometry}")
+    return new_geometry
+
+def convert_gpkg_to_5070(gpkg):
+    """
+    Convert geometries in a Hawaii geopackage to EPSG:5070 (CONUS Albers) coordinate system.
+    This avoids errors in nextgen runs
+    """
+    for layer_name in gpd.list_layers(gpkg)['name']:
+        logger.debug(layer_name)
+        gdf_layer = gpd.read_file(gpkg, layer=layer_name)
+        logger.debug(gdf_layer)
+        # reproj_layer = gdf_layer.to_crs("EPSG:5070")
+        # reproj_layer.to_file('temp.gpkg', layer=layer_name)
+
+        if "geometry" in gdf_layer.columns:
+            gdf = gpd.GeoDataFrame(gdf_layer, geometry="geometry")
+            gdf_reprojected = gdf.to_crs("EPSG:5070")
+            gdf_reprojected.to_file('transformed.gpkg', layer=layer_name)
+        else:
+            # kind of a stupid fix for layers w/o geometries
+            empty_gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:5070")
+            empty_gdf.to_file('transformed.gpkg', layer=layer_name)
+            gdf_base = gpd.read_file('transformed.gpkg', layer=layer_name)
+            gdf_base = pd.concat([gdf_base,gdf_layer], ignore_index=True)
+            gdf_base.to_file('transformed.gpkg', layer=layer_name)
+
+    os.remove(gpkg)  # remove the original file
+    os.rename('transformed.gpkg', gpkg)  # rename the transformed file to the original name    
 
 def get_catid_from_point(coords):
     """
@@ -180,16 +235,29 @@ def get_catid_from_point(coords):
 
     """
     logger.info(f"Getting catid for {coords}")
-    q = file_paths.conus_hydrofabric
+    conus_q = file_paths.conus_hydrofabric
+    hawaii_q = file_paths.hawaii_hydrofabric
     point = Point(coords["lng"], coords["lat"])
     point = convert_to_5070(point)
-    with sqlite3.connect(q) as con:
+    with sqlite3.connect(conus_q) as con:
         sql = f"""SELECT DISTINCT d.divide_id, d.geom
                 FROM divides d
                 JOIN rtree_divides_geom r ON d.fid = r.id
                 WHERE r.minx <= {point.x} AND r.maxx >= {point.x}
                 AND r.miny <= {point.y} AND r.maxy >= {point.y}"""
         results = con.execute(sql).fetchall()
+    location = "conus"
+    if len(results) == 0:
+        point = Point(coords["lng"], coords["lat"])
+        point = convert_to_esri102007(point)
+        with sqlite3.connect(hawaii_q) as con:
+            sql = f"""SELECT DISTINCT d.divide_id, d.geom
+                    FROM divides d
+                    JOIN rtree_divides_geom r ON d.fid = r.id
+                    WHERE r.minx <= {point.x} AND r.maxx >= {point.x}
+                    AND r.miny <= {point.y} AND r.maxy >= {point.y}"""
+            results = con.execute(sql).fetchall()
+        location = "hi"
     if len(results) == 0:
         raise IndexError(f"No watershed boundary found for {coords}")
     if len(results) > 1:
@@ -197,8 +265,8 @@ def get_catid_from_point(coords):
         for result in results:
             geom = blob_to_geometry(result[1])
             if geom.contains(point):
-                return result[0]
-    return results[0][0]
+                return result[0], location
+    return results[0][0], location
 
 
 def create_rTree_table(table: str, con: sqlite3.Connection) -> None:
@@ -256,14 +324,17 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
     con.commit()
 
 
-def update_geopackage_metadata(gpkg: Path) -> None:
+def update_geopackage_metadata(gpkg: Path, hydrofabric: Path) -> None:
     """
     Update the contents of the gpkg_contents table in the specified geopackage.
     """
     # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
-    tables = get_feature_tables(file_paths.conus_hydrofabric)
+    tables = get_feature_tables(hydrofabric)
     con = sqlite3.connect(gpkg)
     for table in tables:
+        if table == "error": # I have no idea what this table is, but it exists in the hawaii hydrofabric
+            # and it breaks this function. Hopefully it's not important!
+            continue
         min_x = con.execute(f"SELECT MIN(minx) FROM rtree_{table}_geom").fetchone()[0]
         min_y = con.execute(f"SELECT MIN(miny) FROM rtree_{table}_geom").fetchone()[0]
         max_x = con.execute(f"SELECT MAX(maxx) FROM rtree_{table}_geom").fetchone()[0]
@@ -283,6 +354,8 @@ def update_geopackage_metadata(gpkg: Path) -> None:
 
     # update the gpkg_ogr_contents table with table_name and number of features
     for table in tables:
+        if table == "error":  # skip the error table in the HI hydrofabric
+            continue
         num_features = con.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[0]
         con.execute(
             f"INSERT INTO gpkg_ogr_contents (table_name, feature_count) VALUES ('{table}', {num_features})"
@@ -386,10 +459,9 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
         key_name = table_keys[table]
     sql_query = f"SELECT * FROM '{table}' WHERE {key_name} IN ({','.join(ids)})"
     contents = source_db.execute(sql_query).fetchall()
-
     insert_data(dest_db, table, contents)
 
-    if table in get_feature_tables(file_paths.conus_hydrofabric):
+    if table in get_feature_tables(hydrofabric):
         fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 
@@ -436,7 +508,7 @@ def get_table_crs(gpkg: str, table: str) -> str:
     return crs
 
 
-def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric) -> str:
+def get_cat_from_gage_id(gage_id: str) -> str:
     """
     Get the catchment id associated with a gage id.
 
@@ -458,22 +530,31 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
         gage_id = f"{int(gage_id):08d}"
         logger.warning(f"Converted {old_gage_id} to {gage_id}")
 
-    logger.info(f"Getting catid for {gage_id}, in {gpkg}")
+    gpkg = file_paths.conus_hydrofabric
+    location = "conus"
+    logger.info(f"Looking for catid for {gage_id}, in {gpkg}")
 
     with sqlite3.connect(gpkg) as con:
         sql_query = f"SELECT id FROM 'flowpath-attributes' WHERE gage = '{gage_id}'"
         result = con.execute(sql_query).fetchall()
-        if len(result) == 0:
-            logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
-            raise IndexError(f"Could not find a waterbody for gage {gage_id}")
-        if len(result) > 1:
-            logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
-            raise IndexError(f"Could not find a unique waterbody for gage {gage_id}")
+    if len(result) == 0:
+        gpkg = file_paths.hawaii_hydrofabric
+        logger.info(f"Looking for catid for {gage_id}, in {gpkg}")
+        with sqlite3.connect(gpkg) as con:
+            sql_query = f"SELECT id FROM 'flowpath-attributes' WHERE gage = '{gage_id}'"
+            result = con.execute(sql_query).fetchall()
+        location = "hi"
+    if len(result) == 0:
+        logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
+        raise IndexError(f"Could not find a waterbody for gage {gage_id}")
+    if len(result) > 1:
+        logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
+        raise IndexError(f"Could not find a unique waterbody for gage {gage_id}")
 
-        wb_id = result[0][0]
-        cat_id = wb_id.replace("wb", "cat")
+    wb_id = result[0][0]
+    cat_id = wb_id.replace("wb", "cat")
 
-    return cat_id
+    return cat_id, location
 
 
 def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric) -> List[Tuple]:

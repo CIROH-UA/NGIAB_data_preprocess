@@ -1,5 +1,6 @@
 async function subset() {
-    var cat_id = $('#selected-basins').text()
+    var cat_id = $('#selected-basins').text();
+    var hf = $('#hydrofabric').text();
     if (cat_id == 'None - get clicking!') {
         alert('Please select at least one basin in the map before subsetting');
         return;
@@ -12,7 +13,7 @@ async function subset() {
     fetch('/subset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([cat_id]),
+        body: JSON.stringify({cat_id: cat_id, hf: hf}),
     })
         .then(response => response.text())
         .then(filename => {
@@ -87,12 +88,18 @@ async function forcings() {
     var nwm_aorc = document.getElementById('datasource-toggle').checked;
     var source = nwm_aorc ? 'aorc' : 'nwm';
     console.log('source:', source);
-
+    
+    var hf = $('#hydrofabric').text();
+    if (hf == "hi" && source == 'aorc') {
+        alert('AORC data is not available for Hawaii. Please select NWM data instead.');
+        return;
+    }
+    console.log('hf:', hf);
     document.getElementById('forcings-output-path').textContent = "Generating forcings...";
     fetch('/forcings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source}),
+        body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source, 'hf': hf }),
     }).then(response => response.text())
         .then(response_code => {
             document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";

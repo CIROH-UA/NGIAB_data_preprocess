@@ -15,7 +15,7 @@ with rich.status.Status("Initializing...") as status:
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
     from data_processing.file_paths import file_paths
     from data_processing.forcings import create_forcings
-    from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
+    from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point, convert_gpkg_to_5070
     from data_processing.graph_utils import get_upstream_cats
     from data_processing.subset import subset, subset_vpu
     from data_sources.source_validation import validate_all
@@ -45,28 +45,30 @@ def validate_input(args: argparse.Namespace) -> None:
 
     # always add or replace the prefix with cat if it is not a lat lon or gage
     if not args.latlon and not args.gage:
+        if not args.location:
+            raise ValueError("Please specify location with --location conus or --location hi, or use --latlon or --gage options.")
         input_feature = "cat-" + input_feature.split("-")[-1]
 
     if args.latlon and args.gage:
         raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
     if args.latlon:
-        feature_name = get_cat_id_from_lat_lon(input_feature)
+        feature_name, location = get_cat_id_from_lat_lon(input_feature)
         logging.info(f"Found {feature_name} from {input_feature}")
     elif args.gage:
-        feature_name = get_cat_from_gage_id(input_feature)
+        feature_name, location = get_cat_from_gage_id(input_feature)
         logging.info(f"Found {feature_name} from {input_feature}")
     else:
         feature_name = input_feature
-
+        location = args.location
     if args.output_name:
         output_folder = args.output_name
     elif args.gage:
         output_folder = input_feature
     else:
-        output_folder = feature_name
+        output_folder = f"{location}-{feature_name}" # there are duplicate cat-ids across different hydrofabrics
 
-    return feature_name, output_folder
+    return feature_name, output_folder, location
 
 
 def get_cat_id_from_lat_lon(input_feature: str) -> List[str]:
@@ -126,13 +128,13 @@ def main() -> None:
         args = parse_arguments()
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
-        feature_to_subset, output_folder = validate_input(args)
+        feature_to_subset, output_folder, location = validate_input(args)
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
             logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
             if not args.vpu:
-                upstream_count = len(get_upstream_cats(feature_to_subset))
+                upstream_count = len(get_upstream_cats(feature_to_subset, location))
                 logging.info(f"Upstream catchments: {upstream_count}")
                 if upstream_count == 0:
                     # if there are no upstreams, exit
@@ -153,16 +155,20 @@ def main() -> None:
                     feature_to_subset,
                     output_gpkg_path=paths.geopackage_path,
                     include_outlet=include_outlet,
+                    location=location
                 )
-                logging.info("Subsetting complete.")
 
         if args.forcings:
             logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
             if args.source == "aorc":
+                if location == "hi":
+                    logging.error("AORC data is not available for Hawaii.")
+                    return
                 data = load_aorc_zarr(args.start_date.year, args.end_date.year)
             elif args.source == "nwm":
-                data = load_v3_retrospective_zarr()
+                data = load_v3_retrospective_zarr(location)
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
+
             cached_data = save_and_clip_dataset(
                 data, gdf, args.start_date, args.end_date, paths.cached_nc_file
             )
@@ -171,6 +177,10 @@ def main() -> None:
                 cached_data,
                 output_folder_name=output_folder,
             )
+
+            if location == "hi":
+                convert_gpkg_to_5070(paths.geopackage_path)
+                logging.info(f"Transform complete. Output saved to {paths.geopackage_path}")
             logging.info("Forcings generation complete.")
 
         if args.realization:
@@ -189,6 +199,7 @@ def main() -> None:
                     end_time=args.end_date,
                     use_nwm_gw=args.nwm_gw,
                     gage_id=gage_id,
+                    location=location
                 )
             logging.info("Realization creation complete.")
 

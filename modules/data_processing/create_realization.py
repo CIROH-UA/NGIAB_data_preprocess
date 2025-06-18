@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @temp_cluster
-def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
+def get_approximate_gw_storage(paths: file_paths, start_date: datetime, location: str):
     # get the gw levels from the NWM output on a given start date
     # this kind of works in place of warmstates for now
     year = start_date.strftime("%Y")
@@ -34,7 +34,11 @@ def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
     cat_to_feature = get_cat_to_nhd_feature_id(paths.geopackage_path)
 
     fs = s3fs.S3FileSystem(anon=True)
-    nc_url = f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/netcdf/GWOUT/{year}/{formatted_dt}.GWOUT_DOMAIN1"
+
+    if location == "conus":
+        nc_url = f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/netcdf/GWOUT/{year}/{formatted_dt}.GWOUT_DOMAIN1"
+    elif location == "hi":
+        nc_url = f"s3://noaa-nwm-retrospective-3-0-pds/Hawaii/netcdf/GWOUT/{year}/{formatted_dt}.GWOUT_DOMAIN1"
 
     with fs.open(nc_url) as file_obj:
         ds = xr.open_dataset(file_obj)
@@ -311,6 +315,7 @@ def create_realization(
     end_time: datetime,
     use_nwm_gw: bool = False,
     gage_id: str = None,
+    location: str = "conus"
 ):
     paths = file_paths(cat_id)
 
@@ -331,7 +336,7 @@ def create_realization(
     conf_df = get_model_attributes(paths.geopackage_path)
 
     if use_nwm_gw:
-        gw_levels = get_approximate_gw_storage(paths, start_time)
+        gw_levels = get_approximate_gw_storage(paths, start_time, location=location)
     else:
         gw_levels = dict()
 
