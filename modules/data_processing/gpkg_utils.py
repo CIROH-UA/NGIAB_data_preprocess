@@ -2,11 +2,12 @@ import logging
 import sqlite3
 import struct
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple, Dict
 
 import pyproj
 from data_processing.file_paths import file_paths
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point
+from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 from shapely.wkb import loads
 
@@ -27,7 +28,7 @@ class GeoPackage:
         self.conn.close()
 
 
-def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
+def verify_indices(gpkg: Path = file_paths.conus_hydrofabric) -> None:
     """
     Verify that the indices in the specified geopackage are correct.
     If they are not, create the correct indices.
@@ -94,7 +95,7 @@ def add_triggers_to_gpkg(gpkg: Path) -> None:
 
 
 
-def blob_to_geometry(blob: bytes) -> Union[Point, Polygon]:
+def blob_to_geometry(blob: bytes) -> BaseGeometry | None:
     """
     Convert a blob to a geometry.
     from http://www.geopackage.org/spec/#gpb_format
@@ -117,7 +118,7 @@ def blob_to_geometry(blob: bytes) -> Union[Point, Polygon]:
     return geometry
 
 
-def blob_to_centre_point(blob: bytes) -> Point:
+def blob_to_centre_point(blob: bytes) -> Point | None:
     """
     Convert a blob to a geometry.
     from http://www.geopackage.org/spec/#gpb_format
@@ -148,7 +149,7 @@ def blob_to_centre_point(blob: bytes) -> Point:
     return Point(x, y)
 
 
-def convert_to_5070(shapely_geometry):
+def convert_to_5070(shapely_geometry: Point) -> Point:
     # convert to web mercator
     if shapely_geometry.is_empty:
         return shapely_geometry
@@ -161,7 +162,7 @@ def convert_to_5070(shapely_geometry):
     return new_geometry
 
 
-def get_catid_from_point(coords):
+def get_catid_from_point(coords: Dict[str, float]) -> str:
     """
     Retrieves the watershed boundary ID (catid) of the watershed that contains the given point.
 
@@ -193,6 +194,8 @@ def get_catid_from_point(coords):
         # check the geometries to see which one contains the point
         for result in results:
             geom = blob_to_geometry(result[1])
+            if geom is None:
+                continue
             if geom.contains(point):
                 return result[0]
     return results[0][0]
@@ -395,7 +398,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
     dest_db.close()
 
 
-def get_table_crs_short(gpkg: str, table: str) -> str:
+def get_table_crs_short(gpkg: str | Path, table: str) -> str:
     """
     Gets the CRS of the specified table in the specified geopackage as a short string. e.g. EPSG:5070
 
@@ -515,7 +518,7 @@ def get_available_tables(gpkg: Path) -> List[str]:
     return tables
 
 
-def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> dict:
+def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> Dict[str, int]:
     available_tables = get_available_tables(gpkg)
     possible_tables = ["flowpath_edge_list", "network"]
 
@@ -532,7 +535,7 @@ def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> dict
     sql_query = f"SELECT divide_id, hf_id FROM {table_name} WHERE divide_id IS NOT NULL AND hf_id IS NOT NULL"
 
     with sqlite3.connect(gpkg) as conn:
-        result = conn.execute(sql_query).fetchall()
+        result: List[Tuple[str, str]] = conn.execute(sql_query).fetchall()
 
     mapping = {}
     for cat, feature in result:

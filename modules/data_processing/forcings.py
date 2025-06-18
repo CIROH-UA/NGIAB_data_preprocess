@@ -7,7 +7,7 @@ from functools import partial
 from math import ceil
 from multiprocessing import shared_memory
 from pathlib import Path
-from typing import Tuple
+from typing import List, Tuple
 
 import geopandas as gpd
 import numpy as np
@@ -100,13 +100,13 @@ def get_cell_weights(raster: xr.Dataset, gdf: gpd.GeoDataFrame, wkt: str) -> pd.
     rastersource = NumPyRasterSource(
         raster[data_vars[0]], srs_wkt=wkt, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax
     )
-    output = exact_extract(
+    output: pd.DataFrame = exact_extract(
         rastersource,
         gdf,
         ["cell_id", "coverage"],
         include_cols=["divide_id"],
         output="pandas",
-    )
+    )  # type: ignore
     return output.set_index("divide_id")
 
 
@@ -164,8 +164,8 @@ def get_index_chunks(data: xr.DataArray) -> list[tuple[int, int]]:
 
 
 def create_shared_memory(
-    lazy_array: xr.Dataset,
-) -> Tuple[shared_memory.SharedMemory, np.dtype, np.dtype]:
+    lazy_array: xr.DataArray,
+) -> Tuple[shared_memory.SharedMemory, Tuple[int, ...], np.dtype]:
     """
     Create a shared memory object so that multiple processes can access loaded
     data.
@@ -180,7 +180,7 @@ def create_shared_memory(
     shared_memory.SharedMemory
         A specific block of memory allocated by the OS of the size of
         lazy_array.
-    np.dtype.shape
+    Tuple[int, ...]
         A shape object with dimensions (# timesteps, # of raster cells) in
         reference to lazy_array.
     np.dtype
@@ -205,9 +205,9 @@ def process_chunk_shared(
     variable: str,
     times: np.ndarray,
     shm_name: str,
-    shape: np.dtype.shape,
+    shape: Tuple[int, ...],
     dtype: np.dtype,
-    chunk: gpd.GeoDataFrame,
+    chunk: pd.DataFrame,
 ) -> xr.DataArray:
     """
     Process the gridded forcings chunk loaded into a SharedMemory block.
@@ -276,7 +276,7 @@ def get_cell_weights_parallel(
         for each raster cell and each timestep in gridded forcing file.
     """
     gdf_chunks = np.array_split(gdf, num_partitions)
-    wkt = gdf.crs.to_wkt()
+    wkt = gdf.crs.to_wkt()  # type: ignore
     one_timestep = input_forcings.isel(time=0).compute()
     with multiprocessing.Pool() as pool:
         args = [(one_timestep, gdf_chunk, wkt) for gdf_chunk in gdf_chunks]
@@ -332,7 +332,7 @@ def compute_zonal_stats(
     catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
     units = get_units(gridded_data)
 
-    cat_chunks = np.array_split(catchments, num_partitions)
+    cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
     progress = Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -351,27 +351,28 @@ def compute_zonal_stats(
         "[cyan]Processing variables...", total=len(gridded_data.data_vars), elapsed=0
     )
     progress.start()
-    for variable in list(gridded_data.data_vars):
+    for data_var_name in list(gridded_data.data_vars):
+        data_var_name: str
         progress.update(variable_task, advance=1)
-        progress.update(variable_task, description=f"Processing {variable}")
+        progress.update(variable_task, description=f"Processing {data_var_name}")
 
         # to make sure this fits in memory, we need to chunk the data
-        time_chunks = get_index_chunks(gridded_data[variable])
+        time_chunks = get_index_chunks(gridded_data[data_var_name])
         chunk_task = progress.add_task("[purple] processing chunks", total=len(time_chunks))
         for i, times in enumerate(time_chunks):
             progress.update(chunk_task, advance=1)
             start, end = times
             # select the chunk of time we want to process
-            data_chunk = gridded_data[variable].isel(time=slice(start, end))
+            data_chunk = gridded_data[data_var_name].isel(time=slice(start, end))
             # put it in shared memory
             shm, shape, dtype = create_shared_memory(data_chunk)
             times = data_chunk.time.values
             # create a partial function to pass to the multiprocessing pool
             partial_process_chunk = partial(
-                process_chunk_shared, variable, times, shm.name, shape, dtype
+                process_chunk_shared, data_var_name, times, shm.name, shape, dtype
             )
 
-            logger.debug(f"Processing variable: {variable}")
+            logger.debug(f"Processing variable: {data_var_name}")
             # process the chunks of catchments in parallel
             with multiprocessing.Pool(num_partitions) as pool:
                 variable_data = pool.map(partial_process_chunk, cat_chunks)
@@ -379,24 +380,24 @@ def compute_zonal_stats(
             # clean up the shared memory
             shm.close()
             shm.unlink()
-            logger.debug(f"Processed variable: {variable}")
+            logger.debug(f"Processed variable: {data_var_name}")
             concatenated_da = xr.concat(variable_data, dim="catchment")
             # delete the data to free up memory
             del variable_data
-            logger.debug(f"Concatenated variable: {variable}")
+            logger.debug(f"Concatenated variable: {data_var_name}")
             # write this to disk now to save memory
             # xarray will monitor memory usage, but it doesn't account for the shared memory used to store the raster
             # This reduces memory usage by about 60%
-            concatenated_da.to_dataset(name=variable).to_netcdf(
-                forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc"
+            concatenated_da.to_dataset(name=data_var_name).to_netcdf(
+                forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc"
             )
         # Merge the chunks back together
         datasets = [
-            xr.open_dataset(forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc")
+            xr.open_dataset(forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc")
             for i in range(len(time_chunks))
         ]
         result = xr.concat(datasets, dim="time")
-        result.to_netcdf(forcings_dir / "temp" / f"{variable}.nc")
+        result.to_netcdf(forcings_dir / "temp" / f"{data_var_name}.nc")
         # close the datasets
         result.close()
         _ = [dataset.close() for dataset in datasets]

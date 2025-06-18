@@ -64,7 +64,7 @@ def subset_vpu(
 
 
 def subset(
-    cat_ids: List[str],
+    cat_ids: str | List[str],
     hydrofabric: Path = file_paths.conus_hydrofabric,
     output_gpkg_path: Path = Path(),
     include_outlet: bool = True,

@@ -39,12 +39,12 @@ def main():
         Timer(2, set_logs_to_warning).start()
         with open("app.log", "a") as f:
             f.write("Running in debug mode\n")
-        app.run(debug=True, host="0.0.0.0", port="8080")
+        app.run(debug=True, host="0.0.0.0", port="8080")  # type: ignore
     else:
         Timer(1, open_browser).start()
         with open("app.log", "a") as f:
             f.write("Running in production mode\n")
-        app.run(host="0.0.0.0", port="0")
+        app.run(host="0.0.0.0", port="0")  # type: ignore
 
 
 if __name__ == "__main__":

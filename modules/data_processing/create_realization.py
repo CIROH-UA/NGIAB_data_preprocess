@@ -3,9 +3,9 @@ import logging
 import multiprocessing
 import shutil
 import sqlite3
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, Optional
 
 import pandas
 import requests
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @temp_cluster
-def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
+def get_approximate_gw_storage(paths: file_paths, start_date: datetime) -> Dict[str, int]:
     # get the gw levels from the NWM output on a given start date
     # this kind of works in place of warmstates for now
     year = start_date.strftime("%Y")
@@ -37,9 +37,9 @@ def get_approximate_gw_storage(paths: file_paths, start_date: datetime):
     nc_url = f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/netcdf/GWOUT/{year}/{formatted_dt}.GWOUT_DOMAIN1"
 
     with fs.open(nc_url) as file_obj:
-        ds = xr.open_dataset(file_obj)
+        ds = xr.open_dataset(file_obj)  # type: ignore
 
-        water_levels = dict()
+        water_levels: Dict[str, int] = dict()
         for cat, feature in tqdm(cat_to_feature.items()):
             # this value is in CM, we need meters to match max_gw_depth
             # xarray says it's in mm, with 0.1 scale factor. calling .values doesn't apply the scale
@@ -108,13 +108,13 @@ def make_noahowp_config(
                     lon=divide_conf_df.loc[divide, "longitude"],
                     terrain_slope=divide_conf_df.loc[divide, "mean.slope_1km"],
                     azimuth=divide_conf_df.loc[divide, "circ_mean.aspect"],
-                    ISLTYP=int(divide_conf_df.loc[divide, "mode.ISLTYP"]),
-                    IVGTYP=int(divide_conf_df.loc[divide, "mode.IVGTYP"]),
+                    ISLTYP=int(divide_conf_df.loc[divide, "mode.ISLTYP"]),  # type: ignore
+                    IVGTYP=int(divide_conf_df.loc[divide, "mode.IVGTYP"]),  # type: ignore
                 )
             )
 
 
-def get_model_attributes_modspatialite(hydrofabric: Path):
+def get_model_attributes_modspatialite(hydrofabric: Path) -> pandas.DataFrame:
     # modspatialite is faster than pyproj but can't be added as a pip dependency
     # This incantation took a while
     with GeoPackage(hydrofabric) as conn:
@@ -145,7 +145,7 @@ def get_model_attributes_modspatialite(hydrofabric: Path):
     return divide_conf_df
 
 
-def get_model_attributes_pyproj(hydrofabric: Path):
+def get_model_attributes_pyproj(hydrofabric: Path) -> pandas.DataFrame:
     # if modspatialite is not available, use pyproj
     with sqlite3.connect(hydrofabric) as conn:
         sql = """
@@ -179,7 +179,7 @@ def get_model_attributes_pyproj(hydrofabric: Path):
     return divide_conf_df
 
 
-def get_model_attributes(hydrofabric: Path):
+def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
     try:
         with GeoPackage(hydrofabric) as conn:
             conf_df = pandas.read_sql_query(
@@ -253,7 +253,7 @@ def make_em_config(
 
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
-) -> int:
+) -> None:
     with open(file_paths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
@@ -310,7 +310,7 @@ def create_realization(
     start_time: datetime,
     end_time: datetime,
     use_nwm_gw: bool = False,
-    gage_id: str = None,
+    gage_id: Optional[str] = None,
 ):
     paths = file_paths(cat_id)
 
@@ -348,12 +348,12 @@ def create_realization(
     create_partitions(paths)
 
 
-def create_partitions(paths: Path, num_partitions: int = None) -> None:
+def create_partitions(paths: file_paths, num_partitions: Optional[int] = None) -> None:
     if num_partitions is None:
         num_partitions = multiprocessing.cpu_count()
 
     cat_to_nex_pairs = get_cat_to_nex_flowpairs(hydrofabric=paths.geopackage_path)
-    nexus = defaultdict(list)
+    # nexus = defaultdict(list)
 
     # for cat, nex in cat_to_nex_pairs:
     #     nexus[nex].append(cat)

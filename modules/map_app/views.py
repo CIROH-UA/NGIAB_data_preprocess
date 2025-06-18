@@ -96,7 +96,7 @@ def get_forcings():
         gdf = gpd.read_file(paths.geopackage_path, layer="divides")
         cached_data = save_and_clip_dataset(data, gdf, start_time, end_time, paths.cached_nc_file)
 
-        create_forcings(cached_data, paths.output_dir.stem)
+        create_forcings(cached_data, paths.output_dir.stem)  # type: ignore
     except Exception as e:
         logger.info(f"get_forcings() failed with error: {str(e)}")
         return jsonify({"error": str(e)}), 500

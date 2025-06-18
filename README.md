@@ -7,15 +7,19 @@ This repository contains tools for preparing data to run a [next gen](https://gi
 ## Table of Contents
 
 1. [What does this tool do?](#what-does-this-tool-do)
-2. [Requirements](#requirements)
-3. [Installation and Running](#installation-and-running)
-4. [Development Installation](#development-installation)
-5. [Usage](#usage)
-6. [CLI Documentation](#cli-documentation)
+2. [What does it not do?](#what-does-it-not-do)
+   - [Evaluation](#evaluation)
+   - [Visualisation](#visualisation)
+3. [Requirements](#requirements)
+4. [Installation and Running](#installation-and-running)
+   - [Running without install](#running-without-install)
+5. [For legacy pip installation](#for-legacy-pip-installation)
+6. [Development Installation](#development-installation)
+7. [Usage](#usage)
+8. [CLI Documentation](#cli-documentation)
    - [Arguments](#arguments)
+   - [Usage Notes](#usage-notes)
    - [Examples](#examples)
-   - [File Formats](#file-formats)
-   - [Output](#output)
 
 ## What does this tool do?
 
@@ -189,12 +193,12 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 
 3. Create realization using a lat/lon pair and output to a named folder:
    ```bash
-   python -m ngiab_data_cli -i 54.33,-69.4 -l -r --start 2022-01-01 --end 2022-02-28 -o custom_output
+   python -m ngiab_data_cli -i 33.22,-87.54 -l -r --start 2022-01-01 --end 2022-02-28 -o custom_output
    ```
 
 4. Perform all operations using a lat/lon pair:
    ```bash
-   python -m ngiab_data_cli -i 54.33,-69.4 -l -s -f -r --start 2022-01-01 --end 2022-02-28
+   python -m ngiab_data_cli -i 33.22,-87.54 -l -s -f -r --start 2022-01-01 --end 2022-02-28
    ```
 
 5. Subset hydrofabric using gage ID:

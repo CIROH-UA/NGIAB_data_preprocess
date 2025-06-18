@@ -1,5 +1,6 @@
 from pathlib import Path
-
+from typing import Optional
+from datetime import datetime
 
 class file_paths:
     """
@@ -32,7 +33,7 @@ class file_paths:
     template_em_config = data_sources / "em-catchment-template.yml"
     template_em_model_config = data_sources / "em-config.yml"
 
-    def __init__(self, folder_name: str = None, output_dir: Path = None):
+    def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
         Initialize the file_paths class with a the name of the output subfolder.
         OR the path to the output folder you want to use.
@@ -54,7 +55,7 @@ class file_paths:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def get_working_dir(cls) -> Path:
+    def get_working_dir(cls) -> Path | None:
         try:
             with open(cls.config_file, "r") as f:
                 return Path(f.readline().strip()).expanduser()
@@ -68,9 +69,7 @@ class file_paths:
 
     @classmethod
     def root_output_dir(cls) -> Path:
-        if cls.get_working_dir() is not None:
-            return cls.get_working_dir()
-        return Path(__file__).parent.parent.parent / "output"
+        return cls.get_working_dir() or Path(__file__).parent.parent.parent / "output"
 
     @property
     def subset_dir(self) -> Path:

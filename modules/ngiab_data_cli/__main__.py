@@ -1,3 +1,4 @@
+from typing import Tuple
 import rich.status
 
 # add a status bar for these imports so the cli feels more responsive
@@ -23,7 +24,7 @@ with rich.status.Status("Initializing...") as status:
     from ngiab_data_cli.custom_logging import set_logging_to_critical_only, setup_logging
 
 
-def validate_input(args: argparse.Namespace) -> None:
+def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     """Validate input arguments."""
 
     if args.vpu:
@@ -69,7 +70,7 @@ def validate_input(args: argparse.Namespace) -> None:
     return feature_name, output_folder
 
 
-def get_cat_id_from_lat_lon(input_feature: str) -> List[str]:
+def get_cat_id_from_lat_lon(input_feature: str) -> str:
     """Read catchment IDs from input file or return single ID."""
     if "," in input_feature:
         coords = input_feature.split(",")

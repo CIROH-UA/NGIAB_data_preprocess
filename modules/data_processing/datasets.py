@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import s3fs
 import xarray as xr
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @use_cluster
-def load_v3_retrospective_zarr(forcing_vars: list[str] = None) -> xr.Dataset:
+def load_v3_retrospective_zarr(forcing_vars: Optional[list[str]] = None) -> xr.Dataset:
     """Load zarr datasets from S3 within the specified time range."""
     # if a LocalCluster is not already running, start one
     if not forcing_vars:
@@ -24,7 +25,7 @@ def load_v3_retrospective_zarr(forcing_vars: list[str] = None) -> xr.Dataset:
     s3_stores = [s3fs.S3Map(url, s3=fs) for url in s3_urls]
     # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
     # most of the data is read once and written to disk but some of the coordinate data is read multiple times
-    dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)
+    dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)  # type: ignore
 
     # set the crs attribute to conform with the format
     esri_pe_string = dataset.crs.esri_pe_string
@@ -50,7 +51,7 @@ def load_v3_retrospective_zarr(forcing_vars: list[str] = None) -> xr.Dataset:
 
 
 @use_cluster
-def load_aorc_zarr(start_year: int = None, end_year: int = None) -> xr.Dataset:
+def load_aorc_zarr(start_year: Optional[int] = None, end_year: Optional[int] = None) -> xr.Dataset:
     """Load the aorc zarr dataset from S3."""
     if not start_year or not end_year:
         logger.warning("No start or end year provided, defaulting to 1979-2023")
@@ -68,7 +69,7 @@ def load_aorc_zarr(start_year: int = None, end_year: int = None) -> xr.Dataset:
     s3_url = "s3://noaa-nws-aorc-v1-1-1km/"
     urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year + 1)]
     filestores = [s3fs.S3Map(url, s3=fs) for url in urls]
-    dataset = xr.open_mfdataset(filestores, parallel=True, engine="zarr", cache=True)
+    dataset = xr.open_mfdataset(filestores, parallel=True, engine="zarr", cache=True)  # type: ignore
     dataset.attrs["crs"] = "+proj=longlat +datum=WGS84 +no_defs"
     dataset.attrs["name"] = "aorc_1km_zarr"
     # rename latitude and longitude to x and y
@@ -87,7 +88,7 @@ def load_swe_zarr() -> xr.Dataset:
     s3_stores = [s3fs.S3Map(url, s3=fs) for url in s3_urls]
     # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
     # most of the data is read once and written to disk but some of the coordinate data is read multiple times
-    dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)
+    dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)  # type: ignore
 
     # set the crs attribute to conform with the format
     esri_pe_string = dataset.crs.esri_pe_string

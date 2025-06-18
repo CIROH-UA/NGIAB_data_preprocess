@@ -57,6 +57,10 @@
                 document.getElementById('copy-to-clip').addEventListener('click', async function() {
                     const commandPrefix = document.getElementById('cli-prefix').textContent;
                     const commandText = document.getElementById('cli-command').textContent;
+                    if (commandPrefix && !commandPrefix.endsWith(' ')) {
+                        // Ensure there's a space after the prefix
+                        commandPrefix += ' ';
+                    }
                     const full_command = commandPrefix + commandText;
                     const button = this;
 
