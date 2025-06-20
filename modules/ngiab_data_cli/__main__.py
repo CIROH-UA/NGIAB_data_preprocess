@@ -30,6 +30,7 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     if args.vpu:
         if not args.output_name:
             args.output_name = f"vpu-{args.vpu}"
+            validate_output_dir()
         return args.vpu, args.output_name
 
     input_feature = args.input_feature.replace("_", "-")
@@ -64,10 +65,13 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
 
     if args.output_name:
         output_folder = args.output_name
+        validate_output_dir()
     elif args.gage:
         output_folder = input_feature
+        validate_output_dir()
     else:
         output_folder = feature_name
+        validate_output_dir()
 
     return feature_name, output_folder
 
@@ -124,7 +128,6 @@ def validate_run_directory(args, paths: file_paths):
 
 def main() -> None:
     setup_logging()
-    validate_output_dir()
     try:
         args = parse_arguments()
         if args.debug:
