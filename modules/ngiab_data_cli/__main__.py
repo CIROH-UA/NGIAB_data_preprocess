@@ -19,7 +19,7 @@ with rich.status.Status("Initializing...") as status:
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
     from data_processing.subset import subset, subset_vpu
-    from data_sources.source_validation import validate_all
+    from data_sources.source_validation import validate_output_dir, validate_hydrofabric
     from ngiab_data_cli.arguments import parse_arguments
     from ngiab_data_cli.custom_logging import set_logging_to_critical_only, setup_logging
 
@@ -30,6 +30,7 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     if args.vpu:
         if not args.output_name:
             args.output_name = f"vpu-{args.vpu}"
+            validate_output_dir()
         return args.vpu, args.output_name
 
     input_feature = args.input_feature.replace("_", "-")
@@ -52,9 +53,11 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
         raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
     if args.latlon:
+        validate_hydrofabric()
         feature_name = get_cat_id_from_lat_lon(input_feature)
         logging.info(f"Found {feature_name} from {input_feature}")
     elif args.gage:
+        validate_hydrofabric()
         feature_name = get_cat_from_gage_id(input_feature)
         logging.info(f"Found {feature_name} from {input_feature}")
     else:
@@ -62,10 +65,13 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
 
     if args.output_name:
         output_folder = args.output_name
+        validate_output_dir()
     elif args.gage:
         output_folder = input_feature
+        validate_output_dir()
     else:
         output_folder = feature_name
+        validate_output_dir()
 
     return feature_name, output_folder
 
@@ -122,7 +128,6 @@ def validate_run_directory(args, paths: file_paths):
 
 def main() -> None:
     setup_logging()
-    validate_all()
     try:
         args = parse_arguments()
         if args.debug:
