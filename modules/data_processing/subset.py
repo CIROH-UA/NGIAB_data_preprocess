@@ -2,6 +2,8 @@ import logging
 import os
 from pathlib import Path
 from typing import List, Union
+from rich.prompt import Prompt
+from rich.console import Console
 
 from data_processing.file_paths import file_paths
 from data_processing.gpkg_utils import (
@@ -14,7 +16,7 @@ from data_processing.gpkg_utils import (
 from data_processing.graph_utils import get_upstream_ids
 
 logger = logging.getLogger(__name__)
-
+console = Console()
 subset_tables = [
     "divides",
     "divide-attributes",  # requires divides
@@ -38,7 +40,18 @@ def create_subset_gpkg(
     output_gpkg_path.parent.mkdir(parents=True, exist_ok=True)
 
     if os.path.exists(output_gpkg_path):
-        os.remove(output_gpkg_path)
+        response = Prompt.ask(
+            f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want to overwrite it?",
+            default="n",
+            choices=["y", "n"],
+        )
+        if response == "y":
+            console.print(f"Removing {output_gpkg_path}...", style="yellow")
+            os.remove(output_gpkg_path)
+        else:
+            console.print("Exiting...", style="bold red")
+            exit()
+        
 
     create_empty_gpkg(output_gpkg_path)
     logger.info(f"Subsetting tables: {subset_tables}")
@@ -55,8 +68,18 @@ def create_subset_gpkg(
 def subset_vpu(
     vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_paths.conus_hydrofabric
 ):
-    if output_gpkg_path.exists():
-        os.remove(output_gpkg_path)
+    if os.path.exists(output_gpkg_path):
+        response = Prompt.ask(
+            f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want to overwrite it?",
+            default="n",
+            choices=["y", "n"],
+        )
+        if response == "y":
+            console.print(f"Removing {output_gpkg_path}...", style="yellow")
+            os.remove(output_gpkg_path)
+        else:
+            console.print("Exiting...", style="bold red")
+            exit()
 
     create_subset_gpkg(vpu_id, hydrofabric, output_gpkg_path=output_gpkg_path, is_vpu=True)
     logger.info(f"Subset complete for VPU {vpu_id}")
