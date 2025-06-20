@@ -141,6 +141,20 @@ def download_and_update_hf():
         bucket="communityhydrofabric",
         key="hydrofabrics/community/conus_nextgen.tar.gz",
     )
+
+    if file_paths.hydrofabric_graph.is_file():
+        console.print(
+            f"Hydrofabric graph already exists at {file_paths.hydrofabric_graph}, removing it to download the latest version.",
+            style="bold yellow",
+        )
+        file_paths.hydrofabric_graph.unlink()
+
+    download_from_s3(
+        file_paths.hydrofabric_graph,
+        bucket="communityhydrofabric",
+        key="hydrofabrics/community/conus_igraph_network.gpickle"
+    )
+
     status, headers = get_headers()
 
     if status == 200:
@@ -153,11 +167,10 @@ def download_and_update_hf():
         file_paths.conus_hydrofabric.parent,
     )
 
-
 def validate_hydrofabric():
-    if not file_paths.conus_hydrofabric.is_file():
+    if not file_paths.conus_hydrofabric.is_file() or not file_paths.hydrofabric_graph.is_file():
         response = Prompt.ask(
-            "Hydrofabric is missing. Would you like to download it now?",
+            "Hydrofabric files are missing. Would you like to download them now?",
             default="y",
             choices=["y", "n"],
         )
