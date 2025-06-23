@@ -4,31 +4,91 @@ async function subset() {
         alert('Please select at least one basin in the map before subsetting');
         return;
     }
-    console.log('subsetting');
-    document.getElementById('subset-button').disabled = true;
-    document.getElementById('subset-loading').style.visibility = "visible";
-    const startTime = performance.now(); // Start the timer
-    document.getElementById('output-path').innerHTML = "Subsetting...";
-    fetch('/subset', {
+    fetch('/subset_check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([cat_id]),
     })
-        .then(response => response.text())
-        .then(filename => {
-            console.log(filename);
-            const endTime = performance.now(); // Stop the timer
-            const duration = endTime - startTime; // Calculate the duration in milliseconds
-            console.log('Request took ' + duration / 1000 + ' milliseconds');
-            document.getElementById('output-path').innerHTML = "Done in " + duration / 1000 + "s, subset to <a href='file://" + filename + "'>" + filename + "</a>";
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        }).finally(() => {
-            document.getElementById('subset-button').disabled = false;
-            document.getElementById('subset-loading').style.visibility = "hidden";
-        });
-}
+    .then((response) => {
+    // 409 if that subset gpkg path already exists
+        if (response.status == 409) {
+            console.log("check response")
+            if (confirm('A geopackage already exists with that catchment name. Overwrite?')) {
+                fetch('/subset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([cat_id]),
+                })
+                    .then(response => response.text())
+                    .then(filename => {
+                        console.log(filename);
+                        const endTime = performance.now(); // Stop the timer
+                        const duration = endTime - startTime; // Calculate the duration in milliseconds
+                        console.log('Request took ' + duration / 1000 + ' milliseconds');
+                        document.getElementById('output-path').innerHTML = "Done in " + duration / 1000 + "s, subset to <a href='file://" + filename + "'>" + filename + "</a>";
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    }).finally(() => {
+                        document.getElementById('subset-button').disabled = false;
+                        document.getElementById('subset-loading').style.visibility = "hidden";
+                    });
+            } else {
+                alert("Subset canceled.");
+            }
+        } else {
+        fetch('/subset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify([cat_id]),
+            })
+                .then(response => response.text())
+                .then(filename => {
+                    console.log(filename);
+                    const endTime = performance.now(); // Stop the timer
+                    const duration = endTime - startTime; // Calculate the duration in milliseconds
+                    console.log('Request took ' + duration / 1000 + ' milliseconds');
+                    document.getElementById('output-path').innerHTML = "Done in " + duration / 1000 + "s, subset to <a href='file://" + filename + "'>" + filename + "</a>";
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                }).finally(() => {
+                    document.getElementById('subset-button').disabled = false;
+                    document.getElementById('subset-loading').style.visibility = "hidden";
+                });
+    }})}
+
+// async function subset() {
+//     var cat_id = $('#selected-basins').text()
+//     if (cat_id == 'None - get clicking!') {
+//         alert('Please select at least one basin in the map before subsetting');
+//         return;
+//     }
+//     console.log('subsetting');
+//     document.getElementById('subset-button').disabled = true;
+//     document.getElementById('subset-loading').style.visibility = "visible";
+//     const startTime = performance.now(); // Start the timer
+//     document.getElementById('output-path').innerHTML = "Subsetting...";
+//     fetch('/subset', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify([cat_id]),
+//     })
+//         .then(response => response.text())
+//         .then(filename => {
+//             console.log(filename);
+//             const endTime = performance.now(); // Stop the timer
+//             const duration = endTime - startTime; // Calculate the duration in milliseconds
+//             console.log('Request took ' + duration / 1000 + ' milliseconds');
+//             document.getElementById('output-path').innerHTML = "Done in " + duration / 1000 + "s, subset to <a href='file://" + filename + "'>" + filename + "</a>";
+//         })
+//         .catch(error => {
+//             console.error('Error:', error);
+//         }).finally(() => {
+//             document.getElementById('subset-button').disabled = false;
+//             document.getElementById('subset-loading').style.visibility = "hidden";
+//         });
+// }
 
 
 // async function subset_to_file() {

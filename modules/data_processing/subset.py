@@ -32,27 +32,30 @@ subset_tables = [
 
 
 def create_subset_gpkg(
-    ids: Union[List[str], str], hydrofabric: Path, output_gpkg_path: Path, is_vpu: bool = False
+    ids: Union[List[str], str], hydrofabric: Path, output_gpkg_path: Path, is_vpu: bool = False, override_gpkg: bool = False
 ):
     # ids is a list of nexus and wb ids, or a single vpu id
     if not isinstance(ids, list):
         ids = [ids]
     output_gpkg_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if os.path.exists(output_gpkg_path):
-        response = Prompt.ask(
-            f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want to overwrite it?",
-            default="n",
-            choices=["y", "n"],
-        )
-        if response == "y":
-            console.print(f"Removing {output_gpkg_path}...", style="yellow")
+    if not override_gpkg:
+        if os.path.exists(output_gpkg_path):
+            response = Prompt.ask(
+                f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want to overwrite it?",
+                default="n",
+                choices=["y", "n"],
+            )
+            if response == "y":
+                console.print(f"Removing {output_gpkg_path}...", style="yellow")
+                os.remove(output_gpkg_path)
+            else:
+                console.print("Exiting...", style="bold red")
+                exit()
+    else:
+        if os.path.exists(output_gpkg_path):
             os.remove(output_gpkg_path)
-        else:
-            console.print("Exiting...", style="bold red")
-            exit()
-        
-
+            
     create_empty_gpkg(output_gpkg_path)
     logger.info(f"Subsetting tables: {subset_tables}")
     for table in subset_tables:
@@ -91,6 +94,7 @@ def subset(
     hydrofabric: Path = file_paths.conus_hydrofabric,
     output_gpkg_path: Path = Path(),
     include_outlet: bool = True,
+    override_gpkg: bool = False # only gets set to true through map app
 ):
     upstream_ids = list(get_upstream_ids(cat_ids, include_outlet))
 
@@ -101,6 +105,6 @@ def subset(
         paths = file_paths(output_folder_name)
         output_gpkg_path = paths.geopackage_path
 
-    create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path)
+    create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path, override_gpkg=override_gpkg)
     logger.info(f"Subset complete for {len(upstream_ids)} features (catchments + nexuses)")
     logger.debug(f"Subset complete for {upstream_ids} catchments")

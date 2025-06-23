@@ -40,6 +40,16 @@ def get_upstream_wbids():
     # remove the selected cat_id from the set
     return [id for id in upstream_ids if id.startswith("wb")], 200
 
+@main.route("/subset_check", methods=["POST"])
+def subset_check():
+    cat_ids = list(json.loads(request.data.decode("utf-8")))
+    logger.info(cat_ids)
+    subset_name = cat_ids[0]
+    run_paths = file_paths(subset_name)
+    if run_paths.geopackage_path.exists():
+        return "check required", 409
+    else:
+        return "success", 200
 
 @main.route("/subset", methods=["POST"])
 def subset_selection():
@@ -47,7 +57,7 @@ def subset_selection():
     logger.info(cat_ids)
     subset_name = cat_ids[0]
     run_paths = file_paths(subset_name)
-    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path)
+    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
     return str(run_paths.geopackage_path), 200
 
 
