@@ -168,7 +168,7 @@ def download_and_update_hf():
     )
 
 def validate_hydrofabric():
-    if not file_paths.conus_hydrofabric.is_file() or not file_paths.hydrofabric_graph.is_file():
+    if not file_paths.conus_hydrofabric.is_file():
         response = Prompt.ask(
             "Hydrofabric files are missing. Would you like to download them now?",
             default="y",
