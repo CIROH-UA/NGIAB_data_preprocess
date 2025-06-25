@@ -169,7 +169,6 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
                 node_index = graph.vs.find(cat=name).index
             else:
                 node_index = graph.vs.find(name=name).index
-            node_index = graph.vs.find(cat=name).index
             upstream_nodes = graph.subcomponent(node_index, mode="IN")
             for node in upstream_nodes:
                 parent_ids.add(graph.vs[node]["name"])
@@ -178,7 +177,6 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
             logger.critical(f"Catchment {name} not found in the hydrofabric graph.")
         except ValueError:
             logger.critical(f"Catchment {name} not found in the hydrofabric graph.")
-
     # sometimes returns None, which isn't helpful
     if None in cat_ids:
         cat_ids.remove(None)

@@ -133,7 +133,6 @@ function update_map(cat_id, e) {
   $('#selected-basins').text(cat_id)
   map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
   map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
-
   fetch('/get_upstream_catids', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
