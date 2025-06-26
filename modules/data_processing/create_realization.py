@@ -267,10 +267,6 @@ def configure_troute(
 
     est_bytes_required = nts * ncats * 45 # extremely rough calculation based on about 3 tests :)
     local_ram_available = 0.8 * psutil.virtual_memory().available # buffer to not accidentally explode machine
-    print(f"est bytes required: {est_bytes_required}")
-    print(f"local ram available: {local_ram_available}")
-    print(f"nts: {nts}")
-    
 
     if est_bytes_required > local_ram_available:
         template_nts = nts // 2 # this only works if we work with even numbers of time steps only
