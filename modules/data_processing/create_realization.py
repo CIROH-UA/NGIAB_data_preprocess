@@ -6,6 +6,8 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
+import psutil
+import os
 
 import pandas
 import requests
@@ -257,7 +259,33 @@ def configure_troute(
     with open(file_paths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
+    gpkg_file_path=f"{config_dir}/{cat_id}_subset.gpkg"
     nts = (end_time - start_time).total_seconds() / time_step_size
+    with sqlite3.connect(gpkg_file_path) as conn:
+        ncats_df = pandas.read_sql_query("SELECT COUNT(id) FROM 'divides';", conn)
+        ncats = ncats_df['COUNT(id)'][0]
+
+    est_bytes_required = nts * ncats * 45 # extremely rough calculation based on about 3 tests :)
+    local_ram_available = 0.8 * psutil.virtual_memory().available # buffer to not accidentally explode machine
+    print(f"est bytes required: {est_bytes_required}")
+    print(f"local ram available: {local_ram_available}")
+    print(f"nts: {nts}")
+    
+
+    if est_bytes_required > local_ram_available:
+        template_nts = nts // 2 # this only works if we work with even numbers of time steps only
+        # which is ok if we limit everyone to using whole 24-hour days, which we currently do
+        # otherwise, t-route will complain about things not dividing into whole numbers
+        binary_nexus_file_folder_line = "binary_nexus_file_folder: ./outputs/parquet/"
+        parent_dir = config_dir.parent
+        output_parquet_path = Path(f"{parent_dir}/outputs/parquet/")
+
+        if not output_parquet_path.exists():
+            os.makedirs(output_parquet_path)
+    else:
+        template_nts = nts
+        binary_nexus_file_folder_line = ""
+
     filled_template = troute_template.format(
         # hard coded to 5 minutes
         time_step_size=time_step_size,
@@ -265,8 +293,10 @@ def configure_troute(
         cpu_pool=multiprocessing.cpu_count(),
         geo_file_path=f"./config/{cat_id}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        nts=nts,
+        nts=template_nts,
         max_loop_size=nts,
+        binary_nexus_file_folder_line=binary_nexus_file_folder_line # making the whole line an interpolated variable
+            # felt really dumb, but it gets around the t-route config class's strict mode
     )
 
     with open(config_dir / "troute.yaml", "w") as file:
