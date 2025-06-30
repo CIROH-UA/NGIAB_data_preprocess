@@ -269,9 +269,7 @@ def configure_troute(
     local_ram_available = 0.8 * psutil.virtual_memory().available # buffer to not accidentally explode machine
 
     if est_bytes_required > local_ram_available:
-        max_loop_size = nts // 2 # this only works if we work with even numbers of time steps only
-        # which is ok if we limit everyone to using whole 24-hour days, which we currently do
-        # otherwise, t-route will complain about things not dividing into whole numbers
+        max_loop_size = nts // (est_bytes_required // local_ram_available)
         binary_nexus_file_folder_comment = ""
         parent_dir = config_dir.parent
         output_parquet_path = Path(f"{parent_dir}/outputs/parquet/")
