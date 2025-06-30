@@ -280,7 +280,7 @@ def configure_troute(
             os.makedirs(output_parquet_path)
     else:
         template_nts = nts
-        binary_nexus_file_folder_line = ""
+        binary_nexus_file_folder_comment = "#"
 
     filled_template = troute_template.format(
         # hard coded to 5 minutes
