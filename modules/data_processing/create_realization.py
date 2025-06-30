@@ -269,7 +269,7 @@ def configure_troute(
     local_ram_available = 0.8 * psutil.virtual_memory().available # buffer to not accidentally explode machine
 
     if est_bytes_required > local_ram_available:
-        template_nts = nts // 2 # this only works if we work with even numbers of time steps only
+        max_loop_size = nts // 2 # this only works if we work with even numbers of time steps only
         # which is ok if we limit everyone to using whole 24-hour days, which we currently do
         # otherwise, t-route will complain about things not dividing into whole numbers
         binary_nexus_file_folder_comment = ""
@@ -279,7 +279,7 @@ def configure_troute(
         if not output_parquet_path.exists():
             os.makedirs(output_parquet_path)
     else:
-        template_nts = nts
+        max_loop_size = nts
         binary_nexus_file_folder_comment = "#"
 
     filled_template = troute_template.format(
@@ -289,8 +289,8 @@ def configure_troute(
         cpu_pool=multiprocessing.cpu_count(),
         geo_file_path=f"./config/{cat_id}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        nts=template_nts,
-        max_loop_size=nts,
+        nts=nts,
+        max_loop_size=max_loop_size,
         binary_nexus_file_folder_comment=binary_nexus_file_folder_comment 
     )
 
