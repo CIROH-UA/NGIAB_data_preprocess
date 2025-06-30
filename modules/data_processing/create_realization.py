@@ -291,8 +291,7 @@ def configure_troute(
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=template_nts,
         max_loop_size=nts,
-        binary_nexus_file_folder_line=binary_nexus_file_folder_line # making the whole line an interpolated variable
-            # felt really dumb, but it gets around the t-route config class's strict mode
+        binary_nexus_file_folder_comment=binary_nexus_file_folder_comment 
     )
 
     with open(config_dir / "troute.yaml", "w") as file:
