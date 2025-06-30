@@ -272,7 +272,7 @@ def configure_troute(
         template_nts = nts // 2 # this only works if we work with even numbers of time steps only
         # which is ok if we limit everyone to using whole 24-hour days, which we currently do
         # otherwise, t-route will complain about things not dividing into whole numbers
-        binary_nexus_file_folder_line = "binary_nexus_file_folder: ./outputs/parquet/"
+        binary_nexus_file_folder_comment = ""
         parent_dir = config_dir.parent
         output_parquet_path = Path(f"{parent_dir}/outputs/parquet/")
 
