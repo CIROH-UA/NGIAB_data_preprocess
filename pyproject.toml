@@ -52,6 +52,7 @@ dependencies = [
     "bokeh==3.5.1",
     "boto3",
     "numcodecs<0.16.0",
+    "scipy>=1.15.3",
 ]
 
 [project.optional-dependencies]
