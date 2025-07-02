@@ -1,13 +1,13 @@
 from typing import Tuple
+
 import rich.status
 
 # add a status bar for these imports so the cli feels more responsive
-with rich.status.Status("Initializing...") as status:
+with rich.status.Status("loading") as status:
     import argparse
     import logging
     import subprocess
     import time
-    from typing import List
 
     import geopandas as gpd
     from data_processing.create_realization import create_em_realization, create_realization
@@ -19,7 +19,7 @@ with rich.status.Status("Initializing...") as status:
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
     from data_processing.subset import subset, subset_vpu
-    from data_sources.source_validation import validate_output_dir, validate_hydrofabric
+    from data_sources.source_validation import validate_hydrofabric, validate_output_dir
     from ngiab_data_cli.arguments import parse_arguments
     from ngiab_data_cli.custom_logging import set_logging_to_critical_only, setup_logging
 
