@@ -7,9 +7,9 @@ from typing import List, Literal, Optional, Tuple, Union
 import geopandas as gpd
 import numpy as np
 import xarray as xr
+from dask.distributed import Client, Future, progress
+from data_processing.dask_utils import no_cluster, use_cluster
 from xarray.core.types import InterpOptions
-from dask.distributed import Client, progress, Future
-from data_processing.dask_utils import use_cluster
 
 logger = logging.getLogger(__name__)
 
@@ -117,13 +117,14 @@ def clip_dataset_to_bounds(
     return dataset
 
 
+@no_cluster
 def interpolate_nan_values(
     dataset: xr.Dataset,
     variables: Optional[List[str]] = None,
     dim: str = "time",
     method: InterpOptions = "nearest",
     fill_value: str = "extrapolate",
-) -> None:
+) -> bool:
     """
     Interpolates NaN values in specified (or all numeric time-dependent)
     variables of an xarray.Dataset. Operates inplace on the dataset.
@@ -145,6 +146,7 @@ def interpolate_nan_values(
         Set to "extrapolate" to fill with the nearest valid value when using 'nearest' or 'linear'.
         Default is "extrapolate".
     """
+    interpolation_used = False
     for name, var in dataset.data_vars.items():
         # if the variable is non-numeric, skip
         if not np.issubdtype(var.dtype, np.number):
@@ -158,6 +160,32 @@ def interpolate_nan_values(
             method=method,
             fill_value=fill_value if method in ["nearest", "linear"] else None,
         )
+        interpolation_used = True
+    return interpolation_used
+
+
+@no_cluster
+def save_dataset_no_cluster(
+    ds_to_save: xr.Dataset,
+    target_path: Path,
+    engine: Literal["netcdf4", "scipy", "h5netcdf"] = "h5netcdf",
+):
+    """
+    This explicitly does not use dask distributed.
+    Helper function to compute and save an xarray.Dataset to a NetCDF file.
+    Uses a temporary file and rename for avoid leaving a half written file.
+    """
+    if not target_path.parent.exists():
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    temp_file_path = target_path.with_name(target_path.name + ".saving.nc")
+    if temp_file_path.exists():
+        os.remove(temp_file_path)
+
+    ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=True)
+
+    os.rename(str(temp_file_path), str(target_path))
+    logger.info(f"Successfully saved data to: {target_path}")
 
 
 @use_cluster
@@ -206,13 +234,18 @@ def save_to_cache(
 
     # save dataset locally before manipulating it
     save_dataset(stores, cached_nc_path)
-    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
 
     if interpolate_nans:
-        interpolate_nan_values(dataset=stores)
-        save_dataset(stores, cached_nc_path)
-        stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
+        stores = xr.open_mfdataset(
+            cached_nc_path,
+            parallel=True,
+            engine="h5netcdf",
+        )
+        was_interpolated = interpolate_nan_values(dataset=stores)
+        if was_interpolated:
+            save_dataset_no_cluster(stores, cached_nc_path)
 
+    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
     return stores
 
 
