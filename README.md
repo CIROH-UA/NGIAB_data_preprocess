@@ -11,7 +11,7 @@ This repository contains tools for preparing data to run a [NextGen](https://git
 ## Table of Contents
 
 1. [What does this tool do?](#what-does-this-tool-do)
-2. [What does it not do?](#what-does-it-not-do)
+2. [Limitations](#limitations)
    - [Custom realizations](#custom-realizations)
    - [Calibration](#calibration)
    - [Evaluation](#evaluation)
@@ -31,6 +31,7 @@ This repository contains tools for preparing data to run a [NextGen](https://git
    - [Usage notes](#usage-notes)
    - [Examples](#examples)
 7. [Realization information](#realization-information)
+   - [NOAH + CFE](#noah--cfe)
 
 ## What does this tool do?
 
@@ -47,7 +48,7 @@ The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospe
 4. Optionally performs a non-interactive [Docker-based NGIAB](https://github.com/CIROH-UA/NGIAB-CloudInfra) run.
 
 ## Limitations
-This tool cannot do the following
+This tool cannot do the following:
 
 ### Custom realizations
 This tool currently only outputs a single, default realization, which is described in "[Realization information](#realization-information)". Support for additional model configurations is planned, but not currently available.
@@ -66,9 +67,9 @@ For automatic interactive visualisation, please run [NGIAB](https://github.com/C
 
 # Requirements
 
-This tool is officially supported on macOS or Ubuntu (tested on 22.04 & 24.04). To use it on Windows, please install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
+This tool is **officially supported** on **macOS** and **Ubuntu** (tested on 22.04 & 24.04). To use it on Windows, please install [**WSL**](https://learn.microsoft.com/en-us/windows/wsl/install).
 
-It is also highly recommended to use [Astral UV](https://docs.astral.sh/uv/) to install and run this tool. It works similarly to pip and conda, and I would also recommend you use it for other python projects as it is so useful.
+It is also **highly recommended** to use [Astral UV](https://docs.astral.sh/uv/) to install and run this tool. Installing the project via `pip` without the use of a virtual environment creates a **severe risk** of dependency conflicts.
 
 # Installation and running
 
