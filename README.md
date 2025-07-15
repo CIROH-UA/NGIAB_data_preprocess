@@ -52,7 +52,7 @@ The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospe
 This tool currently only outputs a single, default realization, which is described in "[Realization information](#realization-information)". Support for additional model configurations is planned, but not currently available.
 
 ### Calibration
-If available, this repository will output [calibrated parameters](https://communityhydrofabric.s3.us-east-1.amazonaws.com/index.html#hydrofabrics/community/gage_parameters/) from the [Community Hydrofabric](https://github.com/CIROH-UA/community_hf_patcher) AWS S3 bucket.
+If available, this repository will download [calibrated parameters](https://communityhydrofabric.s3.us-east-1.amazonaws.com/index.html#hydrofabrics/community/gage_parameters/) from the [Community Hydrofabric](https://github.com/CIROH-UA/community_hf_patcher) AWS S3 bucket.
 However, many gages and catchments will not have such parameters available. In these cases, Data Preprocess will output realizations with default values.
 
 For automatic calibration, please see [ngiab-cal](https://github.com/CIROH-UA/ngiab-cal), which is under active development.
