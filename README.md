@@ -46,7 +46,8 @@ The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospe
     -  **per catchment** model configuration
 4. Optionally performs a non-interactive [Docker-based NGIAB](https://github.com/CIROH-UA/NGIAB-CloudInfra) run.
 
-## What does it not do?
+## Limitations
+This tool cannot do the following
 
 ### Custom realizations
 This tool currently only outputs a single, default realization, which is described in "[Realization information](#realization-information)". Support for additional model configurations is planned, but not currently available.
@@ -75,9 +76,9 @@ It is also highly recommended to use [Astral UV](https://docs.astral.sh/uv/) to 
 This package supports pipx and uvx, which means you can run the tool without installing it. No virtual environment needed, just UV.
 ```bash
 # Run these from anywhere!
-uvx --from ngiab_data_preprocess cli --help  # Running the CLI
-uvx ngiab_prep --help                        # Alias for the CLI
-uvx --from ngiab_data_preprocess map_app     # Running the map interface
+uvx --from ngiab-data-preprocess cli --help  # Running the CLI
+uvx ngiab-prep --help                        # Alias for the CLI
+uvx --from ngiab-data-preprocess map_app     # Running the map interface
 ```
 
 ### For uv installation
@@ -163,7 +164,7 @@ To install and run the tool, follow these steps:
 
 Running the `map_app` tool will open the app in a new browser tab.
 
-Install-free: `uvx --from ngiab_data_preprocess map_app`  
+Install-free: `uvx --from ngiab-data-preprocess map_app`  
 Installed with uv: `uv run map_app`
 
 ## Using the map interface
