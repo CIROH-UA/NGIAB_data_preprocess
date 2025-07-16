@@ -8,7 +8,7 @@ import geopandas as gpd
 import numpy as np
 import xarray as xr
 from dask.distributed import Client, Future, progress
-from data_processing.dask_utils import no_cluster, use_cluster
+from data_processing.dask_utils import no_cluster, temp_cluster
 from xarray.core.types import InterpOptions
 
 logger = logging.getLogger(__name__)
@@ -188,7 +188,7 @@ def save_dataset_no_cluster(
     logger.info(f"Successfully saved data to: {target_path}")
 
 
-@use_cluster
+@temp_cluster
 def save_dataset(
     ds_to_save: xr.Dataset,
     target_path: Path,
@@ -218,7 +218,7 @@ def save_dataset(
     logger.info(f"Successfully saved data to: {target_path}")
 
 
-@use_cluster
+@no_cluster
 def save_to_cache(
     stores: xr.Dataset, cached_nc_path: Path, interpolate_nans: bool = True
 ) -> xr.Dataset:
