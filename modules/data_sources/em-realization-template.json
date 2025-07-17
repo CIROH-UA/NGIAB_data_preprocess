@@ -10,7 +10,7 @@
           "init_config": "",
           "allow_exceed_end_time": true,
           "main_output_variable": "land_surface_water__runoff_depth",
-          "modules": [            
+          "modules": [
             {
               "name": "bmi_python",
               "params": {
@@ -20,10 +20,7 @@
                 "init_config": "./config/cat_config/empirical_model/{{id}}.yml",
                 "allow_exceed_end_time": true,
                 "main_output_variable": "land_surface_water__runoff_depth",
-                "uses_forcing_file": false,
-                "variables_names_map": {
-                  "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface"
-                }
+                "uses_forcing_file": false
               }
             }
           ]
