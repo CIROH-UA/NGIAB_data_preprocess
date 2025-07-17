@@ -1,6 +1,7 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+
 
 class file_paths:
     """
@@ -31,7 +32,6 @@ class file_paths:
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
     template_cfe_config = data_sources / "cfe-template.ini"
     template_em_config = data_sources / "em-catchment-template.yml"
-    template_em_model_config = data_sources / "em-config.yml"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
