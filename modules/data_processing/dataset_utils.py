@@ -212,6 +212,7 @@ def save_dataset(
     logger.debug(
         f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
     )
+    logger.info("For more detailed progress, see the Dask dashboard http://localhost:8787/status")
     progress(future)
     future.result()
     os.rename(str(temp_file_path), str(target_path))
@@ -225,7 +226,7 @@ def save_to_cache(
     """
     Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
     """
-    logger.info(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
+    logger.debug(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
 
     # lasily cast all numbers to f32
     for name, var in stores.data_vars.items():
