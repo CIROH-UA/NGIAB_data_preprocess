@@ -106,10 +106,9 @@ def parse_arguments() -> argparse.Namespace:
         help="enable debug logging",
     )
     parser.add_argument(
-        "--empirical_model",
-        "--em",
+        "--lstm",
         action="store_true",
-        help="enable empirical model realization and forcings",
+        help="enable LSTM model realization and forcings",
     )
     parser.add_argument(
         "--nwm_gw",

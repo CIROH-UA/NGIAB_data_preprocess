@@ -10,7 +10,7 @@ with rich.status.Status("loading") as status:
     import time
 
     import geopandas as gpd
-    from data_processing.create_realization import create_em_realization, create_realization
+    from data_processing.create_realization import create_lstm_realization, create_realization
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -184,8 +184,8 @@ def main() -> None:
             gage_id = None
             if args.gage:
                 gage_id = args.input_feature
-            if args.empirical_model:
-                create_em_realization(
+            if args.lstm:
+                create_lstm_realization(
                     output_folder, start_time=args.start_date, end_time=args.end_date
                 )
             else:

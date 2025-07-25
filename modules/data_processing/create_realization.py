@@ -9,6 +9,7 @@ from typing import Dict, Optional
 import psutil
 import os
 
+import numpy as np
 import pandas
 import requests
 import s3fs
@@ -16,8 +17,6 @@ import xarray as xr
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import file_paths
 from data_processing.gpkg_utils import (
-    GeoPackage,
-    get_cat_to_nex_flowpairs,
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
 )
@@ -91,7 +90,6 @@ def make_cfe_config(
 def make_noahowp_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-    divide_conf_df.set_index("divide_id", inplace=True)
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
     with open(file_paths.template_noahowp_config, "r") as file:
@@ -100,155 +98,78 @@ def make_noahowp_config(
     cat_config_dir = base_dir / "cat_config" / "NOAH-OWP-M"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    for divide in divide_conf_df.index:
-        with open(cat_config_dir / f"{divide}.input", "w") as file:
+    for _, row in divide_conf_df.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 template.format(
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
-                    lat=divide_conf_df.loc[divide, "latitude"],
-                    lon=divide_conf_df.loc[divide, "longitude"],
-                    terrain_slope=divide_conf_df.loc[divide, "mean.slope_1km"],
-                    azimuth=divide_conf_df.loc[divide, "circ_mean.aspect"],
-                    ISLTYP=int(divide_conf_df.loc[divide, "mode.ISLTYP"]),  # type: ignore
-                    IVGTYP=int(divide_conf_df.loc[divide, "mode.IVGTYP"]),  # type: ignore
+                    lat=row["latitude"],
+                    lon=row["longitude"],
+                    terrain_slope=row["mean.slope_1km"],
+                    azimuth=row["circ_mean.aspect"],
+                    ISLTYP=int(row["mode.ISLTYP"]),  # type: ignore
+                    IVGTYP=int(row["mode.IVGTYP"]),  # type: ignore
                 )
             )
 
 
-def get_model_attributes_modspatialite(hydrofabric: Path) -> pandas.DataFrame:
-    # modspatialite is faster than pyproj but can't be added as a pip dependency
-    # This incantation took a while
-    with GeoPackage(hydrofabric) as conn:
-        sql = """WITH source_crs AS (
-        SELECT organization || ':' || organization_coordsys_id AS crs_string
-        FROM gpkg_spatial_ref_sys
-        WHERE srs_id = (
-            SELECT srs_id
-            FROM gpkg_geometry_columns
-            WHERE table_name = 'divides'
-        )
-        )
-        SELECT
-        d.divide_id,
-        d.areasqkm,
-        da."mean.slope",
-        da."mean.slope_1km",
-        da."mean.elevation",
-        ST_X(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
-            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
-        ST_Y(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
-            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude
-        FROM divides AS d
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
-        """
-        divide_conf_df = pandas.read_sql_query(sql, conn)
-    divide_conf_df.set_index("divide_id", inplace=True)
-    return divide_conf_df
-
-
-def get_model_attributes_pyproj(hydrofabric: Path) -> pandas.DataFrame:
-    # if modspatialite is not available, use pyproj
-    with sqlite3.connect(hydrofabric) as conn:
-        sql = """
-        SELECT
-        d.divide_id,
-        d.areasqkm,
-        da."mean.slope",
-        da."mean.slope_1km",
-        da."mean.elevation",
-        da.centroid_x,
-        da.centroid_y
-        FROM divides AS d
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
-        """
-        divide_conf_df = pandas.read_sql_query(sql, conn)
-
-    source_crs = get_table_crs_short(hydrofabric, "divides")
-
-    transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
-
-    lon, lat = transformer.transform(
-        divide_conf_df["centroid_x"].values, divide_conf_df["centroid_y"].values
-    )
-
-    divide_conf_df["longitude"] = lon
-    divide_conf_df["latitude"] = lat
-
-    divide_conf_df.drop(columns=["centroid_x", "centroid_y"], axis=1, inplace=True)
-    divide_conf_df.set_index("divide_id", inplace=True)
-
-    return divide_conf_df
-
-
 def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
-    try:
-        with GeoPackage(hydrofabric) as conn:
-            conf_df = pandas.read_sql_query(
-                """WITH source_crs AS (
-            SELECT organization || ':' || organization_coordsys_id AS crs_string
-            FROM gpkg_spatial_ref_sys
-            WHERE srs_id = (
-                SELECT srs_id
-                FROM gpkg_geometry_columns
-                WHERE table_name = 'divides'
-            )
-            )
+    with sqlite3.connect(hydrofabric) as conn:
+        conf_df = pandas.read_sql_query(
+            """
             SELECT
-            *,
-            ST_X(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
-                (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
-            ST_Y(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
-                (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude FROM 'divide-attributes';""",
-                conn,
-            )
-    except sqlite3.OperationalError:
-        with sqlite3.connect(hydrofabric) as conn:
-            conf_df = pandas.read_sql_query(
-                "SELECT* FROM 'divide-attributes';",
-                conn,
-            )
-        source_crs = get_table_crs_short(hydrofabric, "divides")
-        transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
-        lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
-        conf_df["longitude"] = lon
-        conf_df["latitude"] = lat
-
-        conf_df.drop(columns=["centroid_x", "centroid_y"], axis=1, inplace=True)
+            d.areasqkm,
+            da.*
+            FROM divides AS d
+            JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
+            """,
+            conn,
+        )
+    source_crs = get_table_crs_short(hydrofabric, "divides")
+    transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+    lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
+    conf_df["longitude"] = lon
+    conf_df["latitude"] = lat
     return conf_df
 
 
-def make_em_config(
+def make_lstm_config(
     hydrofabric: Path,
     output_dir: Path,
-    template_path: Path = file_paths.template_em_config,
+    template_path: Path = file_paths.template_lstm_config,
 ):
     # test if modspatialite is available
-    try:
-        divide_conf_df = get_model_attributes_modspatialite(hydrofabric)
-    except Exception as e:
-        logger.warning(f"mod_spatialite not available, using pyproj instead: {e}")
-        logger.warning("Install mod_spatialite for improved performance")
-        divide_conf_df = get_model_attributes_pyproj(hydrofabric)
 
-    cat_config_dir = output_dir / "cat_config" / "empirical_model"
+    divide_conf_df = get_model_attributes(hydrofabric)
+
+    cat_config_dir = output_dir / "cat_config" / "lstm"
     if cat_config_dir.exists():
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
+    # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
+    # flip 0 and 90 degree values
+    divide_conf_df["flipped_mean_slope"] = abs(divide_conf_df["mean.slope"] - 90)
+    # Convert degrees to meters per kmmeter
+    divide_conf_df["mean_slope_mpkm"] = (
+        np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
+    )
+
     with open(template_path, "r") as file:
         template = file.read()
 
-    for divide in divide_conf_df.index:
+    for _, row in divide_conf_df.iterrows():
+        divide = row["divide_id"]
         with open(cat_config_dir / f"{divide}.yml", "w") as file:
             file.write(
                 template.format(
-                    area_sqkm=divide_conf_df.loc[divide, "areasqkm"],
+                    area_sqkm=row["areasqkm"],
                     divide_id=divide,
-                    lat=divide_conf_df.loc[divide, "latitude"],
-                    lon=divide_conf_df.loc[divide, "longitude"],
-                    slope_mean=divide_conf_df.loc[divide, "mean.slope"],
-                    elevation_mean=divide_conf_df.loc[divide, "mean.slope"],
+                    lat=row["latitude"],
+                    lon=row["longitude"],
+                    slope_mean=row["mean_slope_mpkm"],
+                    elevation_mean=row["mean.elevation"] / 1000,  # convert mm in hf to m
                 )
             )
 
@@ -310,22 +231,14 @@ def make_ngen_realization_json(
         json.dump(realization, file, indent=4)
 
 
-def create_em_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_lstm_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = file_paths(cat_id)
-    template_path = file_paths.template_em_realization_config
-    em_config = file_paths.template_em_model_config
-    # move em_config to paths.config_dir
-    with open(em_config, "r") as f:
-        em_config = f.read()
-    with open(paths.config_dir / "em-config.yml", "w") as f:
-        f.write(em_config)
-
+    template_path = file_paths.template_lstm_realization_config
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
-    make_em_config(paths.geopackage_path, paths.config_dir)
+    make_lstm_config(paths.geopackage_path, paths.config_dir)
     # create some partitions for parallelization
     paths.setup_run_folders()
-    create_partitions(paths)
 
 
 def create_realization(
@@ -368,48 +281,3 @@ def create_realization(
 
     # create some partitions for parallelization
     paths.setup_run_folders()
-    create_partitions(paths)
-
-
-def create_partitions(paths: file_paths, num_partitions: Optional[int] = None) -> None:
-    if num_partitions is None:
-        num_partitions = multiprocessing.cpu_count()
-
-    cat_to_nex_pairs = get_cat_to_nex_flowpairs(hydrofabric=paths.geopackage_path)
-    # nexus = defaultdict(list)
-
-    # for cat, nex in cat_to_nex_pairs:
-    #     nexus[nex].append(cat)
-
-    num_partitions = min(num_partitions, len(cat_to_nex_pairs))
-    # partition_size = ceil(len(nexus) / num_partitions)
-    # num_nexus = len(nexus)
-    # nexus = list(nexus.items())
-    # partitions = []
-    # for i in range(0, num_nexus, partition_size):
-    #     part = {}
-    #     part["id"] = i // partition_size
-    #     part["cat-ids"] = []
-    #     part["nex-ids"] = []
-    #     part["remote-connections"] = []
-    #     for j in range(i, i + partition_size):
-    #         if j < num_nexus:
-    #             part["cat-ids"].extend(nexus[j][1])
-    #             part["nex-ids"].append(nexus[j][0])
-    #     partitions.append(part)
-
-    # with open(paths.subset_dir / f"partitions_{num_partitions}.json", "w") as f:
-    #     f.write(json.dumps({"partitions": partitions}, indent=4))
-
-    # write this to a metadata file to save on repeated file io to recalculate
-    with open(paths.metadata_dir / "num_partitions", "w") as f:
-        f.write(str(num_partitions))
-
-
-if __name__ == "__main__":
-    cat_id = "cat-1643991"
-    start_time = datetime(2010, 1, 1, 0, 0, 0)
-    end_time = datetime(2010, 1, 2, 0, 0, 0)
-    # output_interval = 3600
-    # nts = 2592
-    create_realization(cat_id, start_time, end_time)
