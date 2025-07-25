@@ -88,7 +88,6 @@ def make_cfe_config(
 def make_noahowp_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-    divide_conf_df.set_index("divide_id", inplace=True)
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
     with open(file_paths.template_noahowp_config, "r") as file:
@@ -133,16 +132,16 @@ def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
     return conf_df
 
 
-def make_em_config(
+def make_lstm_config(
     hydrofabric: Path,
     output_dir: Path,
-    template_path: Path = file_paths.template_em_config,
+    template_path: Path = file_paths.template_lstm_config,
 ):
     # test if modspatialite is available
 
     divide_conf_df = get_model_attributes(hydrofabric)
 
-    cat_config_dir = output_dir / "cat_config" / "empirical_model"
+    cat_config_dir = output_dir / "cat_config" / "lstm"
     if cat_config_dir.exists():
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
@@ -209,12 +208,12 @@ def make_ngen_realization_json(
         json.dump(realization, file, indent=4)
 
 
-def create_em_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_lstm_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = file_paths(cat_id)
-    template_path = file_paths.template_em_realization_config
+    template_path = file_paths.template_lstm_realization_config
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
-    make_em_config(paths.geopackage_path, paths.config_dir)
+    make_lstm_config(paths.geopackage_path, paths.config_dir)
     # create some partitions for parallelization
     paths.setup_run_folders()
 
