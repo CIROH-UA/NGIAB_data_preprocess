@@ -50,9 +50,9 @@ def subset_check():
     subset_name = cat_ids[0]
     run_paths = file_paths(subset_name)
     if run_paths.geopackage_path.exists():
-        return "check required", 409
+        return str(run_paths.geopackage_path), 409
     else:
-        return "success", 200
+        return 200
 
 
 @main.route("/subset", methods=["POST"])
