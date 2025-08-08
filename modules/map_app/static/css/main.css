@@ -318,3 +318,30 @@ input[type="datetime-local"] {
       width: 100%;
   }
 }
+
+#progress {
+  background-color: black;
+  border-radius: 13px;
+  /* (height of inner div) / 2 + padding */
+  height: 20px;
+  padding: 3px;
+  position: relative;
+  display: grid;
+  align-items: center;
+}
+
+#bar {
+  background-color: orange;
+  width: 0%;
+  /* Adjust with JavaScript */
+  height: 20px;
+  border-radius: 10px;
+  position: absolute;
+}
+
+#bar-text {
+  position: absolute;
+  margin: auto;
+  width: 100%;
+  text-align: center;
+}

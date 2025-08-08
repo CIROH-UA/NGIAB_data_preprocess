@@ -8,6 +8,7 @@ from math import ceil
 from multiprocessing import shared_memory
 from pathlib import Path
 from typing import List, Tuple
+import json
 
 import geopandas as gpd
 import numpy as np
@@ -334,6 +335,15 @@ def compute_zonal_stats(
 
     cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
+    progress_file = forcings_dir.parent / "temp" / "forcings_progress.json"
+    ex_var_name = list(gridded_data.data_vars)[0]
+    example_time_chunks = get_index_chunks(gridded_data[ex_var_name])
+    all_steps = len(example_time_chunks) * len(gridded_data.data_vars)
+    logger.info(f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(gridded_data.data_vars)}")
+    steps_completed = 0
+    with open(progress_file, "w") as f:
+        json.dump({"total_steps": all_steps, "steps_completed": steps_completed}, f)
+
     progress = Progress(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
@@ -391,6 +401,11 @@ def compute_zonal_stats(
             concatenated_da.to_dataset(name=data_var_name).to_netcdf(
                 forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc"
             )
+            steps_completed += 1
+            with open(progress_file, "w") as f:
+                json.dump(
+                    {"total_steps": all_steps, "steps_completed": steps_completed}, f
+                )
         # Merge the chunks back together
         datasets = [
             xr.open_dataset(forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc")
@@ -413,6 +428,9 @@ def compute_zonal_stats(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
     write_outputs(forcings_dir, units)
+    time.sleep(1) # wait for progress bar to update
+    progress_file.unlink()
+    os.removedirs(forcings_dir.parent / "temp")
 
 
 @use_cluster

@@ -41,6 +41,37 @@ async function subset() {
     });
 }
 
+function updateProgressBar(percent) {
+    var bar = document.getElementById("bar");
+    bar.style.width = percent + "%";
+    var barText = document.getElementById("bar-text");
+    barText.textContent = percent + "%";
+}
+
+function pollForcingsProgress(progressFile) {
+    const interval = setInterval(() => {
+        fetch('/forcings_progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(progressFile),
+        })
+            .then(response => response.text())
+            .then(data => {
+                const percent = parseInt(data, 10);
+                updateProgressBar(percent);
+                if (percent >= 100) {
+                    updateProgressBar(100); // Ensure the progress bar is full
+                    clearInterval(interval);
+                    document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
+                }
+            })
+            .catch(error => {
+                console.error('Progress polling error:', error);
+                clearInterval(interval);
+            });
+    }, 1000); // Poll every second
+}
+
 async function forcings() {
     if (document.getElementById('output-path').textContent === '') {
         alert('Please subset the data before getting forcings');
@@ -66,21 +97,31 @@ async function forcings() {
     console.log('source:', source);
 
     document.getElementById('forcings-output-path').textContent = "Generating forcings...";
+    updateProgressBar(0); // Reset progress bar
+
+    fetch('/make_forcings_progress_file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(forcing_dir),
+    })
+    .then(async (response) => response.text())
+    .then(progressFile => { 
+        pollForcingsProgress(progressFile); // Start polling for progress
+    })
+    
     fetch('/forcings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source}),
-    }).then(response => response.text())
-        .then(response_code => {
-            document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        }).finally(() => {
-            document.getElementById('forcings-button').disabled = false;
-            document.getElementById('forcings-loading').style.visibility = "hidden";
+    })
+    .then(response => response.text())
+    .catch(error => {
+        console.error('Error:', error);
+    }).finally(() => {
+        document.getElementById('forcings-button').disabled = false;
+        document.getElementById('forcings-loading').style.visibility = "hidden";
 
-        });
+    });
 }
 
 async function realization() {

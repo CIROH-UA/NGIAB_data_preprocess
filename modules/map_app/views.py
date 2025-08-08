@@ -2,6 +2,8 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+import os
+import threading
 
 import geopandas as gpd
 from data_processing.create_realization import create_realization
@@ -79,7 +81,40 @@ def subset_to_file():
         f.write("\n".join(total_subset))
     return str(subset_paths.subset_dir), 200
 
+@main.route("/make_forcings_progress_file", methods=["POST"])
+def make_forcings_progress_file():
+    data = json.loads(request.data.decode("utf-8"))
+    subset_gpkg = Path(data.split("subset to ")[-1])
+    output_folder = subset_gpkg.parent.parent
+    os.makedirs(Path(output_folder) / "temp", exist_ok=True)
+    progress_file = Path(output_folder / "temp" / "forcings_progress.json")
+    with open(Path(output_folder / "temp" / "forcings_progress.json"), "w") as f:
+        json.dump({"total_steps": 99999999999, "steps_completed": 0}, f)
 
+    return str(progress_file), 200
+
+@main.route("/forcings_progress", methods=["POST"])
+def forcings_progress_endpoint():
+    progress_file = Path(json.loads(request.data.decode("utf-8")))
+    with open(progress_file, "r") as f:
+        forcings_progress = json.load(f)
+    forcings_progress_all = forcings_progress['total_steps']
+    forcings_progress_completed = forcings_progress['steps_completed']
+    percent = int((forcings_progress_completed / forcings_progress_all) * 100)
+    return str(percent), 200
+
+def forcings_task(data_source, start_time, end_time, paths):
+    if data_source == "aorc":
+        raw_data = load_aorc_zarr(start_time.year, end_time.year)
+    elif data_source == "nwm":
+        raw_data = load_v3_retrospective_zarr()
+    else:
+        raise ValueError(f"Unknown data source: {data_source}")
+    gdf = gpd.read_file(paths.geopackage_path, layer="divides")
+    cached_data = save_and_clip_dataset(raw_data, gdf, start_time, end_time, paths.cached_nc_file)
+
+    create_forcings(cached_data, paths.output_dir.stem)  # type: ignore
+    
 @main.route("/forcings", methods=["POST"])
 def get_forcings():
     # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time}),
@@ -102,22 +137,13 @@ def get_forcings():
     app.debug = False
     logger.debug(f"get_forcings() disabled debug mode at {datetime.now()}")
     logger.debug(f"forcing_dir: {output_folder}")
-    try:
-        if data_source == "aorc":
-            data = load_aorc_zarr(start_time.year, end_time.year)
-        elif data_source == "nwm":
-            data = load_v3_retrospective_zarr()
-        gdf = gpd.read_file(paths.geopackage_path, layer="divides")
-        cached_data = save_and_clip_dataset(data, gdf, start_time, end_time, paths.cached_nc_file)
-
-        create_forcings(cached_data, paths.output_dir.stem)  # type: ignore
-    except Exception as e:
-        logger.info(f"get_forcings() failed with error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
     app.debug = debug_enabled
 
-    return "success", 200
-
+    # threading implemented so that main process can periodically poll progress file
+    thread = threading.Thread(target=forcings_task,
+                              args=(data_source, start_time, end_time, paths))
+    thread.start()
+    return "started", 200
 
 @main.route("/realization", methods=["POST"])
 def get_realization():
