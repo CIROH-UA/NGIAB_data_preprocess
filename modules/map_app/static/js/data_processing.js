@@ -57,12 +57,21 @@ function pollForcingsProgress(progressFile) {
         })
             .then(response => response.text())
             .then(data => {
-                const percent = parseInt(data, 10);
-                updateProgressBar(percent);
-                if (percent >= 100) {
-                    updateProgressBar(100); // Ensure the progress bar is full
-                    clearInterval(interval);
-                    document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
+                if (data == "NaN") {
+                    document.getElementById('forcings-output-path').textContent = "Downloading data...";
+                    document.getElementById('bar-text').textContent = "Downloading...";
+                    document.getElementById('bar').style.animation = "indeterminateAnimation 1s infinite linear";
+                } else {
+                    const percent = parseInt(data, 10);
+                    updateProgressBar(percent);
+                    if (percent > 0 && percent < 100) {
+                        document.getElementById('bar').style.animation = "none"; // stop the indeterminate animation
+                        document.getElementById('forcings-output-path').textContent = "Calculating zonal statistics. See progress below.";
+                    } else if (percent >= 100) {
+                        updateProgressBar(100); // Ensure the progress bar is full
+                        clearInterval(interval);
+                        document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
+                    }
                 }
             })
             .catch(error => {
@@ -79,7 +88,6 @@ async function forcings() {
     }
     console.log('getting forcings');
     document.getElementById('forcings-button').disabled = true;
-    document.getElementById('forcings-loading').style.visibility = "visible";
 
     const forcing_dir = document.getElementById('output-path').textContent;
     const start_time = document.getElementById('start-time').value;
@@ -95,9 +103,6 @@ async function forcings() {
     var nwm_aorc = document.getElementById('datasource-toggle').checked;
     var source = nwm_aorc ? 'aorc' : 'nwm';
     console.log('source:', source);
-
-    document.getElementById('forcings-output-path').textContent = "Generating forcings...";
-    updateProgressBar(0); // Reset progress bar
 
     fetch('/make_forcings_progress_file', {
         method: 'POST',
@@ -119,7 +124,6 @@ async function forcings() {
         console.error('Error:', error);
     }).finally(() => {
         document.getElementById('forcings-button').disabled = false;
-        document.getElementById('forcings-loading').style.visibility = "hidden";
 
     });
 }

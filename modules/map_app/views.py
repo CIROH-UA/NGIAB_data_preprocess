@@ -89,7 +89,7 @@ def make_forcings_progress_file():
     os.makedirs(Path(output_folder) / "temp", exist_ok=True)
     progress_file = Path(output_folder / "temp" / "forcings_progress.json")
     with open(Path(output_folder / "temp" / "forcings_progress.json"), "w") as f:
-        json.dump({"total_steps": 99999999999, "steps_completed": 0}, f)
+        json.dump({"total_steps": 0, "steps_completed": 0}, f)
 
     return str(progress_file), 200
 
@@ -100,10 +100,13 @@ def forcings_progress_endpoint():
         forcings_progress = json.load(f)
     forcings_progress_all = forcings_progress['total_steps']
     forcings_progress_completed = forcings_progress['steps_completed']
-    percent = int((forcings_progress_completed / forcings_progress_all) * 100)
+    try:
+        percent = int((forcings_progress_completed / forcings_progress_all) * 100)
+    except ZeroDivisionError:
+        percent = "NaN"
     return str(percent), 200
 
-def forcings_task(data_source, start_time, end_time, paths):
+def download_forcings(data_source, start_time, end_time, paths):
     if data_source == "aorc":
         raw_data = load_aorc_zarr(start_time.year, end_time.year)
     elif data_source == "nwm":
@@ -112,7 +115,9 @@ def forcings_task(data_source, start_time, end_time, paths):
         raise ValueError(f"Unknown data source: {data_source}")
     gdf = gpd.read_file(paths.geopackage_path, layer="divides")
     cached_data = save_and_clip_dataset(raw_data, gdf, start_time, end_time, paths.cached_nc_file)
+    return cached_data
 
+def compute_forcings(cached_data, paths):
     create_forcings(cached_data, paths.output_dir.stem)  # type: ignore
     
 @main.route("/forcings", methods=["POST"])
@@ -139,9 +144,10 @@ def get_forcings():
     logger.debug(f"forcing_dir: {output_folder}")
     app.debug = debug_enabled
 
+    cached_data = download_forcings(data_source, start_time, end_time, paths)
     # threading implemented so that main process can periodically poll progress file
-    thread = threading.Thread(target=forcings_task,
-                              args=(data_source, start_time, end_time, paths))
+    thread = threading.Thread(target=compute_forcings,
+                              args=(cached_data, paths))
     thread.start()
     return "started", 200
 
