@@ -3,7 +3,7 @@ from typing import Tuple
 import rich.status
 
 # add a status bar for these imports so the cli feels more responsive
-with rich.status.Status("Initializing...") as status:
+with rich.status.Status("loading") as status:
     import argparse
     import logging
     import subprocess
