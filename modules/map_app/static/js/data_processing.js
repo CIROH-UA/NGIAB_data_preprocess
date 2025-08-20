@@ -18,11 +18,18 @@ async function subset() {
                 return;
             }
         } 
+        // check what kind of subset
+        // get the position of the subset toggle
+        // false means subset by nexus, true means subset by catchment
+        var nexus_catchment = document.getElementById('subset-toggle').checked;
+        var subset_type = nexus_catchment ? 'catchment' : 'nexus';
+
         const startTime = performance.now(); // Start the timer
         fetch('/subset', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify([cat_id]),
+                // body: JSON.stringify([cat_id]),
+                body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type}),
             })
                 .then(response => response.text())
                 .then(filename => {

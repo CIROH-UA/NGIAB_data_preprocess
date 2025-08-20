@@ -79,7 +79,36 @@
 .toggle-input:checked + .toggle-label .toggle-text-left {
     color: #888; /* Grey color for non-selected text */
 }
-
+  
 .toggle-input:checked + .toggle-label .toggle-text-right {
     color: #888; /* Grey color for non-selected text */
+}
+
+/* toggle switch for the subset option */
+.toggle-switch-subset {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+    width: 240px;
+}
+
+.toggle-text-subset {
+    font-size: 10px;
+}
+
+/* I didn't mean to have four styles for one element but it looked terrible without this*/
+.toggle-text-left-subset {
+    left: 20px;
+}
+
+.toggle-handle-subset {
+    width: 120px;
+    font-size: 10px;
+}
+
+.toggle-input:checked + .toggle-label .toggle-handle-subset {
+    transform: translateX(116px);
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.8); /* Blue glow effect */
+    color: #007bff; /* Blue color for the selected text */
 }

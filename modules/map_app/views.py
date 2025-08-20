@@ -23,24 +23,35 @@ logger = logging.getLogger(__name__)
 def index():
     return render_template("index.html")
 
-
+# this subset does not include the downstream nexus
 @main.route("/get_upstream_catids", methods=["POST"])
 def get_upstream_catids():
     cat_id = json.loads(request.data.decode("utf-8"))
     # give wb_id to get_upstream_cats because the graph search is 1000x faster
     wb_id = "wb-" + cat_id.split("-")[-1]
-    upstream_cats = get_upstream_cats(wb_id)
-    if cat_id in upstream_cats:
-        upstream_cats.remove(cat_id)
-    return list(upstream_cats), 200
+    upstream_cats = get_upstream_ids(wb_id, include_outlet=False)
+    cleaned_upstreams = set()
+    for id in upstream_cats:
+        if id.startswith("wb-"):
+            cleaned_upstreams.add("cat-" + id.split("-")[-1])
+    if cat_id in cleaned_upstreams:
+        cleaned_upstreams.remove(cat_id)
+    return list(cleaned_upstreams), 200
 
-
+# this subset includes the downstream nexus
 @main.route("/get_upstream_wbids", methods=["POST"])
 def get_upstream_wbids():
     cat_id = json.loads(request.data.decode("utf-8"))
-    upstream_ids = get_upstream_ids(cat_id)
-    # remove the selected cat_id from the set
-    return [id for id in upstream_ids if id.startswith("wb")], 200
+    # give wb_id to get_upstream_cats because the graph search is 1000x faster
+    wb_id = "wb-" + cat_id.split("-")[-1]
+    upstream_cats = get_upstream_ids(wb_id)
+    cleaned_upstreams = set()
+    for id in upstream_cats:
+        if id.startswith("wb-"):
+            cleaned_upstreams.add("cat-" + id.split("-")[-1])
+    if cat_id in cleaned_upstreams:
+        cleaned_upstreams.remove(cat_id)
+    return list(cleaned_upstreams), 200
 
 
 @main.route("/subset_check", methods=["POST"])
@@ -57,11 +68,19 @@ def subset_check():
 
 @main.route("/subset", methods=["POST"])
 def subset_selection():
-    cat_ids = list(json.loads(request.data.decode("utf-8")))
+    #body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type})
+    data = json.loads(request.data.decode("utf-8"))
+    cat_ids = data.get("cat_id")
+    subset_type = data.get("subset_type")
     logger.info(cat_ids)
+    logger.info(subset_type)
     subset_name = cat_ids[0]
     run_paths = file_paths(subset_name)
-    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
+
+    if subset_type == "nexus":
+        subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
+    else:
+        subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, include_outlet=False, override_gpkg=True)
     return str(run_paths.geopackage_path), 200
 
 

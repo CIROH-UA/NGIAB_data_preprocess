@@ -133,25 +133,61 @@ function update_map(cat_id, e) {
   $('#selected-basins').text(cat_id)
   map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
   map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
-  fetch('/get_upstream_catids', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cat_id),
-  })
-  .then(response => response.json())
-  .then(data => {
-    map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
-    if (data.length === 0) {
-      new maplibregl.Popup()
-        .setLngLat(e.lngLat)
-        .setHTML('No upstreams')
-        .addTo(map);
-    }
-  });
+  // get the position of the subset toggle
+  // false means subset by nexus, true means subset by catchment
+  var nexus_catchment = document.getElementById('subset-toggle').checked;
+  var subset_type = nexus_catchment ? 'catchment' : 'nexus';
+  console.log('subset_type:', subset_type);
+
+  if (subset_type == 'catchment') {
+    fetch('/get_upstream_catids', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cat_id),
+    })
+    .then(response => response.json())
+    .then(data => {
+      map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+      if (data.length === 0) {
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML('No upstreams')
+          .addTo(map);
+      }
+    });
+  } else {
+    fetch('/get_upstream_wbids', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cat_id),
+    })
+    .then(response => response.json())
+    .then(data => {
+      map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+      if (data.length === 0) {
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML('No upstreams')
+          .addTo(map);
+      }
+    });
+  }
 }
+let lastClickedLngLat = null; 
 map.on('click', 'catchments', (e) => {
   cat_id = e.features[0].properties.divide_id;
+  lastClickedLngLat = e.lngLat; // Store the last clicked location
   update_map(cat_id, e);
+});
+
+// When you want to use it (e.g., in your toggle handler):
+document.getElementById("subset-toggle").addEventListener('change', function() {
+  const cat_id = document.getElementById('selected-basins').textContent;
+  if (cat_id && cat_id !== 'None - get clicking!' && lastClickedLngLat) {
+    // Create a fake event with the last clicked location
+    const fakeEvent = { lngLat: lastClickedLngLat };
+    update_map(cat_id, fakeEvent);
+  }
 });
 
 // Create a popup, but don't add it to the map yet.
