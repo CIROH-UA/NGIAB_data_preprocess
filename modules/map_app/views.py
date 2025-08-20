@@ -24,18 +24,18 @@ def index():
     return render_template("index.html")
 
 
-# @main.route("/get_upstream_catids", methods=["POST"])
-# def get_upstream_catids():
-#     cat_id = json.loads(request.data.decode("utf-8"))
-#     # give wb_id to get_upstream_cats because the graph search is 1000x faster
-#     wb_id = "wb-" + cat_id.split("-")[-1]
-#     upstream_cats = get_upstream_cats(wb_id)
-#     if cat_id in upstream_cats:
-#         upstream_cats.remove(cat_id)
-#     return list(upstream_cats), 200
-
-
 @main.route("/get_upstream_catids", methods=["POST"])
+def get_upstream_catids():
+    cat_id = json.loads(request.data.decode("utf-8"))
+    # give wb_id to get_upstream_cats because the graph search is 1000x faster
+    wb_id = "wb-" + cat_id.split("-")[-1]
+    upstream_cats = get_upstream_cats(wb_id)
+    if cat_id in upstream_cats:
+        upstream_cats.remove(cat_id)
+    return list(upstream_cats), 200
+
+
+@main.route("/get_upstream_wbids", methods=["POST"])
 def get_upstream_wbids():
     # cat_id = json.loads(request.data.decode("utf-8"))
     # upstream_ids = get_upstream_ids(cat_id)
