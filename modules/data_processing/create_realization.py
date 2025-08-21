@@ -263,6 +263,8 @@ def create_realization(
             with open(template_path, "w") as f:
                 json.dump(new_template, f)
             logger.info(f"downloaded calibrated parameters for {gage_id}")
+        else:
+            logger.warning(f"could not download parameters for {gage_id}, using default template")
 
     conf_df = get_model_attributes(paths.geopackage_path)
 
