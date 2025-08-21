@@ -60,6 +60,8 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
         logging.info(f"Found {feature_name} from {input_feature}")
     elif args.gage:
         validate_hydrofabric()
+        if not input_feature.startswith("gage-"):
+            input_feature = "gage-" + input_feature
         feature_name = get_cat_from_gage_id(input_feature)
         logging.info(f"Found {feature_name} from {input_feature}")
     else:
@@ -69,6 +71,8 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
         output_folder = args.output_name
         validate_output_dir()
     elif args.gage:
+        if not input_feature.startswith("gage-"):
+            input_feature = "gage-" + input_feature
         output_folder = input_feature
         validate_output_dir()
     else:
@@ -186,6 +190,8 @@ def main() -> None:
             gage_id = None
             if args.gage:
                 gage_id = args.input_feature
+                if not gage_id.startswith("gage-"):
+                    gage_id = "gage-" + gage_id
             if args.lstm:
                 create_lstm_realization(
                     output_folder, start_time=args.start_date, end_time=args.end_date
