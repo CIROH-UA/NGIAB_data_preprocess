@@ -2,14 +2,13 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Literal, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
 import xarray as xr
 from dask.distributed import Client, Future, progress
 from data_processing.dask_utils import no_cluster, temp_cluster
-from xarray.core.types import InterpOptions
 
 logger = logging.getLogger(__name__)
 
@@ -116,78 +115,6 @@ def clip_dataset_to_bounds(
     logger.info("Selected time range and clipped to bounds")
     return dataset
 
-
-@no_cluster
-def interpolate_nan_values(
-    dataset: xr.Dataset,
-    variables: Optional[List[str]] = None,
-    dim: str = "time",
-    method: InterpOptions = "nearest",
-    fill_value: str = "extrapolate",
-) -> bool:
-    """
-    Interpolates NaN values in specified (or all numeric time-dependent)
-    variables of an xarray.Dataset. Operates inplace on the dataset.
-
-    Parameters
-    ----------
-    dataset : xr.Dataset
-        The input dataset.
-    variables : Optional[List[str]], optional
-        A list of variable names to process. If None (default),
-        all numeric variables containing the specified dimension will be processed.
-    dim : str, optional
-        The dimension along which to interpolate (default is "time").
-    method : str, optional
-        Interpolation method to use (e.g., "linear", "nearest", "cubic").
-        Default is "nearest".
-    fill_value : str, optional
-        Method for filling NaNs at the start/end of the series after interpolation.
-        Set to "extrapolate" to fill with the nearest valid value when using 'nearest' or 'linear'.
-        Default is "extrapolate".
-    """
-    interpolation_used = False
-    for name, var in dataset.data_vars.items():
-        # if the variable is non-numeric, skip
-        if not np.issubdtype(var.dtype, np.number):
-            continue
-        # if there are no NANs, skip
-        if not var.isnull().any().compute():
-            continue
-
-        dataset[name] = var.interpolate_na(
-            dim=dim,
-            method=method,
-            fill_value=fill_value if method in ["nearest", "linear"] else None,
-        )
-        interpolation_used = True
-    return interpolation_used
-
-
-@no_cluster
-def save_dataset_no_cluster(
-    ds_to_save: xr.Dataset,
-    target_path: Path,
-    engine: Literal["netcdf4", "scipy", "h5netcdf"] = "h5netcdf",
-):
-    """
-    This explicitly does not use dask distributed.
-    Helper function to compute and save an xarray.Dataset to a NetCDF file.
-    Uses a temporary file and rename for avoid leaving a half written file.
-    """
-    if not target_path.parent.exists():
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-
-    temp_file_path = target_path.with_name(target_path.name + ".saving.nc")
-    if temp_file_path.exists():
-        os.remove(temp_file_path)
-
-    ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=True)
-
-    os.rename(str(temp_file_path), str(target_path))
-    logger.info(f"Successfully saved data to: {target_path}")
-
-
 @temp_cluster
 def save_dataset(
     ds_to_save: xr.Dataset,
@@ -195,7 +122,8 @@ def save_dataset(
     engine: Literal["netcdf4", "scipy", "h5netcdf"] = "h5netcdf",
 ):
     """
-    Helper function to compute and save an xarray.Dataset to a NetCDF file.
+    Helper function to compute and save an xarray.Dataset (specifically, the raw
+    forcing data) to a NetCDF file.
     Uses a temporary file and rename for atomicity.
     """
     if not target_path.parent.exists():
@@ -221,7 +149,7 @@ def save_dataset(
 
 @no_cluster
 def save_to_cache(
-    stores: xr.Dataset, cached_nc_path: Path, interpolate_nans: bool = True
+    stores: xr.Dataset, cached_nc_path: Path
 ) -> xr.Dataset:
     """
     Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
@@ -235,16 +163,6 @@ def save_to_cache(
 
     # save dataset locally before manipulating it
     save_dataset(stores, cached_nc_path)
-
-    if interpolate_nans:
-        stores = xr.open_mfdataset(
-            cached_nc_path,
-            parallel=True,
-            engine="h5netcdf",
-        )
-        was_interpolated = interpolate_nan_values(dataset=stores)
-        if was_interpolated:
-            save_dataset_no_cluster(stores, cached_nc_path)
 
     stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
     return stores
