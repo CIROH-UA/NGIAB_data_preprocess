@@ -140,11 +140,11 @@ def main() -> None:
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
 
-        if args.change_output_dir:
+        if args.change_root_dir:
             config_file_path = os.path.expanduser("~/.ngiab/")
             with open(os.path.join(config_file_path, "preprocessor"), "w") as config_file:
-                config_file.write(args.change_output_dir)
-            logging.info(f"Changed default directory where outputs are stored to {args.change_output_dir}")
+                config_file.write(args.change_root_dir)
+            logging.info(f"Changed default directory where outputs are stored to {args.change_root_dir}")
 
         feature_to_subset, output_folder = validate_input(args)
 
