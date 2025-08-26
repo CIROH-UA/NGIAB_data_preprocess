@@ -12,6 +12,13 @@ def parse_arguments() -> argparse.Namespace:
         description="Subsetting hydrofabrics, forcing generation, and realization creation"
     )
     group = parser.add_mutually_exclusive_group(required=True)
+
+    parser.add_argument(
+        "--change_output_dir",
+        type=str,
+        help="Path to new default directory where outputs in the future will be stored",
+    )
+
     group.add_argument(
         "-i",
         "--input_feature",
@@ -97,7 +104,7 @@ def parse_arguments() -> argparse.Namespace:
         "-o",
         "--output_name",
         type=str,
-        help="Name of the output folder",
+        help="Custom data output folder name in lieu of the default, which is the ID of the input feature",
     )
     parser.add_argument(
         "-D",

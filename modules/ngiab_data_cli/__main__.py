@@ -9,6 +9,7 @@ with rich.status.Status("loading") as status:
     import subprocess
     import time
     from multiprocessing import cpu_count
+    import os
 
     import geopandas as gpd
     from data_processing.create_realization import create_lstm_realization, create_realization
@@ -29,51 +30,55 @@ with rich.status.Status("loading") as status:
 def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     """Validate input arguments."""
 
+    feature_name = None
+    output_folder = None
+
     if args.vpu:
         if not args.output_name:
             args.output_name = f"vpu-{args.vpu}"
             validate_output_dir()
         return args.vpu, args.output_name
 
-    input_feature = args.input_feature.replace("_", "-")
+    if args.input_feature:
+        input_feature = args.input_feature.replace("_", "-")
 
-    # look at the prefix for autodetection, if -g or -l is used then there is no prefix
-    if len(input_feature.split("-")) > 1:
-        prefix = input_feature.split("-")[0]
-        if prefix.lower() == "gage":
-            args.gage = True
-        elif prefix.lower() == "wb":
-            logging.warning("Waterbody IDs are no longer supported!")
-            logging.warning(f"Automatically converting {input_feature} to catid")
-            time.sleep(2)
+        # look at the prefix for autodetection, if -g or -l is used then there is no prefix
+        if len(input_feature.split("-")) > 1:
+            prefix = input_feature.split("-")[0]
+            if prefix.lower() == "gage":
+                args.gage = True
+            elif prefix.lower() == "wb":
+                logging.warning("Waterbody IDs are no longer supported!")
+                logging.warning(f"Automatically converting {input_feature} to catid")
+                time.sleep(2)
 
-    # always add or replace the prefix with cat if it is not a lat lon or gage
-    if not args.latlon and not args.gage:
-        input_feature = "cat-" + input_feature.split("-")[-1]
+        # always add or replace the prefix with cat if it is not a lat lon or gage
+        if not args.latlon and not args.gage:
+            input_feature = "cat-" + input_feature.split("-")[-1]
 
-    if args.latlon and args.gage:
-        raise ValueError("Cannot use both --latlon and --gage options at the same time.")
+        if args.latlon and args.gage:
+            raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
-    if args.latlon:
-        validate_hydrofabric()
-        feature_name = get_cat_id_from_lat_lon(input_feature)
-        logging.info(f"Found {feature_name} from {input_feature}")
-    elif args.gage:
-        validate_hydrofabric()
-        feature_name = get_cat_from_gage_id(input_feature)
-        logging.info(f"Found {feature_name} from {input_feature}")
-    else:
-        feature_name = input_feature
+        if args.latlon:
+            validate_hydrofabric()
+            feature_name = get_cat_id_from_lat_lon(input_feature)
+            logging.info(f"Found {feature_name} from {input_feature}")
+        elif args.gage:
+            validate_hydrofabric()
+            feature_name = get_cat_from_gage_id(input_feature)
+            logging.info(f"Found {feature_name} from {input_feature}")
+        else:
+            feature_name = input_feature
 
-    if args.output_name:
-        output_folder = args.output_name
-        validate_output_dir()
-    elif args.gage:
-        output_folder = input_feature
-        validate_output_dir()
-    else:
-        output_folder = feature_name
-        validate_output_dir()
+        if args.output_name:
+            output_folder = args.output_name
+            validate_output_dir()
+        elif args.gage:
+            output_folder = input_feature
+            validate_output_dir()
+        else:
+            output_folder = feature_name
+            validate_output_dir()
 
     return feature_name, output_folder
 
@@ -134,7 +139,18 @@ def main() -> None:
         args = parse_arguments()
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
+
+        if args.change_output_dir:
+            config_file_path = os.path.expanduser("~/.ngiab/")
+            with open(os.path.join(config_file_path, "preprocessor"), "w") as config_file:
+                config_file.write(args.change_output_dir)
+            logging.info(f"Changed default directory where outputs are stored to {args.change_output_dir}")
+
         feature_to_subset, output_folder = validate_input(args)
+
+        if (feature_to_subset, output_folder) == (None, None): # in case someone just passes an argument to change default output dir
+            return
+        
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
