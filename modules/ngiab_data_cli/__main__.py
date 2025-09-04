@@ -138,11 +138,11 @@ def main() -> None:
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
 
-        if args.change_root_dir:
+        if args.output_root:
             with open(FilePaths.config_file, "w") as config_file:
-                config_file.write(args.change_root_dir)
+                config_file.write(args.output_root)
             logging.info(
-                f"Changed default directory where outputs are stored to {args.change_root_dir}"
+                f"Changed default directory where outputs are stored to {args.output_root}"
             )
 
         feature_to_subset, output_folder = validate_input(args)

@@ -14,7 +14,7 @@ def parse_arguments() -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group(required=False)
 
     parser.add_argument(
-        "--change_root_dir",
+        "--output_root",
         type=str,
         help="Path to new default directory where outputs in the future will be stored",
     )
