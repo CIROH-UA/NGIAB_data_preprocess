@@ -65,7 +65,7 @@ def subset_check():
     if run_paths.geopackage_path.exists():
         return str(run_paths.geopackage_path), 409
     else:
-        return 200
+        return "no conflict",200
 
 
 @main.route("/subset", methods=["POST"])
@@ -104,13 +104,11 @@ def subset_to_file():
 def make_forcings_progress_file():
     data = json.loads(request.data.decode("utf-8"))
     subset_gpkg = Path(data.split("subset to ")[-1])
-    output_folder = subset_gpkg.parent.parent
-    os.makedirs(Path(output_folder) / "temp", exist_ok=True)
-    progress_file = Path(output_folder / "temp" / "forcings_progress.json")
-    with open(Path(output_folder / "temp" / "forcings_progress.json"), "w") as f:
+    paths = FilePaths(subset_gpkg.stem.split("_")[0])
+    paths.forcing_progress_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(paths.forcing_progress_file, "w") as f:
         json.dump({"total_steps": 0, "steps_completed": 0}, f)
-
-    return str(progress_file), 200
+    return str(paths.forcing_progress_file), 200
 
 @main.route("/forcings_progress", methods=["POST"])
 def forcings_progress_endpoint():

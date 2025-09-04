@@ -49,8 +49,8 @@ class FilePaths:
             self.folder_name = folder_name
             self.output_dir = self.root_output_dir() / folder_name
         if output_dir:
-            self.output_dir = output_dir
-            self.folder_name = str(output_dir.stem)
+            self.output_dir = Path(output_dir)
+            self.folder_name = self.output_dir.stem
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -90,6 +90,10 @@ class FilePaths:
     @property
     def metadata_dir(self) -> Path:
         return self.subset_dir / "metadata"
+
+    @property
+    def forcing_progress_file(self) -> Path:
+        return self.metadata_dir / "forcing_progress.json"
 
     @property
     def geopackage_path(self) -> Path:
