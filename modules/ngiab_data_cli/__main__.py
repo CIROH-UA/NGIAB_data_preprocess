@@ -8,13 +8,14 @@ with rich.status.Status("loading") as status:
     import logging
     import subprocess
     import time
+    from multiprocessing import cpu_count
 
     import geopandas as gpd
-    from data_processing.create_realization import create_em_realization, create_realization
+    from data_processing.create_realization import create_lstm_realization, create_realization
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-    from data_processing.file_paths import file_paths
+    from data_processing.file_paths import FilePaths
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
@@ -27,51 +28,58 @@ with rich.status.Status("loading") as status:
 def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     """Validate input arguments."""
 
+    feature_name = None
+    output_folder = None
+
     if args.vpu:
         if not args.output_name:
             args.output_name = f"vpu-{args.vpu}"
             validate_output_dir()
         return args.vpu, args.output_name
 
-    input_feature = args.input_feature.replace("_", "-")
+    if args.input_feature:
+        input_feature = args.input_feature.replace("_", "-")
+      
+        if args.gage and not input_feature.startswith("gage-") :
+          input_feature = "gage-" + input_feature
 
-    # look at the prefix for autodetection, if -g or -l is used then there is no prefix
-    if len(input_feature.split("-")) > 1:
-        prefix = input_feature.split("-")[0]
-        if prefix.lower() == "gage":
-            args.gage = True
-        elif prefix.lower() == "wb":
-            logging.warning("Waterbody IDs are no longer supported!")
-            logging.warning(f"Automatically converting {input_feature} to catid")
-            time.sleep(2)
+        # look at the prefix for autodetection, if -g or -l is used then there is no prefix
+        if len(input_feature.split("-")) > 1:
+            prefix = input_feature.split("-")[0]
+            if prefix.lower() == "gage":
+                args.gage = True
+            elif prefix.lower() == "wb":
+                logging.warning("Waterbody IDs are no longer supported!")
+                logging.warning(f"Automatically converting {input_feature} to catid")
+                time.sleep(2)
 
-    # always add or replace the prefix with cat if it is not a lat lon or gage
-    if not args.latlon and not args.gage:
-        input_feature = "cat-" + input_feature.split("-")[-1]
+        # always add or replace the prefix with cat if it is not a lat lon or gage
+        if not args.latlon and not args.gage:
+            input_feature = "cat-" + input_feature.split("-")[-1]
 
-    if args.latlon and args.gage:
-        raise ValueError("Cannot use both --latlon and --gage options at the same time.")
+        if args.latlon and args.gage:
+            raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
-    if args.latlon:
-        validate_hydrofabric()
-        feature_name = get_cat_id_from_lat_lon(input_feature)
-        logging.info(f"Found {feature_name} from {input_feature}")
-    elif args.gage:
-        validate_hydrofabric()
-        feature_name = get_cat_from_gage_id(input_feature)
-        logging.info(f"Found {feature_name} from {input_feature}")
-    else:
-        feature_name = input_feature
+        if args.latlon:
+            validate_hydrofabric()
+            feature_name = get_cat_id_from_lat_lon(input_feature)
+            logging.info(f"Found {feature_name} from {input_feature}")
+        elif args.gage:
+            validate_hydrofabric()
+            feature_name = get_cat_from_gage_id(input_feature)
+            logging.info(f"Found {feature_name} from {input_feature}")
+        else:
+            feature_name = input_feature
 
-    if args.output_name:
-        output_folder = args.output_name
-        validate_output_dir()
-    elif args.gage:
-        output_folder = input_feature
-        validate_output_dir()
-    else:
-        output_folder = feature_name
-        validate_output_dir()
+        if args.output_name:
+            output_folder = args.output_name
+            validate_output_dir()
+        elif args.gage:
+            output_folder = input_feature
+            validate_output_dir()            
+        else:
+            output_folder = feature_name
+            validate_output_dir()
 
     return feature_name, output_folder
 
@@ -85,7 +93,7 @@ def get_cat_id_from_lat_lon(input_feature: str) -> str:
         raise ValueError("Lat Lon input must be comma separated e.g. -l 54.33,-69.4")
 
 
-def set_dependent_flags(args, paths: file_paths):
+def set_dependent_flags(args, paths: FilePaths):
     # if validate is set, run everything that is missing
     if args.validate:
         logging.info("Running all missing steps required to run ngiab.")
@@ -107,7 +115,7 @@ def set_dependent_flags(args, paths: file_paths):
     return args
 
 
-def validate_run_directory(args, paths: file_paths):
+def validate_run_directory(args, paths: FilePaths):
     # checks the folder that is going to be run, enables steps that are needed to populate the folder
     if not paths.subset_dir.exists():
         logging.info("Subset folder does not exist, enabling subset, forcings, and realization.")
@@ -132,8 +140,23 @@ def main() -> None:
         args = parse_arguments()
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
+
+        if args.output_root:
+            with open(FilePaths.config_file, "w") as config_file:
+                config_file.write(args.output_root)
+            logging.info(
+                f"Changed default directory where outputs are stored to {args.output_root}"
+            )
+
         feature_to_subset, output_folder = validate_input(args)
-        paths = file_paths(output_folder)
+
+        if (feature_to_subset, output_folder) == (
+            None,
+            None,
+        ):  # in case someone just passes an argument to change default output dir
+            return
+
+        paths = FilePaths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
             logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
@@ -184,8 +207,10 @@ def main() -> None:
             gage_id = None
             if args.gage:
                 gage_id = args.input_feature
-            if args.empirical_model:
-                create_em_realization(
+                if not gage_id.startswith("gage-"):
+                    gage_id = "gage-" + gage_id
+            if args.lstm:
+                create_lstm_realization(
                     output_folder, start_time=args.start_date, end_time=args.end_date
                 )
             else:
@@ -200,17 +225,13 @@ def main() -> None:
 
         if args.run:
             logging.info("Running Next Gen using NGIAB...")
-            # open the partitions.json file and get the number of partitions
-            with open(paths.metadata_dir / "num_partitions", "r") as f:
-                num_partitions = int(f.read())
 
             try:
                 subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
             except:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
-                # command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngiab /ngen/ngen/data/ auto {num_partitions} local'
-                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {num_partitions} local'
+                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
             except:

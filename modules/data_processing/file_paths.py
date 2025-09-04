@@ -1,8 +1,9 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
-class file_paths:
+
+class FilePaths:
     """
     This class contains all of the file paths used in the data processing
     workflow.
@@ -27,15 +28,14 @@ class file_paths:
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
     template_cfe_nowpm_realization_config = data_sources / "cfe-nowpm-realization-template.json"
-    template_em_realization_config = data_sources / "em-realization-template.json"
+    template_lstm_realization_config = data_sources / "lstm-realization-template.json"
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
     template_cfe_config = data_sources / "cfe-template.ini"
-    template_em_config = data_sources / "em-catchment-template.yml"
-    template_em_model_config = data_sources / "em-config.yml"
+    template_lstm_config = data_sources / "lstm-catchment-template.yml"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
-        Initialize the file_paths class with a the name of the output subfolder.
+        Initialize the FilePaths class with a the name of the output subfolder.
         OR the path to the output folder you want to use.
         use one or the other, not both
 

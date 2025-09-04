@@ -9,7 +9,7 @@ import geopandas as gpd
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from data_processing.forcings import create_forcings
 from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
 from data_processing.subset import subset
@@ -25,24 +25,35 @@ logger = logging.getLogger(__name__)
 def index():
     return render_template("index.html")
 
-
+# this subset does not include the downstream nexus
 @main.route("/get_upstream_catids", methods=["POST"])
 def get_upstream_catids():
     cat_id = json.loads(request.data.decode("utf-8"))
     # give wb_id to get_upstream_cats because the graph search is 1000x faster
     wb_id = "wb-" + cat_id.split("-")[-1]
-    upstream_cats = get_upstream_cats(wb_id)
-    if cat_id in upstream_cats:
-        upstream_cats.remove(cat_id)
-    return list(upstream_cats), 200
+    upstream_cats = get_upstream_ids(wb_id, include_outlet=False)
+    cleaned_upstreams = set()
+    for id in upstream_cats:
+        if id.startswith("wb-"):
+            cleaned_upstreams.add("cat-" + id.split("-")[-1])
+    if cat_id in cleaned_upstreams:
+        cleaned_upstreams.remove(cat_id)
+    return list(cleaned_upstreams), 200
 
-
+# this subset includes the downstream nexus
 @main.route("/get_upstream_wbids", methods=["POST"])
 def get_upstream_wbids():
     cat_id = json.loads(request.data.decode("utf-8"))
-    upstream_ids = get_upstream_ids(cat_id)
-    # remove the selected cat_id from the set
-    return [id for id in upstream_ids if id.startswith("wb")], 200
+    # give wb_id to get_upstream_cats because the graph search is 1000x faster
+    wb_id = "wb-" + cat_id.split("-")[-1]
+    upstream_cats = get_upstream_ids(wb_id)
+    cleaned_upstreams = set()
+    for id in upstream_cats:
+        if id.startswith("wb-"):
+            cleaned_upstreams.add("cat-" + id.split("-")[-1])
+    if cat_id in cleaned_upstreams:
+        cleaned_upstreams.remove(cat_id)
+    return list(cleaned_upstreams), 200
 
 
 @main.route("/subset_check", methods=["POST"])
@@ -50,20 +61,28 @@ def subset_check():
     cat_ids = list(json.loads(request.data.decode("utf-8")))
     logger.info(cat_ids)
     subset_name = cat_ids[0]
-    run_paths = file_paths(subset_name)
+    run_paths = FilePaths(subset_name)
     if run_paths.geopackage_path.exists():
-        return "check required", 409
+        return str(run_paths.geopackage_path), 409
     else:
-        return "success", 200
+        return 200
 
 
 @main.route("/subset", methods=["POST"])
 def subset_selection():
-    cat_ids = list(json.loads(request.data.decode("utf-8")))
+    #body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type})
+    data = json.loads(request.data.decode("utf-8"))
+    cat_ids = data.get("cat_id")
+    subset_type = data.get("subset_type")
     logger.info(cat_ids)
+    logger.info(subset_type)
     subset_name = cat_ids[0]
-    run_paths = file_paths(subset_name)
-    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
+
+    run_paths = FilePaths(subset_name)
+    if subset_type == "nexus":
+        subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
+    else:
+        subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, include_outlet=False, override_gpkg=True)
     return str(run_paths.geopackage_path), 200
 
 
@@ -74,7 +93,7 @@ def subset_to_file():
     logger.info(cat_ids)
     subset_name = cat_ids[0]
     total_subset = get_upstream_ids(cat_ids)
-    subset_paths = file_paths(subset_name)
+    subset_paths = FilePaths(subset_name)
     output_file = subset_paths.subset_dir / "subset.txt"
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w") as f:
@@ -126,7 +145,7 @@ def get_forcings():
     data = json.loads(request.data.decode("utf-8"))
     subset_gpkg = Path(data.get("forcing_dir").split("subset to ")[-1])
     output_folder = Path(subset_gpkg.parent.parent)
-    paths = file_paths(output_dir=output_folder)
+    paths = FilePaths(output_dir=output_folder)
 
     start_time = data.get("start_time")
     end_time = data.get("end_time")

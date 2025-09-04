@@ -1,29 +1,31 @@
 import gzip
 import json
 import os
+import sqlite3
 import tarfile
 import warnings
 from time import sleep
 
 import boto3
+import botocore
 import psutil
 import requests
 from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
-import botocore
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
+from data_processing.gpkg_utils import verify_indices
 from rich.console import Console
-from rich.progress import (Progress, 
-                           SpinnerColumn, 
-                           TextColumn, 
-                           TimeElapsedColumn, 
-                           BarColumn, 
-                           DownloadColumn, 
-                           TransferSpeedColumn)
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TransferSpeedColumn,
+)
 from rich.prompt import Prompt
 from tqdm import TqdmExperimentalWarning
-from data_processing.gpkg_utils import verify_indices
-import sqlite3
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
@@ -60,13 +62,15 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
     if os.path.exists(save_path):
         console.print(f"File already exists: {save_path}", style="bold yellow")
         os.remove(save_path)
-    
-    client_config = botocore.config.Config(
-        max_pool_connections=75
-    )
+
+    client_config = botocore.config.Config(max_pool_connections=75)
     # Initialize S3 client
     s3_client = boto3.client(
-        "s3", aws_access_key_id="", aws_secret_access_key="", region_name=region, config=client_config
+        "s3",
+        aws_access_key_id="",
+        aws_secret_access_key="",
+        region_name=region,
+        config=client_config,
     )
     # Disable request signing for public buckets
     s3_client._request_signer.sign = lambda *args, **kwargs: None
@@ -102,15 +106,20 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         use_threads=True,
     )
 
-
     try:
         dl_progress = Progress(BarColumn(), DownloadColumn(), TransferSpeedColumn())
         # Download file using optimized transfer config
         with dl_progress:
             task = dl_progress.add_task("Downloading...", total=total_size)
-            s3_client.download_file(Bucket=bucket, Key=key, Filename=save_path, Config=config,
-                                    Callback=lambda bytes_downloaded: dl_progress.update(
-                                        task, advance=bytes_downloaded))
+            s3_client.download_file(
+                Bucket=bucket,
+                Key=key,
+                Filename=save_path,
+                Config=config,
+                Callback=lambda bytes_downloaded: dl_progress.update(
+                    task, advance=bytes_downloaded
+                ),
+            )
         return True
     except Exception as e:
         console.print(f"Error downloading file: {e}", style="bold red")
@@ -128,47 +137,47 @@ def get_headers():
 
 
 def download_and_update_hf():
-
-    if file_paths.conus_hydrofabric.is_file():
+    if FilePaths.conus_hydrofabric.is_file():
         console.print(
-            f"Hydrofabric already exists at {file_paths.conus_hydrofabric}, removing it to download the latest version.",
+            f"Hydrofabric already exists at {FilePaths.conus_hydrofabric}, removing it to download the latest version.",
             style="bold yellow",
         )
-        file_paths.conus_hydrofabric.unlink()
-        
+        FilePaths.conus_hydrofabric.unlink()
+
     download_from_s3(
-        file_paths.conus_hydrofabric.with_suffix(".tar.gz"),
+        FilePaths.conus_hydrofabric.with_suffix(".tar.gz"),
         bucket="communityhydrofabric",
         key="hydrofabrics/community/conus_nextgen.tar.gz",
     )
 
-    if file_paths.hydrofabric_graph.is_file():
+    if FilePaths.hydrofabric_graph.is_file():
         console.print(
-            f"Hydrofabric graph already exists at {file_paths.hydrofabric_graph}, removing it to download the latest version.",
+            f"Hydrofabric graph already exists at {FilePaths.hydrofabric_graph}, removing it to download the latest version.",
             style="bold yellow",
         )
-        file_paths.hydrofabric_graph.unlink()
+        FilePaths.hydrofabric_graph.unlink()
 
     download_from_s3(
-        file_paths.hydrofabric_graph,
+        FilePaths.hydrofabric_graph,
         bucket="communityhydrofabric",
-        key="hydrofabrics/community/conus_igraph_network.gpickle"
+        key="hydrofabrics/community/conus_igraph_network.gpickle",
     )
 
     status, headers = get_headers()
 
     if status == 200:
         # write headers to a file
-        with open(file_paths.hydrofabric_download_log, "w") as f:
+        with open(FilePaths.hydrofabric_download_log, "w") as f:
             json.dump(dict(headers), f)
 
     decompress_gzip_tar(
-        file_paths.conus_hydrofabric.with_suffix(".tar.gz"),
-        file_paths.conus_hydrofabric.parent,
+        FilePaths.conus_hydrofabric.with_suffix(".tar.gz"),
+        FilePaths.conus_hydrofabric.parent,
     )
 
+
 def validate_hydrofabric():
-    if not file_paths.conus_hydrofabric.is_file():
+    if not FilePaths.conus_hydrofabric.is_file():
         response = Prompt.ask(
             "Hydrofabric files are missing. Would you like to download them now?",
             default="y",
@@ -180,11 +189,11 @@ def validate_hydrofabric():
             console.print("Exiting...", style="bold red")
             exit()
 
-    if file_paths.no_update_hf.exists():
+    if FilePaths.no_update_hf.exists():
         # skip the updates
         return
 
-    if not file_paths.hydrofabric_download_log.is_file():
+    if not FilePaths.hydrofabric_download_log.is_file():
         response = Prompt.ask(
             "Hydrofabric version information unavailable, Would you like to fetch the updated version?",
             default="y",
@@ -195,13 +204,13 @@ def validate_hydrofabric():
         else:
             console.print("Continuing... ", style="bold yellow")
             console.print(
-                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}",
+                f"To disable this warning, create an empty file called {FilePaths.no_update_hf.resolve()}",
                 style="bold yellow",
             )
             sleep(2)
             return
 
-    with open(file_paths.hydrofabric_download_log, "r") as f:
+    with open(FilePaths.hydrofabric_download_log, "r") as f:
         content = f.read()
         headers = json.loads(content)
 
@@ -229,26 +238,29 @@ def validate_hydrofabric():
         else:
             console.print("Continuing... ", style="bold yellow")
             console.print(
-                f"To disable this warning, create an empty file called {file_paths.no_update_hf.resolve()}",
+                f"To disable this warning, create an empty file called {FilePaths.no_update_hf.resolve()}",
                 style="bold yellow",
             )
             sleep(2)
             return
-    
+
     # moved this from gpkg_utils to here to avoid potential nested rich live displays
-    if file_paths.conus_hydrofabric.is_file():
+    if FilePaths.conus_hydrofabric.is_file():
         valid_hf = False
         while not valid_hf:
             try:
                 verify_indices()
                 valid_hf = True
             except sqlite3.DatabaseError:
-                console.print(f"Hydrofabric {file_paths.conus_hydrofabric} is corrupted. Redownloading...", style="red")
+                console.print(
+                    f"Hydrofabric {FilePaths.conus_hydrofabric} is corrupted. Redownloading...",
+                    style="red",
+                )
                 download_and_update_hf()
 
 
 def validate_output_dir():
-    if not file_paths.config_file.is_file():
+    if not FilePaths.config_file.is_file():
         response = Prompt.ask(
             "Output directory is not set. Would you like to use the default? ~/ngiab_preprocess_output/",
             default="y",
@@ -258,7 +270,7 @@ def validate_output_dir():
             response = Prompt.ask("Enter the path to the working directory")
         if response == "" or response.lower() == "y":
             response = "~/ngiab_preprocess_output/"
-        file_paths.set_working_dir(response)  # type: ignore
+        FilePaths.set_working_dir(response)  # type: ignore
 
 
 def validate_all():

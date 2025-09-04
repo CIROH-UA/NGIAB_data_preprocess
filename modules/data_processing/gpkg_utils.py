@@ -2,10 +2,10 @@ import logging
 import sqlite3
 import struct
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
 
 import pyproj
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
@@ -28,7 +28,7 @@ class GeoPackage:
         self.conn.close()
 
 
-def verify_indices(gpkg: Path = file_paths.conus_hydrofabric) -> None:
+def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     """
     Verify that the indices in the specified geopackage are correct.
     If they are not, create the correct indices.
@@ -74,7 +74,7 @@ def create_empty_gpkg(gpkg: Path) -> None:
     """
     Create an empty geopackage with the necessary tables and indices.
     """
-    with open(file_paths.template_sql) as f:
+    with open(FilePaths.template_sql) as f:
         sql_script = f.read()
 
     with sqlite3.connect(gpkg) as conn:
@@ -85,14 +85,12 @@ def add_triggers_to_gpkg(gpkg: Path) -> None:
     """
     Adds geopackage triggers required to maintain spatial index integrity
     """
-    with open(file_paths.triggers_sql) as f:
+    with open(FilePaths.triggers_sql) as f:
         triggers = f.read()
     with sqlite3.connect(gpkg) as conn:
         conn.executescript(triggers)
 
     logger.debug(f"Added triggers to subset gpkg {gpkg}")
-
-
 
 
 def blob_to_geometry(blob: bytes) -> BaseGeometry | None:
@@ -178,7 +176,7 @@ def get_catid_from_point(coords: Dict[str, float]) -> str:
 
     """
     logger.info(f"Getting catid for {coords}")
-    q = file_paths.conus_hydrofabric
+    q = FilePaths.conus_hydrofabric
     point = Point(coords["lng"], coords["lat"])
     point = convert_to_5070(point)
     with sqlite3.connect(q) as con:
@@ -261,7 +259,7 @@ def update_geopackage_metadata(gpkg: Path) -> None:
     Update the contents of the gpkg_contents table in the specified geopackage.
     """
     # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
-    tables = get_feature_tables(file_paths.conus_hydrofabric)
+    tables = get_feature_tables(FilePaths.conus_hydrofabric)
     con = sqlite3.connect(gpkg)
     for table in tables:
         min_x = con.execute(f"SELECT MIN(minx) FROM rtree_{table}_geom").fetchone()[0]
@@ -336,7 +334,7 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
 
     insert_data(dest_db, table, contents)
 
-    if table in get_feature_tables(file_paths.conus_hydrofabric):
+    if table in get_feature_tables(FilePaths.conus_hydrofabric):
         fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 
@@ -389,7 +387,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
 
     insert_data(dest_db, table, contents)
 
-    if table in get_feature_tables(file_paths.conus_hydrofabric):
+    if table in get_feature_tables(FilePaths.conus_hydrofabric):
         fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 
@@ -436,7 +434,7 @@ def get_table_crs(gpkg: str, table: str) -> str:
     return crs
 
 
-def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric) -> str:
+def get_cat_from_gage_id(gage_id: str, gpkg: Path = FilePaths.conus_hydrofabric) -> str:
     """
     Get the catchment id associated with a gage id.
 
@@ -476,7 +474,7 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = file_paths.conus_hydrofabric
     return cat_id
 
 
-def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric) -> List[Tuple]:
+def get_cat_to_nex_flowpairs(hydrofabric: Path = FilePaths.conus_hydrofabric) -> List[Tuple]:
     """
     Retrieves the from and to IDs from the specified hydrofabric.
 
@@ -484,7 +482,7 @@ def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric) -
     The true network flows catchment to waterbody to nexus, this bypasses the waterbody and returns catchment to nexus.
 
     Args:
-        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to file_paths.conus_hydrofabric.
+        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to FilePaths.conus_hydrofabric.
     Returns:
         List[tuple]: A list of tuples containing the from and to IDs.
     """
@@ -518,7 +516,7 @@ def get_available_tables(gpkg: Path) -> List[str]:
     return tables
 
 
-def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> Dict[str, int]:
+def get_cat_to_nhd_feature_id(gpkg: Path = FilePaths.conus_hydrofabric) -> Dict[str, int]:
     available_tables = get_available_tables(gpkg)
     possible_tables = ["flowpath_edge_list", "network"]
 

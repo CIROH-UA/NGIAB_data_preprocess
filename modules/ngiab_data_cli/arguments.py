@@ -11,7 +11,14 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Subsetting hydrofabrics, forcing generation, and realization creation"
     )
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
+
+    parser.add_argument(
+        "--output_root",
+        type=str,
+        help="Path to new default directory where outputs in the future will be stored",
+    )
+
     group.add_argument(
         "-i",
         "--input_feature",
@@ -97,7 +104,7 @@ def parse_arguments() -> argparse.Namespace:
         "-o",
         "--output_name",
         type=str,
-        help="Name of the output folder",
+        help="Custom data output folder name in lieu of the default, which is the ID of the input feature",
     )
     parser.add_argument(
         "-D",
@@ -106,10 +113,9 @@ def parse_arguments() -> argparse.Namespace:
         help="enable debug logging",
     )
     parser.add_argument(
-        "--empirical_model",
-        "--em",
+        "--lstm",
         action="store_true",
-        help="enable empirical model realization and forcings",
+        help="enable LSTM model realization and forcings",
     )
     parser.add_argument(
         "--nwm_gw",
