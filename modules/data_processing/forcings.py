@@ -16,7 +16,7 @@ import psutil
 import xarray as xr
 from data_processing.dask_utils import no_cluster, use_cluster
 from data_processing.dataset_utils import validate_dataset_format
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from exactextract import exact_extract
 from exactextract.raster import NumPyRasterSource
 from rich.progress import (
@@ -493,8 +493,8 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     temp_forcings_dir.rmdir()
 
 
-def setup_directories(cat_id: str) -> file_paths:
-    forcing_paths = file_paths(cat_id)
+def setup_directories(cat_id: str) -> FilePaths:
+    forcing_paths = FilePaths(cat_id)
     # delete everything in the forcing folder except the cached nc file
     for file in forcing_paths.forcings_dir.glob("*.*"):
         if file != forcing_paths.cached_nc_file:

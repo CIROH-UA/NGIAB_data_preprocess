@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import List, Union
 
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import (
     add_triggers_to_gpkg,
     create_empty_gpkg,
@@ -73,7 +73,7 @@ def create_subset_gpkg(
 
 
 def subset_vpu(
-    vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_paths.conus_hydrofabric
+    vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = FilePaths.conus_hydrofabric
 ):
     if os.path.exists(output_gpkg_path):
         response = Prompt.ask(
@@ -95,7 +95,7 @@ def subset_vpu(
 
 def subset(
     cat_ids: str | List[str],
-    hydrofabric: Path = file_paths.conus_hydrofabric,
+    hydrofabric: Path = FilePaths.conus_hydrofabric,
     output_gpkg_path: Path = Path(),
     include_outlet: bool = True,
     override_gpkg: bool = True,
@@ -106,7 +106,7 @@ def subset(
         # if the name isn't provided, use the first upstream id
         upstream_ids = sorted(upstream_ids)
         output_folder_name = upstream_ids[0]
-        paths = file_paths(output_folder_name)
+        paths = FilePaths(output_folder_name)
         output_gpkg_path = paths.geopackage_path
 
     create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path, override_gpkg=override_gpkg)

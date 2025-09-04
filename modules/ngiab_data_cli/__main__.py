@@ -9,14 +9,13 @@ with rich.status.Status("loading") as status:
     import subprocess
     import time
     from multiprocessing import cpu_count
-    import os
 
     import geopandas as gpd
     from data_processing.create_realization import create_lstm_realization, create_realization
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-    from data_processing.file_paths import file_paths
+    from data_processing.file_paths import FilePaths
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
@@ -24,7 +23,6 @@ with rich.status.Status("loading") as status:
     from data_sources.source_validation import validate_hydrofabric, validate_output_dir
     from ngiab_data_cli.arguments import parse_arguments
     from ngiab_data_cli.custom_logging import set_logging_to_critical_only, setup_logging
-    
 
 
 def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
@@ -92,7 +90,7 @@ def get_cat_id_from_lat_lon(input_feature: str) -> str:
         raise ValueError("Lat Lon input must be comma separated e.g. -l 54.33,-69.4")
 
 
-def set_dependent_flags(args, paths: file_paths):
+def set_dependent_flags(args, paths: FilePaths):
     # if validate is set, run everything that is missing
     if args.validate:
         logging.info("Running all missing steps required to run ngiab.")
@@ -114,7 +112,7 @@ def set_dependent_flags(args, paths: file_paths):
     return args
 
 
-def validate_run_directory(args, paths: file_paths):
+def validate_run_directory(args, paths: FilePaths):
     # checks the folder that is going to be run, enables steps that are needed to populate the folder
     if not paths.subset_dir.exists():
         logging.info("Subset folder does not exist, enabling subset, forcings, and realization.")
@@ -141,17 +139,21 @@ def main() -> None:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
 
         if args.change_root_dir:
-            config_file_path = os.path.expanduser("~/.ngiab/")
-            with open(os.path.join(config_file_path, "preprocessor"), "w") as config_file:
+            with open(FilePaths.config_file, "w") as config_file:
                 config_file.write(args.change_root_dir)
-            logging.info(f"Changed default directory where outputs are stored to {args.change_root_dir}")
+            logging.info(
+                f"Changed default directory where outputs are stored to {args.change_root_dir}"
+            )
 
         feature_to_subset, output_folder = validate_input(args)
 
-        if (feature_to_subset, output_folder) == (None, None): # in case someone just passes an argument to change default output dir
+        if (feature_to_subset, output_folder) == (
+            None,
+            None,
+        ):  # in case someone just passes an argument to change default output dir
             return
-        
-        paths = file_paths(output_folder)
+
+        paths = FilePaths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
             logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
@@ -218,7 +220,7 @@ def main() -> None:
 
         if args.run:
             logging.info("Running Next Gen using NGIAB...")
-            
+
             try:
                 subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
             except:

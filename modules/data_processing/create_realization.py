@@ -1,21 +1,21 @@
 import json
 import logging
 import multiprocessing
+import os
 import shutil
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
-import psutil
-import os
 
 import numpy as np
 import pandas
+import psutil
 import requests
 import s3fs
 import xarray as xr
 from data_processing.dask_utils import temp_cluster
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import (
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 @temp_cluster
-def get_approximate_gw_storage(paths: file_paths, start_date: datetime) -> Dict[str, int]:
+def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[str, int]:
     # get the gw levels from the NWM output on a given start date
     # this kind of works in place of warmstates for now
     year = start_date.strftime("%Y")
@@ -50,11 +50,9 @@ def get_approximate_gw_storage(paths: file_paths, start_date: datetime) -> Dict[
     return water_levels
 
 
-def make_cfe_config(
-    divide_conf_df: pandas.DataFrame, files: file_paths, water_levels: dict
-) -> None:
+def make_cfe_config(divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: dict) -> None:
     """Parses parameters from NOAHOWP_CFE DataFrame and returns a dictionary of catchment configurations."""
-    with open(file_paths.template_cfe_config, "r") as f:
+    with open(FilePaths.template_cfe_config, "r") as f:
         cfe_template = f.read()
     cat_config_dir = files.config_dir / "cat_config" / "CFE"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
@@ -92,7 +90,7 @@ def make_noahowp_config(
 ) -> None:
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
-    with open(file_paths.template_noahowp_config, "r") as file:
+    with open(FilePaths.template_noahowp_config, "r") as file:
         template = file.read()
 
     cat_config_dir = base_dir / "cat_config" / "NOAH-OWP-M"
@@ -137,7 +135,7 @@ def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
 def make_lstm_config(
     hydrofabric: Path,
     output_dir: Path,
-    template_path: Path = file_paths.template_lstm_config,
+    template_path: Path = FilePaths.template_lstm_config,
 ):
     # test if modspatialite is available
 
@@ -177,17 +175,19 @@ def make_lstm_config(
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
 ) -> None:
-    with open(file_paths.template_troute_config, "r") as file:
+    with open(FilePaths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
-    gpkg_file_path=f"{config_dir}/{cat_id}_subset.gpkg"
+    gpkg_file_path = f"{config_dir}/{cat_id}_subset.gpkg"
     nts = (end_time - start_time).total_seconds() / time_step_size
     with sqlite3.connect(gpkg_file_path) as conn:
         ncats_df = pandas.read_sql_query("SELECT COUNT(id) FROM 'divides';", conn)
-        ncats = ncats_df['COUNT(id)'][0]
+        ncats = ncats_df["COUNT(id)"][0]
 
-    est_bytes_required = nts * ncats * 45 # extremely rough calculation based on about 3 tests :)
-    local_ram_available = 0.8 * psutil.virtual_memory().available # buffer to not accidentally explode machine
+    est_bytes_required = nts * ncats * 45  # extremely rough calculation based on about 3 tests :)
+    local_ram_available = (
+        0.8 * psutil.virtual_memory().available
+    )  # buffer to not accidentally explode machine
 
     if est_bytes_required > local_ram_available:
         max_loop_size = nts // (est_bytes_required // local_ram_available)
@@ -210,7 +210,7 @@ def configure_troute(
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=nts,
         max_loop_size=max_loop_size,
-        binary_nexus_file_folder_comment=binary_nexus_file_folder_comment 
+        binary_nexus_file_folder_comment=binary_nexus_file_folder_comment,
     )
 
     with open(config_dir / "troute.yaml", "w") as file:
@@ -232,8 +232,8 @@ def make_ngen_realization_json(
 
 
 def create_lstm_realization(cat_id: str, start_time: datetime, end_time: datetime):
-    paths = file_paths(cat_id)
-    template_path = file_paths.template_lstm_realization_config
+    paths = FilePaths(cat_id)
+    template_path = FilePaths.template_lstm_realization_config
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
     make_lstm_config(paths.geopackage_path, paths.config_dir)
@@ -248,7 +248,7 @@ def create_realization(
     use_nwm_gw: bool = False,
     gage_id: Optional[str] = None,
 ):
-    paths = file_paths(cat_id)
+    paths = FilePaths(cat_id)
 
     template_path = paths.template_cfe_nowpm_realization_config
 

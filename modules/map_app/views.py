@@ -7,7 +7,7 @@ import geopandas as gpd
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from data_processing.forcings import create_forcings
 from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
 from data_processing.subset import subset
@@ -48,7 +48,7 @@ def subset_check():
     cat_ids = list(json.loads(request.data.decode("utf-8")))
     logger.info(cat_ids)
     subset_name = cat_ids[0]
-    run_paths = file_paths(subset_name)
+    run_paths = FilePaths(subset_name)
     if run_paths.geopackage_path.exists():
         return "check required", 409
     else:
@@ -60,7 +60,7 @@ def subset_selection():
     cat_ids = list(json.loads(request.data.decode("utf-8")))
     logger.info(cat_ids)
     subset_name = cat_ids[0]
-    run_paths = file_paths(subset_name)
+    run_paths = FilePaths(subset_name)
     subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
     return str(run_paths.geopackage_path), 200
 
@@ -72,7 +72,7 @@ def subset_to_file():
     logger.info(cat_ids)
     subset_name = cat_ids[0]
     total_subset = get_upstream_ids(cat_ids)
-    subset_paths = file_paths(subset_name)
+    subset_paths = FilePaths(subset_name)
     output_file = subset_paths.subset_dir / "subset.txt"
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w") as f:
@@ -86,7 +86,7 @@ def get_forcings():
     data = json.loads(request.data.decode("utf-8"))
     subset_gpkg = Path(data.get("forcing_dir").split("subset to ")[-1])
     output_folder = Path(subset_gpkg.parent.parent)
-    paths = file_paths(output_dir=output_folder)
+    paths = FilePaths(output_dir=output_folder)
 
     start_time = data.get("start_time")
     end_time = data.get("end_time")

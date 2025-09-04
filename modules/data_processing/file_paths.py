@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 
-class file_paths:
+class FilePaths:
     """
     This class contains all of the file paths used in the data processing
     workflow.
@@ -35,7 +35,7 @@ class file_paths:
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
-        Initialize the file_paths class with a the name of the output subfolder.
+        Initialize the FilePaths class with a the name of the output subfolder.
         OR the path to the output folder you want to use.
         use one or the other, not both
 
