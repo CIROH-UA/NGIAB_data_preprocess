@@ -167,7 +167,7 @@ def make_lstm_config(
                     lat=row["latitude"],
                     lon=row["longitude"],
                     slope_mean=row["mean_slope_mpkm"],
-                    elevation_mean=row["mean.elevation"] / 1000,  # convert mm in hf to m
+                    elevation_mean=row["mean.elevation"] / 100,  # convert cm in hf to m
                 )
             )
 
@@ -263,6 +263,8 @@ def create_realization(
             with open(template_path, "w") as f:
                 json.dump(new_template, f)
             logger.info(f"downloaded calibrated parameters for {gage_id}")
+        else:
+            logger.warning(f"could not download parameters for {gage_id}, using default template")
 
     conf_df = get_model_attributes(paths.geopackage_path)
 
