@@ -7,15 +7,13 @@ from functools import partial
 from math import ceil
 from multiprocessing import shared_memory
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
-from xarray.core.types import InterpOptions
-
 from data_processing.dask_utils import no_cluster, use_cluster
 from data_processing.dataset_utils import validate_dataset_format
 from data_processing.file_paths import file_paths
@@ -28,6 +26,7 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+from xarray.core.types import InterpOptions
 
 logger = logging.getLogger(__name__)
 # Suppress the specific warning from numpy to keep the cli output clean
@@ -65,10 +64,16 @@ def weighted_sum_of_cells(
         Each element contains the averaged forcing value for the whole catchment
         over one timestep.
     """
-    result = np.zeros(flat_raster.shape[0])
+    # early exit for divide by zero
+    if np.all(factors == 0):
+        return np.zeros(flat_raster.shape[0])
+
+    selected_cells = flat_raster[:, cell_ids]
+    has_nan = np.isnan(selected_cells).any(axis=1)
     result = np.sum(flat_raster[:, cell_ids] * factors, axis=1)
     sum_of_weights = np.sum(factors)
     result /= sum_of_weights
+    result[has_nan] = np.nan
     return result
 
 
@@ -306,11 +311,11 @@ def get_units(dataset: xr.Dataset) -> dict:
             units[var] = dataset[var].attrs["units"]
     return units
 
+
 def interpolate_nan_values(
     dataset: xr.Dataset,
-    variables: Optional[List[str]] = None,
     dim: str = "time",
-    method: InterpOptions = "nearest",
+    method: InterpOptions = "linear",
     fill_value: str = "extrapolate",
 ) -> bool:
     """
@@ -321,14 +326,11 @@ def interpolate_nan_values(
     ----------
     dataset : xr.Dataset
         The input dataset.
-    variables : Optional[List[str]], optional
-        A list of variable names to process. If None (default),
-        all numeric variables containing the specified dimension will be processed.
     dim : str, optional
         The dimension along which to interpolate (default is "time").
     method : str, optional
         Interpolation method to use (e.g., "linear", "nearest", "cubic").
-        Default is "nearest".
+        Default is "linear".
     fill_value : str, optional
         Method for filling NaNs at the start/end of the series after interpolation.
         Set to "extrapolate" to fill with the nearest valid value when using 'nearest' or 'linear'.
@@ -341,12 +343,14 @@ def interpolate_nan_values(
         # if there are no NANs, skip
         if not var.isnull().any().compute():
             continue
+        logger.info("Interpolating NaN values in %s", name)
 
         dataset[name] = var.interpolate_na(
             dim=dim,
             method=method,
             fill_value=fill_value if method in ["nearest", "linear"] else None,
         )
+
 
 @no_cluster
 def compute_zonal_stats(
@@ -523,7 +527,6 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     final_ds["Time"].attrs["epoch_start"] = (
         "01/01/1970 00:00:00"  # not needed but suppresses the ngen warning
     )
-    logger.info("Interpolating NaN values")
     interpolate_nan_values(final_ds)
 
     logger.info("Saving to disk")
