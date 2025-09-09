@@ -375,8 +375,8 @@ input[type="datetime-local"] {
 #menuToggle input
 {
   display: block;
-  width: 40px;
-  height: 32px;
+  width: 45px;
+  height: 45px;
   position: absolute;
   top: -7px;
   left: -7px;
@@ -387,67 +387,6 @@ input[type="datetime-local"] {
   z-index: 2; /* and place it over the hamburger */
   
   -webkit-touch-callout: none;
-}
-
-/*
- * Just a quick hamburger
- */
-#menuToggle span
-{
-  display: block;
-  width: 33px;
-  height: 4px;
-  margin-bottom: 5px;
-  position: relative;
-  
-  background: light-dark(#232323, #aaaaaa);
-  border-radius: 3px;
-  
-  z-index: 1;
-  
-  transform-origin: 4px 0px;
-  
-  transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
-              background 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
-              opacity 0.55s ease;
-}
-
-#menuToggle span:first-child
-{
-  transform-origin: 0% 0%;
-}
-
-#menuToggle span:nth-last-child(2)
-{
-  transform-origin: 0% 100%;
-}
-
-/* 
- * Transform all the slices of hamburger
- * into a crossmark.
- */
-#menuToggle input:checked ~ span
-{
-  opacity: 1;
-  transform: rotate(45deg) translate(-2px, -1px);
-  background: #232323;
-}
-
-/*
- * But let's hide the middle one.
- */
-#menuToggle input:checked ~ span:nth-last-child(3)
-{
-  opacity: 0;
-  transform: rotate(0deg) scale(0.2, 0.2);
-}
-
-/*
- * Ohyeah and the last one should go the other direction
- */
-#menuToggle input:checked ~ span:nth-last-child(2)
-{
-  transform: rotate(-45deg) translate(0, -1px);
 }
 
 #menu
@@ -489,4 +428,35 @@ input[type="datetime-local"] {
 #menuToggle input:checked ~ ul
 {
   transform: none;
+}
+
+.icons {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.icons svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.3s ease, z-index 0.3s;
+  fill: light-dark(#1e293b, #f1f5f9);
+} 
+
+.icons .x {
+  opacity: 0;
+}
+
+#menuToggle input:checked ~ .icons .x {
+  opacity: 1;
+  z-index: 1;
+}
+
+/* smooths out transition when menu goes away */
+#menuToggle input:not(:checked) ~ .icons .x {
+  opacity: 0;
+  z-index: 0;
 }
