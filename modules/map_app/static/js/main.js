@@ -135,7 +135,7 @@ function update_map(cat_id, e) {
   map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
   // get the position of the subset toggle
   // false means subset by nexus, true means subset by catchment
-  var nexus_catchment = document.getElementById('subset-toggle').checked;
+  var nexus_catchment = document.getElementById('radio-catchment').checked;
   var subset_type = nexus_catchment ? 'catchment' : 'nexus';
   console.log('subset_type:', subset_type);
 
@@ -180,8 +180,16 @@ map.on('click', 'catchments', (e) => {
   update_map(cat_id, e);
 });
 
-// When you want to use it (e.g., in your toggle handler):
-document.getElementById("subset-toggle").addEventListener('change', function() {
+// if subset radio buttons changed while there's already a subset displayed
+document.getElementById("radio-catchment").addEventListener('change', function() {
+  const cat_id = document.getElementById('selected-basins').textContent;
+  if (cat_id && cat_id !== 'None - get clicking!' && lastClickedLngLat) {
+    // Create a fake event with the last clicked location
+    const fakeEvent = { lngLat: lastClickedLngLat };
+    update_map(cat_id, fakeEvent);
+  }
+});
+document.getElementById("radio-nexus").addEventListener('change', function() {
   const cat_id = document.getElementById('selected-basins').textContent;
   if (cat_id && cat_id !== 'None - get clicking!' && lastClickedLngLat) {
     // Create a fake event with the last clicked location
@@ -258,58 +266,38 @@ function initializeToggleSwitches() {
 }
 document.addEventListener("DOMContentLoaded", initializeToggleSwitches);
 
-showGages = false;
-const toggleButtonGages = document.querySelector("#toggle-button-gages");
-toggleButtonGages.addEventListener("click", () => {
-  if (showGages) {
-    map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]);
-    toggleButtonGages.innerText = "Show gages";
-    showGages = false;
+const toggleSwitchGages = document.querySelector("#gages__input");
+toggleSwitchGages.addEventListener("change", function () {
+  if (toggleSwitchGages.checked) {
+    map.setFilter("conus_gages", null); // show gages
   } else {
-    map.setFilter("conus_gages", null);
-    toggleButtonGages.innerText = "Hide gages";
-    showGages = true;
+    map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]); // hide gages
   }
 });
 
-showCamels = false;
-const toggleButtonCamels = document.querySelector("#toggle-button-camels");
-toggleButtonCamels.addEventListener("click", () => {
-  if (showCamels) {
-    map.setFilter("camels", ["any", ["==", "hru_id", ""]]);
-    toggleButtonCamels.innerText = "Show CAMELS basins";
-    showCamels = false;
+const toggleSwitchCamels = document.querySelector("#camels__input");
+toggleSwitchCamels.addEventListener("change", function () {
+  if (toggleSwitchCamels.checked) {
+    map.setFilter("camels", null); 
   } else {
-    map.setFilter("camels", null);
-    toggleButtonCamels.innerText = "Hide CAMELS basins";
-    showCamels = true;
+    map.setFilter("camels", ["any", ["==", "hl_uri", ""]]); 
   }
 });
 
-showNwm = false;
-const toggleButtonNwm = document.querySelector("#toggle-button-nwm");
-toggleButtonNwm.addEventListener("click", () => {
-  if (showNwm) {
-    map.setFilter("nwm_zarr_chunks", ["any"]);
-    toggleButtonNwm.innerText = "Overlay NWM chunks";
-    showNwm = false;
+const toggleSwitchNwm = document.querySelector("#nwm__input");
+toggleSwitchNwm.addEventListener("change", function () {
+  if (toggleSwitchNwm.checked) {
+    map.setFilter("nwm_zarr_chunks", null); 
   } else {
-    map.setFilter("nwm_zarr_chunks", null);
-    toggleButtonNwm.innerText = "Hide NWM chunks";
-    showNwm = true;
+    map.setFilter("nwm_zarr_chunks", ["any", ["==", "hl_uri", ""]]); 
   }
 });
 
-showAorc = false;
-const toggleButtonAorc = document.querySelector("#toggle-button-aorc");
-toggleButtonAorc.addEventListener("click", () => {
-  if (showAorc) {
-    map.setFilter("aorc_zarr_chunks", ["any"]);
-    toggleButtonAorc.innerText = "Overlay AORC chunks";
-    showAorc = false;
+const toggleSwitchAorc = document.querySelector("#aorc__input");
+toggleSwitchAorc.addEventListener("change", function () {
+  if (toggleSwitchAorc.checked) {
+    map.setFilter("aorc_zarr_chunks", null); 
   } else {
-    map.setFilter("aorc_zarr_chunks", null);
-    toggleButtonAorc.innerText = "Hide AORC chunks";
-    showAorc = true;
+    map.setFilter("aorc_zarr_chunks", ["any", ["==", "hl_uri", ""]]); 
   }
 });
