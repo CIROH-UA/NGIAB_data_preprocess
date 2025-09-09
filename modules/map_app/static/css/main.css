@@ -30,38 +30,6 @@ main {
   background: var(--surface-color) !important;
 }
 
-#toggle-button-gages, #toggle-button-camels, #toggle-button-nwm, #toggle-button-aorc  {
-  position: relative;
-  /* top: 20px;
-  left: 20px; */
-  background-color: light-dark(rgb(87, 27, 98), rgb(147, 51, 164));
-  color: light-dark(#f0ead6, #ffffff);
-  font-size: 1.2rem;
-  min-width: 70px;
-  border-radius: 5px;
-  border: none;
-  padding: 5px 10px;
-  transition: 0.3s;
-  z-index: 1;
-}
-
-#toggle-button-gages:hover, #toggle-button-camels:hover, #toggle-button-nwm:hover, #toggle-button-aorc:hover {
-  scale: 1.1;
-  box-shadow: var(--shadow-md);
-}
-
-/* #toggle-button-camels {
-  left: 30px;
-}
-
-#toggle-button-nwm {
-  left: 40px;
-}
-
-#toggle-button-aorc {
-  left: 50px;
-} */
-
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
@@ -432,7 +400,7 @@ input[type="datetime-local"] {
   margin-bottom: 5px;
   position: relative;
   
-  background: light-dark(#cdcdcd, #aaaaaa);
+  background: light-dark(#232323, #aaaaaa);
   border-radius: 3px;
   
   z-index: 1;
@@ -485,12 +453,12 @@ input[type="datetime-local"] {
 #menu
 {
   position: relative;
-  max-width: 400px;
-  width: 50vw;
+  width: 300px;
   max-height: 100vh;
   margin: -120px 0 0 -50px;
-  padding: 50px;
+  padding-left: 50px;
   padding-top: 125px;
+  padding-bottom: 30px;
   box-sizing: border-box;
   overflow-y: auto;
   background: light-dark(#ededed, #666666);
