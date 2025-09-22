@@ -401,6 +401,7 @@ input[type="datetime-local"] {
   box-sizing: border-box;
   overflow-y: auto;
   background: light-dark(#ededed, #666666);
+  border-radius: var(--border-radius);
   list-style-type: none;
   -webkit-font-smoothing: antialiased;
   /* to stop flickering of text in safari */
