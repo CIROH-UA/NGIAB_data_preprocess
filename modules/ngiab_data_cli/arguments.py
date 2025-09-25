@@ -112,10 +112,16 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable debug logging",
     )
-    parser.add_argument(
+    lstm_group = parser.add_mutually_exclusive_group(required=False)
+    lstm_group.add_argument(
         "--lstm",
         action="store_true",
         help="enable LSTM model realization and forcings",
+    )
+    lstm_group.add_argument(
+        "--lstm_rust",
+        action="store_true",
+        help="enable experimental high speed Rust bindings of LSTM model realization and forcings",
     )
     parser.add_argument(
         "--nwm_gw",

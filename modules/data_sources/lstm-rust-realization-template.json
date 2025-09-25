@@ -1,0 +1,47 @@
+{
+  "global": {
+    "formulations": [
+      {
+        "name": "bmi_multi",
+        "params": {
+          "name": "bmi_multi",
+          "model_type_name": "lstm",
+          "forcing_file": "",
+          "init_config": "",
+          "allow_exceed_end_time": true,
+          "main_output_variable": "land_surface_water__runoff_depth",
+          "modules": [
+            {
+              "name": "bmi_c",
+              "params": {
+                "name": "bmi_c",
+                "model_type_name": "bmi_rust",
+                "init_config": "./config/cat_config/lstm/{{id}}.yml",
+                "allow_exceed_end_time": true,
+                "main_output_variable": "land_surface_water__runoff_depth",
+                "uses_forcing_file": false,
+                "registration_function": "register_bmi_lstm",
+                "library_file": "/dmod/shared_libs/libbmi_burn_lstm.so"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "forcing": {
+      "path": "./forcings/forcings.nc",
+      "provider": "NetCDF",
+      "enable_cache": false
+    }
+  },
+  "time": {
+    "start_time": "2016-01-01 00:00:00",
+    "end_time": "2016-02-27 00:00:00",
+    "output_interval": 3600
+  },
+  "routing": {
+    "t_route_config_file_with_path": "./config/troute.yaml"
+  },
+  "remotes_enabled": false,
+  "output_root": "./outputs/ngen"
+}

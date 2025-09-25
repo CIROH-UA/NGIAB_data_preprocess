@@ -39,9 +39,9 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
 
     if args.input_feature:
         input_feature = args.input_feature.replace("_", "-")
-      
-        if args.gage and not input_feature.startswith("gage-") :
-          input_feature = "gage-" + input_feature
+
+        if args.gage and not input_feature.startswith("gage-"):
+            input_feature = "gage-" + input_feature
 
         # look at the prefix for autodetection, if -g or -l is used then there is no prefix
         if len(input_feature.split("-")) > 1:
@@ -76,7 +76,7 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             validate_output_dir()
         elif args.gage:
             output_folder = input_feature
-            validate_output_dir()            
+            validate_output_dir()
         else:
             output_folder = feature_name
             validate_output_dir()
@@ -209,9 +209,12 @@ def main() -> None:
                 gage_id = args.input_feature
                 if not gage_id.startswith("gage-"):
                     gage_id = "gage-" + gage_id
-            if args.lstm:
+            if args.lstm or args.lstm_rust:
                 create_lstm_realization(
-                    output_folder, start_time=args.start_date, end_time=args.end_date
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                    use_rust=args.lstm_rust,
                 )
             else:
                 create_realization(

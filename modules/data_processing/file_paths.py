@@ -29,6 +29,7 @@ class FilePaths:
     template_troute_config = data_sources / "ngen-routing-template.yaml"
     template_cfe_nowpm_realization_config = data_sources / "cfe-nowpm-realization-template.json"
     template_lstm_realization_config = data_sources / "lstm-realization-template.json"
+    template_lstm_rust_realization_config = data_sources / "lstm-rust-realization-template.json"
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
     template_cfe_config = data_sources / "cfe-template.ini"
     template_lstm_config = data_sources / "lstm-catchment-template.yml"

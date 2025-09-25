@@ -231,11 +231,26 @@ def make_ngen_realization_json(
         json.dump(realization, file, indent=4)
 
 
-def create_lstm_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_lstm_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False
+):
     paths = FilePaths(cat_id)
-    template_path = FilePaths.template_lstm_realization_config
+    realization_path = paths.config_dir / "realization.json"
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
-    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
+    # python version of the lstm
+    python_template_path = FilePaths.template_lstm_realization_config
+    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time)
+    realization_path.rename(paths.config_dir / "python_lstm_real.json")
+    # rust version of the lstm
+    rust_template_path = FilePaths.template_lstm_rust_realization_config
+    make_ngen_realization_json(paths.config_dir, rust_template_path, start_time, end_time)
+    realization_path.rename(paths.config_dir / "rust_lstm_real.json")
+
+    if use_rust:
+        (paths.config_dir / "rust_lstm_real.json").rename(realization_path)
+    else:
+        (paths.config_dir / "python_lstm_real.json").rename(realization_path)
+
     make_lstm_config(paths.geopackage_path, paths.config_dir)
     # create some partitions for parallelization
     paths.setup_run_folders()
