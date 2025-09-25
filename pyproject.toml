@@ -31,8 +31,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "pyogrio>=0.7.2",
-    "pyproj>=3.6.1",
+    "pyogrio==0.7.2 ; platform_system == 'Darwin' and platform_machine == 'x86_64' and platform_release < '20.0'",  # macOS < 11.0
+    "pyogrio>=0.7.2 ; platform_system != 'Darwin' or platform_machine != 'x86_64' or platform_release >= '20.0'",
+    "pyproj==3.6.1 ; platform_system == 'Darwin' and platform_machine == 'x86_64' and platform_release < '20.0'",  # macOS < 11.0
+    "pyproj>=3.6.1 ; platform_system != 'Darwin' or platform_machine != 'x86_64' or platform_release >= '20.0'",
     "Flask==3.0.2",
     "geopandas>=1.0.0",
     "requests==2.32.4",
