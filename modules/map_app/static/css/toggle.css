@@ -88,6 +88,7 @@
   margin: 5px;
   position: relative;
   display: block;
+  top: -40px;
 }
 
 .menu-switch__input {
@@ -145,6 +146,8 @@
 .radio {
   margin: 0.5rem;
   font-size: 0.9rem;
+  top: -35px;
+  position: relative;
   input[type="radio"] {
     position: absolute;
     opacity: 0;

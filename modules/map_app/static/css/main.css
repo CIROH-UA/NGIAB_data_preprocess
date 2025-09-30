@@ -78,6 +78,11 @@ h4 {
   margin: 12px 0;
 }
 
+h4.menu-header {
+  position: relative;
+  top: -35px;
+}
+
 #map-container {
   background: var(--surface-color);
   border-radius: var(--border-radius);
@@ -351,26 +356,12 @@ input[type="datetime-local"] {
   position: absolute;
   top: 20px;
   left: 20px;
-  
+  pointer-events: none;
   z-index: 1;
   pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
 }
-
-#menuToggle a
-{
-  text-decoration: none;
-  color: #232323;
-  
-  transition: color 0.3s ease;
-}
-
-#menuToggle a:hover
-{
-  color: tomato;
-}
-
 
 #menuToggle input
 {
@@ -380,7 +371,7 @@ input[type="datetime-local"] {
   position: absolute;
   top: -7px;
   left: -7px;
-  
+  pointer-events: auto;
   cursor: pointer;
   pointer-events: auto;
   
@@ -394,19 +385,19 @@ input[type="datetime-local"] {
 {
   position: relative;
   width: 300px;
-  max-height: 100vh;
+  height: 375px;
   margin: -120px 0 0 -50px;
   padding-left: 50px;
-  padding-top: 125px;
+  padding-top: 75px;
   padding-bottom: 30px;
   box-sizing: border-box;
-  overflow-y: auto;
+  /* overflow-y: auto; */
   background: light-dark(rgba(237,237,237,0.85), rgba(102,102,102,0.85));
+  backdrop-filter: blur(1px);
   border-radius: var(--border-radius);
   list-style-type: none;
   -webkit-font-smoothing: antialiased;
   /* to stop flickering of text in safari */
-  
   transform-origin: 0% 0%;
   transform: translate(-100%, 0);
   
@@ -440,22 +431,19 @@ input[type="datetime-local"] {
 }
 
 .icons svg {
-  position: absolute;
-  top: 0;
-  left: 0;
+
   width: 100%;
   height: 100%;
   transition: opacity 0.3s ease, z-index 0.3s;
   fill: light-dark(#1e293b, #f1f5f9);
 } 
 
-.icons .x {
-  opacity: 0;
-}
 
-#menuToggle input:checked ~ .icons .x {
-  opacity: 1;
-  z-index: 1;
+.icons .chevron-left {
+  position: absolute;
+  top: -45px;
+  left: 195px;
+  
 }
 
 #menuToggle input:checked ~ .icons .gear {
@@ -463,8 +451,19 @@ input[type="datetime-local"] {
   z-index: 0;
 }
 
-/* smooths out transition when menu goes away */
-#menuToggle input:not(:checked) ~ .icons .x {
-  opacity: 0;
-  z-index: 0;
+#menuToggle input:checked
+{
+  display: block;
+  width: 45px;
+  height: 45px;
+  position: absolute;
+  top: -7px;
+  left: 190px;
+  
+  cursor: pointer;
+  
+  opacity: 0; /* hide this */
+  z-index: 2; /* and place it over the hamburger */
+  
+  -webkit-touch-callout: none;
 }
