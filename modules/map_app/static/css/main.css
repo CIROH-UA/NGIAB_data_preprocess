@@ -353,7 +353,7 @@ input[type="datetime-local"] {
   left: 20px;
   
   z-index: 1;
-  
+  pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -382,6 +382,7 @@ input[type="datetime-local"] {
   left: -7px;
   
   cursor: pointer;
+  pointer-events: auto;
   
   opacity: 0; /* hide this */
   z-index: 2; /* and place it over the hamburger */
@@ -429,6 +430,7 @@ input[type="datetime-local"] {
 #menuToggle input:checked ~ ul
 {
   transform: none;
+  pointer-events: auto;
 }
 
 .icons {
