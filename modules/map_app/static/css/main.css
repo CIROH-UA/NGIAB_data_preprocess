@@ -348,7 +348,7 @@ input[type="datetime-local"] {
 {
   display: block;
   /* You can also use relative/absolute here if you want to stay on the top */
-  position: relative;
+  position: absolute;
   top: 20px;
   left: 20px;
   
