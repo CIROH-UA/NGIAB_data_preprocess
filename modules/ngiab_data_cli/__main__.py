@@ -9,6 +9,7 @@ with rich.status.Status("loading") as status:
     import subprocess
     import time
     from multiprocessing import cpu_count
+    from pathlib import Path
 
     import geopandas as gpd
     from data_processing.create_realization import create_lstm_realization, create_realization
@@ -143,7 +144,7 @@ def main() -> None:
 
         if args.output_root:
             with open(FilePaths.config_file, "w") as config_file:
-                config_file.write(args.output_root)
+                config_file.write(str(Path(args.output_root).expanduser().absolute()))
             logging.info(
                 f"Changed default directory where outputs are stored to {args.output_root}"
             )
