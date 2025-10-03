@@ -503,11 +503,11 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     """
     temp_forcings_dir = forcings_dir / "temp"
     # Combine all variables into a single dataset using dask
-    # results = [xr.open_dataset(file, chunks="auto") for file in temp_forcings_dir.glob("*.nc")]
-    # final_ds = xr.merge(results)
-    final_ds = xr.open_mfdataset(
-        list(temp_forcings_dir.glob("*.nc")), chunks="auto"
-    )
+    results = [xr.open_dataset(file, chunks="auto") for file in temp_forcings_dir.glob("*.nc")]
+    final_ds = xr.merge(results)
+    # final_ds = xr.open_mfdataset(
+    #     list(temp_forcings_dir.glob("*.nc")), chunks="auto"
+    # )
     for var in final_ds.data_vars:
         if var in units:
             final_ds[var].attrs["units"] = units[var]
@@ -556,7 +556,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     logger.info("Saving to disk")
     final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
     # close the datasets
-    # _ = [result.close() for result in results]
+    _ = [result.close() for result in results]
     final_ds.close()
 
     # clean up the temp files
