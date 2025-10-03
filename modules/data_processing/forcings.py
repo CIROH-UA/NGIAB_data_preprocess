@@ -454,11 +454,6 @@ def compute_zonal_stats(
             with open(progress_file, "w") as f:
                 json.dump({"total_steps": all_steps, "steps_completed": steps_completed}, f)
         # Merge the chunks back together
-        # datasets = [
-        #     xr.open_dataset(forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc")
-        #     for i in range(len(time_chunks))
-        # ]
-        # result = xr.concat(datasets, dim="time")
         result = xr.open_mfdataset(
             list(forcings_dir.glob(f"temp/{data_var_name}_timechunk_*.nc")),
             concat_dim="time",
@@ -466,7 +461,6 @@ def compute_zonal_stats(
         result.to_netcdf(forcings_dir / "temp" / f"{data_var_name}.nc")
         # close the datasets
         result.close()
-        # _ = [dataset.close() for dataset in datasets]
         for file in forcings_dir.glob("temp/*_timechunk_*.nc"):
             file.unlink()
         progress.remove_task(chunk_task)
@@ -505,9 +499,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     # Combine all variables into a single dataset using dask
     results = [xr.open_dataset(file, chunks="auto") for file in temp_forcings_dir.glob("*.nc")]
     final_ds = xr.merge(results)
-    # final_ds = xr.open_mfdataset(
-    #     list(temp_forcings_dir.glob("*.nc")), chunks="auto"
-    # )
+
     for var in final_ds.data_vars:
         if var in units:
             final_ds[var].attrs["units"] = units[var]
@@ -538,7 +530,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
         warnings.simplefilter("ignore")
         time_array = (
             final_ds.time.astype("datetime64[s]").astype(np.int64).values
-        )  ## convert from ns to s
+        )  
     time_array = time_array.astype(np.int32)  ## convert to int32 to save space
     final_ds = final_ds.drop_vars(
         ["catchment", "time"]
