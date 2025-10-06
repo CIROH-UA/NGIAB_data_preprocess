@@ -382,7 +382,7 @@ def compute_zonal_stats(
 
     cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
-    progress_file = FilePaths(output_dir=forcings_dir.parent.stem).forcing_progress_file
+    progress_file = FilePaths(output_dir=forcings_dir.parent).forcing_progress_file
     ex_var_name = list(gridded_data.data_vars)[0]
     example_time_chunks = get_index_chunks(gridded_data[ex_var_name])
     all_steps = len(example_time_chunks) * len(gridded_data.data_vars)
