@@ -231,11 +231,11 @@ def main() -> None:
             logging.info("Running Next Gen using NGIAB...")
 
             try:
-                subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
+                subprocess.run("docker pull joshcu/ngiab:separate_route", shell=True)
             except:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
-                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local'
+                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngiab:separate_route /ngen/ngen/data/ auto {cpu_count()} local'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
             except:
