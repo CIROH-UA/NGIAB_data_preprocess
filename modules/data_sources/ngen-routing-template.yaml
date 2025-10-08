@@ -35,7 +35,7 @@ compute_parameters:
     #----------
     parallel_compute_method: by-subnetwork-jit-clustered # serial
     compute_kernel: V02-structured
-    assume_short_ts: True
+    assume_short_ts: False
     subnetwork_target_size: 50
     cpu_pool: {cpu_pool}
     restart_parameters:
@@ -60,7 +60,7 @@ compute_parameters:
         qts_subdivisions: 12
         dt: {time_step_size} # [sec] 300 == 5 minutes
         qlat_input_folder: ./outputs/ngen/
-        qlat_file_pattern_filter: "nex-*"
+        qlat_file_pattern_filter: "cat-*"
 
         {binary_nexus_file_folder_comment}binary_nexus_file_folder: ./outputs/parquet/ # if nexus_file_pattern_filter="nex-*" and you want it to reformat them as parquet, you need this
         #coastal_boundary_input_file : channel_forcing/schout_1.nc
