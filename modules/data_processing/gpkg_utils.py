@@ -56,17 +56,21 @@ def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     con = sqlite3.connect(gpkg)
     indices = con.execute("SELECT name FROM sqlite_master WHERE type = 'index'").fetchall()
     indices = [x[0] for x in indices]
-    missing = [x for x in new_indicies if x.split('"')[1] not in indices]
-    if len(missing) > 0:
-        logger.info("Creating indices")
+    tables = con.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+    tables = [x[0] for x in tables]
     for index in new_indicies:
-        if index.split('"')[1] not in indices:
-            logger.info(f"Creating index {index}")
-            con.execute(index)
-            con.commit()
-        # pragma optimize after creating the indices
-        con.execute("PRAGMA optimize;")
+        index_name = index.split('"')[1]
+        table_name = index.split('"')[3]
+        if table_name not in tables:
+            continue
+        if index_name in indices:
+            continue
+        logger.info(f"Creating index {index}")
+        con.execute(index)
         con.commit()
+        # pragma optimize after creating the indices
+    con.execute("PRAGMA optimize;")
+    con.commit()
     con.close()
 
 
