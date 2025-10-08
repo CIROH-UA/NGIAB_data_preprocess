@@ -13,12 +13,6 @@ def parse_arguments() -> argparse.Namespace:
     )
     group = parser.add_mutually_exclusive_group(required=False)
 
-    parser.add_argument(
-        "--output_root",
-        type=str,
-        help="Path to new default directory where outputs in the future will be stored",
-    )
-
     group.add_argument(
         "-i",
         "--input_feature",
@@ -55,6 +49,21 @@ def parse_arguments() -> argparse.Namespace:
             "17",
             "18",
         ],
+    )
+
+    parser.add_argument(
+        "-d",
+        "--domain",
+        type=str,
+        help="The domain to use, default: conus",
+        choices=[
+            "conus",
+            "ak",
+            # "gl",
+            "hi",
+            "prvi",
+        ],
+        default="conus",
     )
 
     parser.add_argument(
@@ -105,6 +114,11 @@ def parse_arguments() -> argparse.Namespace:
         "--output_name",
         type=str,
         help="Custom data output folder name in lieu of the default, which is the ID of the input feature",
+    )
+    parser.add_argument(
+        "--output_root",
+        type=str,
+        help="Path to new default directory where outputs in the future will be stored",
     )
     parser.add_argument(
         "-D",

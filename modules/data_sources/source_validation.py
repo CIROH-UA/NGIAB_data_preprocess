@@ -150,15 +150,15 @@ def download_and_update_hf():
         key="hydrofabrics/community/conus_nextgen.tar.gz",
     )
 
-    if FilePaths.hydrofabric_graph.is_file():
+    if FilePaths.conus_graph.is_file():
         console.print(
-            f"Hydrofabric graph already exists at {FilePaths.hydrofabric_graph}, removing it to download the latest version.",
+            f"Hydrofabric graph already exists at {FilePaths.conus_graph}, removing it to download the latest version.",
             style="bold yellow",
         )
-        FilePaths.hydrofabric_graph.unlink()
+        FilePaths.conus_graph.unlink()
 
     download_from_s3(
-        FilePaths.hydrofabric_graph,
+        FilePaths.conus_graph,
         bucket="communityhydrofabric",
         key="hydrofabrics/community/conus_igraph_network.gpickle",
     )

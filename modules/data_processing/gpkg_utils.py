@@ -438,7 +438,9 @@ def get_table_crs(gpkg: str, table: str) -> str:
     return crs
 
 
-def get_cat_from_gage_id(gage_id: str, gpkg: Path = FilePaths.conus_hydrofabric) -> str:
+def get_cat_from_gage_id(
+    gage_id: str, gpkg: Path = FilePaths.conus_hydrofabric, suppress_logs=False
+) -> str:
     """
     Get the catchment id associated with a gage id.
 
@@ -466,10 +468,12 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = FilePaths.conus_hydrofabric)
         sql_query = f"SELECT id FROM 'flowpath-attributes' WHERE gage = '{gage_id}'"
         result = con.execute(sql_query).fetchall()
         if len(result) == 0:
-            logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
+            if not suppress_logs:
+                logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
             raise IndexError(f"Could not find a waterbody for gage {gage_id}")
         if len(result) > 1:
-            logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
+            if not suppress_logs:
+                logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
             raise IndexError(f"Could not find a unique waterbody for gage {gage_id}")
 
         wb_id = result[0][0]

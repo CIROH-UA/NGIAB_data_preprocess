@@ -16,7 +16,7 @@ with rich.status.Status("loading") as status:
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
-    from data_processing.file_paths import FilePaths
+    from data_processing.file_paths import FilePaths, hydrofabrics
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
@@ -67,8 +67,20 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             logging.info(f"Found {feature_name} from {input_feature}")
         elif args.gage:
             validate_hydrofabric()
-            feature_name = get_cat_from_gage_id(input_feature)
-            logging.info(f"Found {feature_name} from {input_feature}")
+            for name, path in hydrofabrics.items():
+                print(path)
+                try:
+                    feature_name = get_cat_from_gage_id(
+                        input_feature, gpkg=path, suppress_logs=True
+                    )
+                except IndexError as e:
+                    logging.warning(f"unable to find gage in {path}: {e}")
+                    continue
+                args.domain = name
+                logging.info(f"Found {feature_name} from {input_feature} in {name}")
+                break
+            if not feature_name:
+                raise ValueError(f"Unable to find catchment ID for gage ID {input_feature}")
         else:
             feature_name = input_feature
 
@@ -168,6 +180,10 @@ def main() -> None:
                     # if there are no upstreams, exit
                     logging.error("No upstream catchments found.")
                     return
+        source_hf = hydrofabrics[args.domain]
+
+        if args.domain != "conus":
+            args.source = "nwm"
 
         if args.subset:
             if args.vpu:
@@ -182,6 +198,7 @@ def main() -> None:
                 subset(
                     feature_to_subset,
                     output_gpkg_path=paths.geopackage_path,
+                    hydrofabric=source_hf,
                     include_outlet=include_outlet,
                 )
                 logging.info("Subsetting complete.")

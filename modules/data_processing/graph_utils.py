@@ -96,7 +96,7 @@ def get_graph() -> ig.Graph:
     Returns:
         ig.Graph: The hydrological network graph.
     """
-    pickled_graph_path = FilePaths.hydrofabric_graph
+    pickled_graph_path = FilePaths.conus_graph
     if not pickled_graph_path.exists():
         logger.debug("Graph pickle does not exist, creating a new graph.")
         network_graph = create_graph_from_gpkg(FilePaths.conus_hydrofabric)
