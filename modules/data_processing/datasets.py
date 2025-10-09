@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 import s3fs
 import xarray as xr
@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @use_cluster
-def load_v3_retrospective_zarr(forcing_vars: Optional[list[str]] = None) -> xr.Dataset:
-    """Load zarr datasets from S3 within the specified time range."""
-    # if a LocalCluster is not already running, start one
+def _load_conus(forcing_vars: Optional[list[str]] = None) -> xr.Dataset:
     if not forcing_vars:
         forcing_vars = ["lwdown", "precip", "psfc", "q2d", "swdown", "t2d", "u2d", "v2d"]
 
@@ -26,6 +24,30 @@ def load_v3_retrospective_zarr(forcing_vars: Optional[list[str]] = None) -> xr.D
     # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
     # most of the data is read once and written to disk but some of the coordinate data is read multiple times
     dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)  # type: ignore
+    return dataset
+
+
+def _load_nonconus(domain_name: str) -> xr.Dataset:
+    s3_url = f"s3://noaa-nwm-retrospective-3-0-pds/{domain_name}/zarr/forcing.zarr"
+    # default cache is readahead which is detrimental to performance in this case
+    fs = S3ParallelFileSystem(anon=True, default_cache_type="none")  # default_block_size
+    s3_store = s3fs.S3Map(s3_url, s3=fs)
+    # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
+    # most of the data is read once and written to disk but some of the coordinate data is read multiple times
+    dataset = xr.open_dataset(s3_store, parallel=True, engine="zarr", cache=True)  # type: ignore
+    return dataset
+
+
+@use_cluster
+def load_v3_retrospective_zarr(
+    forcing_vars: Optional[list[str]] = None, domain: Literal["conus", "ak", "hi", "prvi"] = "conus"
+) -> xr.Dataset:
+    """Load zarr datasets from S3 within the specified time range."""
+    domain_name = {"conus": "CONUS", "ak": "Alaska", "hi": "Hawaii", "prvi": "PR"}
+    if domain == "conus":
+        dataset = _load_conus(forcing_vars)
+    else:
+        dataset = _load_nonconus(domain_name[domain])
 
     # set the crs attribute to conform with the format
     esri_pe_string = dataset.crs.esri_pe_string

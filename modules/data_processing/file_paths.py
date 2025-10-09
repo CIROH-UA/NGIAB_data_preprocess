@@ -18,9 +18,6 @@ class FilePaths:
     map_app_static = Path(__file__).parent.parent / "map_app" / "static"
     tiles_tms = map_app_static / "tiles" / "tms"
     tiles_vpu = map_app_static / "tiles" / "vpu"
-    template_gpkg = data_sources / "template.gpkg"
-    template_sql = data_sources / "template.sql"
-    triggers_sql = data_sources / "triggers.sql"
 
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
     ak_hydrofabric = hydrofabric_dir / "ak_nextgen.gpkg"

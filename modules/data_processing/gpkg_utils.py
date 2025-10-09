@@ -74,27 +74,102 @@ def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     con.close()
 
 
-def create_empty_gpkg(gpkg: Path) -> None:
+def _copy_gpkg_component(dest, source, type):
+    print(source)
+    print(dest)
+    print(type)
+    source_conn = sqlite3.connect(source)
+    target_conn = sqlite3.connect(dest)
+    source_cursor = source_conn.cursor()
+    target_cursor = target_conn.cursor()
+
+    # Get all CREATE statements for tables from source database
+    source_cursor.execute(f"""
+        SELECT name, sql
+        FROM sqlite_master
+        WHERE type='{type}'
+        AND name NOT LIKE 'sqlite_%'
+        AND name NOT LIKE 'rtree_%'
+        GROUP BY name
+        ORDER BY name
+    """)
+
+    tables = source_cursor.fetchall()
+
+    # Create each table in the target database
+    for table_name, create_sql in tables:
+        if create_sql:  # Some system tables might have NULL sql
+            target_cursor.execute(create_sql)
+
+    # Commit changes to target database
+    target_conn.commit()
+    source_conn.close()
+    target_conn.close()
+
+
+def _copy_gpkg_table_data(source_db_path, target_db_path):
+    """
+    Copy data from all tables starting with 'gpkg_' from source to target database.
+    Assumes the table structures already exist in the target database.
+
+    Args:
+        source_db_path (str): Path to the source SQLite database
+        target_db_path (str): Path to the target SQLite database
+
+    Returns:
+        dict: Dictionary with table names as keys and row counts as values
+    """
+    source_conn = sqlite3.connect(source_db_path)
+    target_conn = sqlite3.connect(target_db_path)
+
+    source_cursor = source_conn.cursor()
+    target_cursor = target_conn.cursor()
+
+    source_cursor.execute("""
+        SELECT name
+        FROM sqlite_master
+        WHERE type='table'
+        AND name LIKE 'gpkg_%'
+        ORDER BY name
+    """)
+
+    tables = source_cursor.fetchall()
+
+    for (table_name,) in tables:
+        print(f"Copying data from: {table_name}")
+
+        # Get all data from source table
+        source_cursor.execute(f"SELECT * FROM {table_name}")
+        rows = source_cursor.fetchall()
+        if rows:
+            # Get column count for placeholders
+            column_count = len(rows[0])
+            placeholders = ",".join(["?" for _ in range(column_count)])
+            # Insert data into target table
+            target_cursor.executemany(f"INSERT INTO {table_name} VALUES ({placeholders})", rows)
+
+    # Commit all changes
+    target_conn.commit()
+    print(f"\nSuccessfully copied data from {len(tables)} table(s)")
+    source_conn.close()
+    target_conn.close()
+
+
+def create_empty_gpkg(gpkg: Path, source_gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     """
     Create an empty geopackage with the necessary tables and indices.
     """
-    with open(FilePaths.template_sql) as f:
-        sql_script = f.read()
-
-    with sqlite3.connect(gpkg) as conn:
-        conn.executescript(sql_script)
+    _copy_gpkg_component(gpkg, source_gpkg, "table")
+    _copy_gpkg_table_data(source_gpkg, gpkg)
+    logger.debug(f"copied tables to subset gpkg {gpkg} from {source_gpkg}")
 
 
-def add_triggers_to_gpkg(gpkg: Path) -> None:
+def add_triggers_to_gpkg(gpkg: Path, source_gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     """
     Adds geopackage triggers required to maintain spatial index integrity
     """
-    with open(FilePaths.triggers_sql) as f:
-        triggers = f.read()
-    with sqlite3.connect(gpkg) as conn:
-        conn.executescript(triggers)
-
-    logger.debug(f"Added triggers to subset gpkg {gpkg}")
+    _copy_gpkg_component(gpkg, source_gpkg, "trigger")
+    logger.debug(f"Added triggers to subset gpkg {gpkg} from {source_gpkg}")
 
 
 def blob_to_geometry(blob: bytes) -> BaseGeometry | None:
@@ -159,8 +234,8 @@ def convert_to_5070(shapely_geometry: Point) -> Point:
     target_crs = pyproj.CRS("EPSG:5070")
     project = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True).transform
     new_geometry = transform(project, shapely_geometry)
-    logger.debug(f" new geometry: {new_geometry}")
-    logger.debug(f"old geometry: {shapely_geometry}")
+    logger.debug("new geometry: %s", new_geometry)
+    logger.debug("old geometry: %s", shapely_geometry)
     return new_geometry
 
 
@@ -258,12 +333,12 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
     con.commit()
 
 
-def update_geopackage_metadata(gpkg: Path) -> None:
+def update_geopackage_metadata(gpkg: Path, source_gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     """
     Update the contents of the gpkg_contents table in the specified geopackage.
     """
     # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
-    tables = get_feature_tables(FilePaths.conus_hydrofabric)
+    tables = get_feature_tables(source_gpkg)
     con = sqlite3.connect(gpkg)
     for table in tables:
         min_x = con.execute(f"SELECT MIN(minx) FROM rtree_{table}_geom").fetchone()[0]
@@ -273,7 +348,7 @@ def update_geopackage_metadata(gpkg: Path) -> None:
         srs_id = con.execute(
             f"SELECT srs_id FROM gpkg_geometry_columns WHERE table_name = '{table}'"
         ).fetchone()[0]
-        sql_command = f"INSERT INTO gpkg_contents (table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id) VALUES ('{table}', 'features', '{table}', '', datetime('now'), {min_x}, {min_y}, {max_x}, {max_y}, {srs_id})"
+        sql_command = f"UPDATE gpkg_contents SET data_type = 'features', identifier = '{table}', description = '', last_change = datetime('now'), min_x = {min_x}, min_y = {min_y}, max_x = {max_x}, max_y = {max_y}, srs_id = {srs_id} WHERE table_name = '{table}'"
         sql_command = sql_command.replace("None", "NULL")
         con.execute(sql_command)
     con.commit()
@@ -287,7 +362,7 @@ def update_geopackage_metadata(gpkg: Path) -> None:
     for table in tables:
         num_features = con.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[0]
         con.execute(
-            f"INSERT INTO gpkg_ogr_contents (table_name, feature_count) VALUES ('{table}', {num_features})"
+            f"UPDATE gpkg_ogr_contents SET feature_count = {num_features} WHERE table_name = '{table}'"
         )
 
     con.close()
@@ -357,7 +432,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
         hydrofabric (str): The path to the hydrofabric database.
         subset_gpkg_name (str): The name of the subset geopackage.
     """
-    logger.debug(f"Subsetting {table} in {subset_gpkg_name}")
+    logger.debug(f"Subsetting {table} in {subset_gpkg_name} from {hydrofabric}")
     source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
@@ -391,7 +466,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
 
     insert_data(dest_db, table, contents)
 
-    if table in get_feature_tables(FilePaths.conus_hydrofabric):
+    if table in get_feature_tables(hydrofabric):
         fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 

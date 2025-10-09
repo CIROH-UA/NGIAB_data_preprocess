@@ -7,6 +7,7 @@ from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import (
     add_triggers_to_gpkg,
     create_empty_gpkg,
+    get_available_tables,
     subset_table,
     subset_table_by_vpu,
     update_geopackage_metadata,
@@ -60,16 +61,19 @@ def create_subset_gpkg(
         if os.path.exists(output_gpkg_path):
             os.remove(output_gpkg_path)
 
-    create_empty_gpkg(output_gpkg_path)
-    logger.info(f"Subsetting tables: {subset_tables}")
-    for table in subset_tables:
+    create_empty_gpkg(output_gpkg_path, hydrofabric)
+    available_tables = get_available_tables(hydrofabric)
+    tables = [table for table in subset_tables if table in available_tables]
+    logger.info(f"Subsetting tables: {tables}")
+
+    for table in tables:
         if is_vpu:
             subset_table_by_vpu(table, ids[0], hydrofabric, output_gpkg_path)
         else:
             subset_table(table, ids, hydrofabric, output_gpkg_path)
 
-    add_triggers_to_gpkg(output_gpkg_path)
-    update_geopackage_metadata(output_gpkg_path)
+    add_triggers_to_gpkg(output_gpkg_path, source_gpkg=hydrofabric)
+    update_geopackage_metadata(output_gpkg_path, source_gpkg=hydrofabric)
 
 
 def subset_vpu(
