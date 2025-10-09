@@ -6,12 +6,14 @@ import rich.status
 with rich.status.Status("loading") as status:
     import argparse
     import logging
+    import shutil
     import subprocess
     import time
     from multiprocessing import cpu_count
     from pathlib import Path
 
     import geopandas as gpd
+    import pyproj
     from data_processing.create_realization import create_lstm_realization, create_realization
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
@@ -242,6 +244,22 @@ def main() -> None:
                     gage_id=gage_id,
                 )
             logging.info("Realization creation complete.")
+
+        if args.domain != "conus":
+            # temporary hack to reproject to EPSG:4326 so ngen will run
+            # geometry is never actually used for anything in ngen or troute
+            unprojected_path = paths.geopackage_path.parent / "original_unprojected.gpkg"
+            available_layers = gpd.list_layers(paths.geopackage_path)
+            for layer, type in available_layers.to_numpy():
+                if type is None:
+                    continue
+                gdf = gpd.read_file(paths.geopackage_path, layer=layer)
+                new_crs = pyproj.CRS("EPSG:4326")
+                if gdf.crs != new_crs:
+                    if not unprojected_path.exists:
+                        shutil.copy(paths.geopackage_path, unprojected_path)
+                    gdf.to_crs(crs=new_crs, inplace=True)
+                    gdf.to_file(paths.geopackage_path, layer=layer, driver="GPKG")
 
         if args.run:
             logging.info("Running Next Gen using NGIAB...")
