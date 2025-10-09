@@ -378,7 +378,11 @@ def compute_zonal_stats(
         num_partitions = len(gdf)
 
     catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
-    units = get_units(gridded_data)
+    try:
+        units = get_units(gridded_data)
+    except Exception as e:
+        logger.warning(f"Unable to get units: {e}")
+        units = {}
 
     cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
