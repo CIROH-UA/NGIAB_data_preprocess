@@ -11,13 +11,18 @@ class FilePaths:
 
     config_file = Path("~/.ngiab/preprocessor").expanduser()
     hydrofabric_dir = Path("~/.ngiab/hydrofabric/v2.2").expanduser()
-    hydrofabric_download_log = hydrofabric_dir / "download_log.json"
     no_update_hf = hydrofabric_dir / "no_update"
     output_dir = None
     data_sources = Path(__file__).parent.parent / "data_sources"
     map_app_static = Path(__file__).parent.parent / "map_app" / "static"
     tiles_tms = map_app_static / "tiles" / "tms"
     tiles_vpu = map_app_static / "tiles" / "vpu"
+
+    conus_hydrofabric_download_log = hydrofabric_dir / "download_log.json"
+    ak_hydrofabric_download_log = hydrofabric_dir / "ak_download_log.json"
+    # gl_hydrofabric_download_log = hydrofabric_dir / "gl_download_log.json"
+    hi_hydrofabric_download_log = hydrofabric_dir / "hi_download_log.json"
+    prvi_hydrofabric_download_log = hydrofabric_dir / "prvi_download_log.json"
 
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
     ak_hydrofabric = hydrofabric_dir / "ak_nextgen.gpkg"

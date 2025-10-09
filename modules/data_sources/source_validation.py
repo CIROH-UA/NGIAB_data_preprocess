@@ -33,7 +33,11 @@ console = Console()
 S3_BUCKET = "communityhydrofabric"
 S3_KEY = "hydrofabrics/community/conus_nextgen.tar.gz"
 S3_REGION = "us-east-1"
-hydrofabric_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
+
+
+def get_hydrofabric_url(domain="conus"):
+    s3key = S3_KEY.replace("conus", domain)
+    return f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3key}"
 
 
 def decompress_gzip_tar(file_path, output_dir):
@@ -126,65 +130,66 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         return False
 
 
-def get_headers():
+def get_headers(domain: str = "conus"):
     # for versioning
     # Useful Headers: { 'Last-Modified': 'Wed, 20 Nov 2024 18:45:59 GMT', 'ETag': '"cc1452838886a7ab3065a61073fa991b-207"'}
     try:
-        response = requests.head(hydrofabric_url)
+        response = requests.head(get_hydrofabric_url(domain))
     except requests.exceptions.ConnectionError:
         return 500, {}
     return response.status_code, response.headers
 
 
-def download_and_update_hf():
-    if FilePaths.conus_hydrofabric.is_file():
+def download_and_update_hf(domain: str = "conus"):
+    hf = getattr(FilePaths, f"{domain}_hydrofabric")
+    if hf.is_file():
         console.print(
-            f"Hydrofabric already exists at {FilePaths.conus_hydrofabric}, removing it to download the latest version.",
+            f"Hydrofabric already exists at {hf}, removing it to download the latest version.",
             style="bold yellow",
         )
-        FilePaths.conus_hydrofabric.unlink()
+        hf.unlink()
 
     download_from_s3(
-        FilePaths.conus_hydrofabric.with_suffix(".tar.gz"),
+        hf.with_suffix(".tar.gz"),
         bucket="communityhydrofabric",
-        key="hydrofabrics/community/conus_nextgen.tar.gz",
+        key=f"hydrofabrics/community/{domain}_nextgen.tar.gz",
     )
+    if domain == "conus":
+        if FilePaths.conus_graph.is_file():
+            console.print(
+                f"Hydrofabric graph already exists at {FilePaths.conus_graph}, removing it to download the latest version.",
+                style="bold yellow",
+            )
+            FilePaths.conus_graph.unlink()
 
-    if FilePaths.conus_graph.is_file():
-        console.print(
-            f"Hydrofabric graph already exists at {FilePaths.conus_graph}, removing it to download the latest version.",
-            style="bold yellow",
+        download_from_s3(
+            FilePaths.conus_graph,
+            bucket="communityhydrofabric",
+            key="hydrofabrics/community/conus_igraph_network.gpickle",
         )
-        FilePaths.conus_graph.unlink()
 
-    download_from_s3(
-        FilePaths.conus_graph,
-        bucket="communityhydrofabric",
-        key="hydrofabrics/community/conus_igraph_network.gpickle",
-    )
-
-    status, headers = get_headers()
-
+    status, headers = get_headers(domain)
+    log = getattr(FilePaths, f"{domain}_hydrofabric_download_log")
     if status == 200:
         # write headers to a file
-        with open(FilePaths.hydrofabric_download_log, "w") as f:
+        with open(log, "w") as f:
             json.dump(dict(headers), f)
 
     decompress_gzip_tar(
-        FilePaths.conus_hydrofabric.with_suffix(".tar.gz"),
-        FilePaths.conus_hydrofabric.parent,
+        hf.with_suffix(".tar.gz"),
+        hf.parent,
     )
 
 
-def validate_hydrofabric():
-    if not FilePaths.conus_hydrofabric.is_file():
+def validate_hydrofabric(domain: str = "conus"):
+    if not getattr(FilePaths, f"{domain}_hydrofabric").is_file():
         response = Prompt.ask(
-            "Hydrofabric files are missing. Would you like to download them now?",
+            f"Hydrofabric {domain} files are missing. Would you like to download them now?",
             default="y",
             choices=["y", "n"],
         )
         if response == "y":
-            download_and_update_hf()
+            download_and_update_hf(domain)
         else:
             console.print("Exiting...", style="bold red")
             exit()
@@ -193,14 +198,16 @@ def validate_hydrofabric():
         # skip the updates
         return
 
-    if not FilePaths.hydrofabric_download_log.is_file():
+    log = getattr(FilePaths, f"{domain}_hydrofabric_download_log")
+
+    if not log.is_file():
         response = Prompt.ask(
-            "Hydrofabric version information unavailable, Would you like to fetch the updated version?",
+            f"Hydrofabric {domain} version information unavailable, Would you like to fetch the updated version?",
             default="y",
             choices=["y", "n"],
         )
         if response == "y":
-            download_and_update_hf()
+            download_and_update_hf(domain)
         else:
             console.print("Continuing... ", style="bold yellow")
             console.print(
@@ -210,11 +217,11 @@ def validate_hydrofabric():
             sleep(2)
             return
 
-    with open(FilePaths.hydrofabric_download_log, "r") as f:
+    with open(log, "r") as f:
         content = f.read()
         headers = json.loads(content)
 
-    status, latest_headers = get_headers()
+    status, latest_headers = get_headers(domain)
 
     if status != 200:
         console.print(
@@ -223,7 +230,7 @@ def validate_hydrofabric():
         sleep(2)
 
     if headers.get("ETag", "") != latest_headers.get("ETag", ""):
-        console.print("Local and remote Hydrofabric Differ", style="bold yellow")
+        console.print(f"Local and remote {domain} Hydrofabric Differ", style="bold yellow")
         console.print(
             f"Local last updated at {headers.get('Last-Modified', 'NA')}, remote last updated at {latest_headers.get('Last-Modified', 'NA')}",
             style="bold yellow",
@@ -234,7 +241,7 @@ def validate_hydrofabric():
             choices=["y", "n"],
         )
         if response == "y":
-            download_and_update_hf()
+            download_and_update_hf(domain)
         else:
             console.print("Continuing... ", style="bold yellow")
             console.print(
@@ -245,7 +252,8 @@ def validate_hydrofabric():
             return
 
     # moved this from gpkg_utils to here to avoid potential nested rich live displays
-    if FilePaths.conus_hydrofabric.is_file():
+    hf = getattr(FilePaths, f"{domain}_hydrofabric")
+    if hf.is_file():
         valid_hf = False
         while not valid_hf:
             try:
@@ -253,10 +261,10 @@ def validate_hydrofabric():
                 valid_hf = True
             except sqlite3.DatabaseError:
                 console.print(
-                    f"Hydrofabric {FilePaths.conus_hydrofabric} is corrupted. Redownloading...",
+                    f"Hydrofabric {hf} is corrupted. Redownloading...",
                     style="red",
                 )
-                download_and_update_hf()
+                download_and_update_hf(domain)
 
 
 def validate_output_dir():

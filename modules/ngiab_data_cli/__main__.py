@@ -64,13 +64,14 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
         if args.latlon:
-            validate_hydrofabric()
+            validate_hydrofabric(args.domain)
             feature_name = get_cat_id_from_lat_lon(input_feature)
             logging.info(f"Found {feature_name} from {input_feature}")
         elif args.gage:
-            validate_hydrofabric()
+            validate_hydrofabric(args.domain)
             for name, path in hydrofabrics.items():
                 try:
+                    validate_hydrofabric(name)
                     feature_name = get_cat_from_gage_id(
                         input_feature, gpkg=path, suppress_logs=True
                     )
@@ -78,6 +79,7 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
                     logging.warning(f"unable to find gage in {path}: {e}")
                     continue
                 args.domain = name
+
                 logging.info(f"Found {feature_name} from {input_feature} in {name}")
                 break
             if not feature_name:
