@@ -68,20 +68,24 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             feature_name = get_cat_id_from_lat_lon(input_feature)
             logging.info(f"Found {feature_name} from {input_feature}")
         elif args.gage:
-            validate_hydrofabric(args.domain)
-            for name, path in hydrofabrics.items():
-                try:
-                    validate_hydrofabric(name)
-                    feature_name = get_cat_from_gage_id(
-                        input_feature, gpkg=path, suppress_logs=True
-                    )
-                except IndexError as e:
-                    logging.warning(f"unable to find gage in {path}: {e}")
-                    continue
-                args.domain = name
-
-                logging.info(f"Found {feature_name} from {input_feature} in {name}")
-                break
+            try:
+                validate_hydrofabric(args.domain)
+                feature_name = get_cat_from_gage_id(
+                    input_feature, gpkg=hydrofabrics[args.domain], suppress_logs=True
+                )
+            except IndexError:
+                for name, path in hydrofabrics.items():
+                    try:
+                        validate_hydrofabric(name)
+                        feature_name = get_cat_from_gage_id(
+                            input_feature, gpkg=path, suppress_logs=True
+                        )
+                    except IndexError as e:
+                        logging.warning(f"unable to find gage in {path}: {e}")
+                        continue
+                    args.domain = name
+                    logging.info(f"Found {feature_name} from {input_feature} in {name}")
+                    break
             if not feature_name:
                 raise ValueError(f"Unable to find catchment ID for gage ID {input_feature}")
         else:
