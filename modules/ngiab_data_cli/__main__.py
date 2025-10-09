@@ -68,7 +68,6 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
         elif args.gage:
             validate_hydrofabric()
             for name, path in hydrofabrics.items():
-                print(path)
                 try:
                     feature_name = get_cat_from_gage_id(
                         input_feature, gpkg=path, suppress_logs=True
@@ -208,7 +207,7 @@ def main() -> None:
             if args.source == "aorc":
                 data = load_aorc_zarr(args.start_date.year, args.end_date.year)
             elif args.source == "nwm":
-                data = load_v3_retrospective_zarr()
+                data = load_v3_retrospective_zarr(domain=args.domain)
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
             cached_data = save_and_clip_dataset(
                 data, gdf, args.start_date, args.end_date, paths.cached_nc_file

@@ -31,7 +31,7 @@ class FilePaths:
     hi_graph = hydrofabric_dir / "hi_igraph_network.gpickle"
     prvi_graph = hydrofabric_dir / "prvi_igraph_network.gpickle"
 
-    template_nc = data_sources / "forcing_template.nc"
+    alaska_template_nc = data_sources / "alaska.nc"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
     template_cfe_nowpm_realization_config = data_sources / "cfe-nowpm-realization-template.json"

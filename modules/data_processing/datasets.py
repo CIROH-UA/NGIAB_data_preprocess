@@ -5,6 +5,7 @@ import s3fs
 import xarray as xr
 from data_processing.dask_utils import use_cluster
 from data_processing.dataset_utils import validate_dataset_format
+from data_processing.file_paths import FilePaths
 from data_processing.s3fs_utils import S3ParallelFileSystem
 
 logger = logging.getLogger(__name__)
@@ -24,17 +25,36 @@ def _load_conus(forcing_vars: Optional[list[str]] = None) -> xr.Dataset:
     # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
     # most of the data is read once and written to disk but some of the coordinate data is read multiple times
     dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)  # type: ignore
+    esri_pe_string = dataset.crs.esri_pe_string
+    dataset = dataset.drop_vars(["crs"])
+    dataset.attrs["crs"] = esri_pe_string
+    dataset.attrs["domain"] = "CONUS"
     return dataset
 
 
-def _load_nonconus(domain_name: str) -> xr.Dataset:
+@use_cluster
+def _load_oconus(domain_name: str) -> xr.Dataset:
     s3_url = f"s3://noaa-nwm-retrospective-3-0-pds/{domain_name}/zarr/forcing.zarr"
     # default cache is readahead which is detrimental to performance in this case
     fs = S3ParallelFileSystem(anon=True, default_cache_type="none")  # default_block_size
     s3_store = s3fs.S3Map(s3_url, s3=fs)
     # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
     # most of the data is read once and written to disk but some of the coordinate data is read multiple times
-    dataset = xr.open_dataset(s3_store, parallel=True, engine="zarr", cache=True)  # type: ignore
+    dataset = xr.open_dataset(s3_store, engine="zarr", cache=True)  # type: ignore
+    dataset.attrs["domain"] = domain_name
+    if domain_name == "Alaska":
+        template_ds = xr.open_dataset(FilePaths.alaska_template_nc)
+        # transfer x y coords from operational nc
+        dataset = dataset.assign_coords(
+            x=template_ds.x,
+            y=template_ds.y,
+        )
+        # and crs
+        dataset["crs"] = template_ds.crs
+    esri_pe_string = dataset.crs.esri_pe_string
+    dataset = dataset.drop_vars(["crs"])
+    dataset.attrs["crs"] = esri_pe_string
+
     return dataset
 
 
@@ -47,12 +67,8 @@ def load_v3_retrospective_zarr(
     if domain == "conus":
         dataset = _load_conus(forcing_vars)
     else:
-        dataset = _load_nonconus(domain_name[domain])
+        dataset = _load_oconus(domain_name[domain])
 
-    # set the crs attribute to conform with the format
-    esri_pe_string = dataset.crs.esri_pe_string
-    dataset = dataset.drop_vars(["crs"])
-    dataset.attrs["crs"] = esri_pe_string
     dataset.attrs["name"] = "v3_retrospective_zarr"
 
     # rename the data vars to work with ngen
@@ -84,9 +100,6 @@ def load_aorc_zarr(start_year: Optional[int] = None, end_year: Optional[int] = N
         end_year = 2023
 
     logger.info(f"Loading AORC zarr datasets from {start_year} to {end_year}")
-    estimated_time_s = ((end_year - start_year) * 2.5) + 3.5
-    # from testing, it's about 2.1s per year + 3.5s overhead
-    logger.info(f"This should take roughly {estimated_time_s} seconds")
     fs = S3ParallelFileSystem(anon=True, default_cache_type="none")
     s3_url = "s3://noaa-nws-aorc-v1-1-1km/"
     urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year + 1)]

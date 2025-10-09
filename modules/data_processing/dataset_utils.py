@@ -115,6 +115,7 @@ def clip_dataset_to_bounds(
     logger.info("Selected time range and clipped to bounds")
     return dataset
 
+
 @temp_cluster
 def save_dataset(
     ds_to_save: xr.Dataset,
@@ -148,9 +149,7 @@ def save_dataset(
 
 
 @no_cluster
-def save_to_cache(
-    stores: xr.Dataset, cached_nc_path: Path
-) -> xr.Dataset:
+def save_to_cache(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     """
     Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
     """

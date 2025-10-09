@@ -75,9 +75,6 @@ def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
 
 
 def _copy_gpkg_component(dest, source, type):
-    print(source)
-    print(dest)
-    print(type)
     source_conn = sqlite3.connect(source)
     target_conn = sqlite3.connect(dest)
     source_cursor = source_conn.cursor()
@@ -136,7 +133,7 @@ def _copy_gpkg_table_data(source_db_path, target_db_path):
     tables = source_cursor.fetchall()
 
     for (table_name,) in tables:
-        print(f"Copying data from: {table_name}")
+        logger.debug(f"Copying data from: {table_name}")
 
         # Get all data from source table
         source_cursor.execute(f"SELECT * FROM {table_name}")
@@ -150,7 +147,6 @@ def _copy_gpkg_table_data(source_db_path, target_db_path):
 
     # Commit all changes
     target_conn.commit()
-    print(f"\nSuccessfully copied data from {len(tables)} table(s)")
     source_conn.close()
     target_conn.close()
 
