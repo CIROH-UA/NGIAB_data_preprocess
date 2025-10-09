@@ -86,7 +86,7 @@ def create_graph_from_gpkg(hydrofabric: Path) -> ig.Graph:
 
 
 @cache
-def get_graph() -> ig.Graph:
+def get_graph(hydrofabric_path: Path = FilePaths.conus_hydrofabric) -> ig.Graph:
     """
     Attempts to load a graph from a pickled file; if unavailable, creates it from the geopackage.
 
@@ -96,10 +96,11 @@ def get_graph() -> ig.Graph:
     Returns:
         ig.Graph: The hydrological network graph.
     """
-    pickled_graph_path = FilePaths.conus_graph
+    domain = hydrofabric_path.name.split("_")[0]
+    pickled_graph_path = getattr(FilePaths, f"{domain}_graph")
     if not pickled_graph_path.exists():
         logger.debug("Graph pickle does not exist, creating a new graph.")
-        network_graph = create_graph_from_gpkg(FilePaths.conus_hydrofabric)
+        network_graph = create_graph_from_gpkg(hydrofabric_path)
         network_graph.write_pickle(pickled_graph_path)
     else:
         try:
@@ -112,7 +113,9 @@ def get_graph() -> ig.Graph:
     return network_graph
 
 
-def get_outlet_id(wb_or_cat_id: str) -> str | None:
+def get_outlet_id(
+    wb_or_cat_id: str, hydrofabric_path: Path = FilePaths.conus_hydrofabric
+) -> str | None:
     """
     Retrieves the ID of the node downstream of the given node in the hydrological network.
 
@@ -131,7 +134,7 @@ def get_outlet_id(wb_or_cat_id: str) -> str | None:
     # remove everything that isn't a digit, then prepend wb- to get the graph node name
     stem = "".join(filter(str.isdigit, wb_or_cat_id))
     name = f"wb-{stem}"
-    graph = get_graph()
+    graph = get_graph(hydrofabric_path)
     node_index = graph.vs.find(name=name).index
     # this returns the current node, and every node downstream of it in order
     downstream_node = graph.subcomponent(node_index, mode="OUT")
@@ -142,7 +145,9 @@ def get_outlet_id(wb_or_cat_id: str) -> str | None:
     return None
 
 
-def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
+def get_upstream_cats(
+    names: Union[str, List[str]], hydrofabric_path: Path = FilePaths.conus_hydrofabric
+) -> Set[str]:
     """
     Retrieves IDs of all catchments upstream of, and including, the given catchment in the hydrological network.
 
@@ -155,7 +160,7 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
     Returns:
         Set[str]: A list of IDs for all nodes upstream of the specified node(s). INCLUDING THE INPUT NODES.
     """
-    graph = get_graph()
+    graph = get_graph(hydrofabric_path)
     if isinstance(names, str):
         names = [names]
     # still keeping track of parent ids do we don't read info from overlapping networks more than once
@@ -184,7 +189,11 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
     return cat_ids
 
 
-def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True) -> Set[str]:
+def get_upstream_ids(
+    names: Union[str, List[str]],
+    include_outlet: bool = True,
+    hydrofabric_path: Path = FilePaths.conus_hydrofabric,
+) -> Set[str]:
     """
     Retrieves IDs of all nodes upstream of, and including, the given nodes in the hydrological network.
 
@@ -197,13 +206,13 @@ def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True) 
     Returns:
         Set[str]: A list of IDs for all nodes upstream of the specified node(s). INCLUDING THE INPUT NODES.
     """
-    graph = get_graph()
+    graph = get_graph(hydrofabric_path)
     if isinstance(names, str):
         names = [names]
     parent_ids = set()
     for name in names:
         if ("wb" in name or "cat" in name) and include_outlet:
-            name = get_outlet_id(name)
+            name = get_outlet_id(name, hydrofabric_path)
         if name in parent_ids:
             continue
         try:

@@ -170,17 +170,17 @@ def main() -> None:
             return
 
         paths = FilePaths(output_folder)
+        source_hf = hydrofabrics[args.domain]
         args = set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
             logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
             if not args.vpu:
-                upstream_count = len(get_upstream_cats(feature_to_subset))
+                upstream_count = len(get_upstream_cats(feature_to_subset, source_hf))
                 logging.info(f"Upstream catchments: {upstream_count}")
                 if upstream_count == 0:
                     # if there are no upstreams, exit
                     logging.error("No upstream catchments found.")
                     return
-        source_hf = hydrofabrics[args.domain]
 
         if args.domain != "conus":
             args.source = "nwm"

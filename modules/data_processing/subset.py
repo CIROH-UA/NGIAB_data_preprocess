@@ -104,7 +104,7 @@ def subset(
     include_outlet: bool = True,
     override_gpkg: bool = True,
 ):
-    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet))
+    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet, hydrofabric))
 
     if not output_gpkg_path:
         # if the name isn't provided, use the first upstream id
