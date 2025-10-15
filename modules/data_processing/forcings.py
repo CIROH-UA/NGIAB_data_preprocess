@@ -141,6 +141,8 @@ def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     )
     return dataset
 
+# def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
+#     # used for dHBV2
 
 def get_index_chunks(data: xr.DataArray) -> list[tuple[int, int]]:
     """

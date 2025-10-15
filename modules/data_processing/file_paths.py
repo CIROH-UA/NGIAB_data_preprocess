@@ -32,6 +32,8 @@ class FilePaths:
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
     template_cfe_config = data_sources / "cfe-template.ini"
     template_lstm_config = data_sources / "lstm-catchment-template.yml"
+    template_dhbv2_realization_config = data_sources / "dhbv2-realization-template.json"
+    template_dhbv2_config = data_sources / "dhbv2-catchment-template.yaml"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """

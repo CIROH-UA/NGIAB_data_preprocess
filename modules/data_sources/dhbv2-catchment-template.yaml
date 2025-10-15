@@ -1,0 +1,44 @@
+### Single-catchment configuration ###
+catchment_id: {divide_id}
+catchment_name: {divide_id}
+
+# Static catchment attributes
+aridity: {aridity}
+meanP: {meanP}
+ETPOT_Hargr: {ETPOT_Hargr}
+NDVI: {NDVI}
+FW: {FW}
+meanslope: {meanslope}
+SoilGrids1km_sand: {SoilGrids1km_sand}
+SoilGrids1km_clay: {SoilGrids1km_clay}
+SoilGrids1km_silt: {SoilGrids1km_silt}
+glaciers: {glaciers}
+HWSD_clay: {HWSD_clay}
+HWSD_gravel: {HWSD_gravel}
+HWSD_sand: {HWSD_sand}
+HWSD_silt: {HWSD_silt}
+meanelevation: {meanelevation}
+meanTa: {meanTa}
+permafrost: {permafrost}
+permeability: {permeability}
+seasonality_P: {seasonality_P}
+seasonality_PET: {seasonality_PET}
+snow_fraction: {snow_fraction}
+snowfall_fraction: {snowfall_fraction}
+T_clay: {T_clay}
+T_gravel: {T_gravel}
+T_sand: {T_sand}
+T_silt: {T_silt}
+Porosity: {Porosity}
+uparea: {uparea}
+
+config_model: models/hydrofabric_15yr/config.yaml
+stepwise: False  # True: stepwise inference, False: Single forward simulation on all data in one go
+initial_state: zero  # zero: set initial states of the model to zero
+dtype: np.float32
+verbose: 1  # 0: no output, 1: print output
+
+# Simulation window
+time_step: 1 day
+start_time: {start_time}
+end_time: {end_time}

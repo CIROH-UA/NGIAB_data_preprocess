@@ -112,7 +112,7 @@ def make_noahowp_config(
             )
 
 
-def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
+def get_model_attributes(hydrofabric: Path, layer: str) -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
         conf_df = pandas.read_sql_query(
             """
@@ -124,7 +124,7 @@ def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
             """,
             conn,
         )
-    source_crs = get_table_crs_short(hydrofabric, "divides")
+    source_crs = get_table_crs_short(hydrofabric, layer)
     transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
     conf_df["longitude"] = lon
@@ -139,7 +139,7 @@ def make_lstm_config(
 ):
     # test if modspatialite is available
 
-    divide_conf_df = get_model_attributes(hydrofabric)
+    divide_conf_df = get_model_attributes(hydrofabric, "divides")
 
     cat_config_dir = output_dir / "cat_config" / "lstm"
     if cat_config_dir.exists():
@@ -171,6 +171,58 @@ def make_lstm_config(
                 )
             )
 
+def make_dhbv2_config(
+    hydrofabric: Path,
+    output_dir: Path,
+    template_path: Path = FilePaths.template_dhbv2_config,
+):
+    # test if modspatialite is available
+
+    divide_conf_df = get_model_attributes(hydrofabric, "dhbv_attributes")
+
+    cat_config_dir = output_dir / "cat_config" / "dhbv2"
+    if cat_config_dir.exists():
+        shutil.rmtree(cat_config_dir)
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(template_path, "r") as file:
+        template = file.read()
+
+    for _, row in divide_conf_df.iterrows():
+        divide = row["divide_id"]
+        with open(cat_config_dir / f"{divide}.yml", "w") as file:
+            file.write(
+                template.format(
+                    divide_id=divide,
+                    aridity=row["aridity"],
+                    meanP=row["meanP"],
+                    ETPOT_Hargr=row["ETPOT_Hargr"],
+                    NDVI=row["NDVI"],
+                    FW=row["FW"],
+                    meanslope=row["meanslope"],
+                    SoilGrids1km_sand=row["SoilGrids1km_sand"],
+                    SoilGrids1km_clay=row["SoilGrids1km_clay"],
+                    SoilGrids1km_silt=row["SoilGrids1km_silt"],
+                    glaciers=row["glaciers"],
+                    HWSD_clay=row["HWSD_clay"],
+                    HWSD_gravel=row["HWSD_gravel"],
+                    HWSD_sand=row["HWSD_sand"],
+                    meanelevation=row["meanelevation"],
+                    meanTa=row["meanTa"],
+                    permafrost=row["permafrost"],
+                    permeability=row["permeability"],
+                    seasonality_P=row["seasonality_P"],
+                    seasonality_PET=row["seasonality_PET"],
+                    snow_fraction=row["snow_fraction"],
+                    snowfall_fraction=row["snowfall_fraction"],
+                    T_clay=row["T_clay"],
+                    T_gravel=row["T_gravel"],
+                    T_sand=row["T_sand"],
+                    T_silt=row["T_silt"],
+                    Porosity=row["Porosity"],
+                    uparea=row["uparea"],
+                )
+            )
 
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
@@ -218,14 +270,15 @@ def configure_troute(
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime
+    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime,
+    output_interval: int
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
 
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-    realization["time"]["output_interval"] = 3600
+    realization["time"]["output_interval"] = output_interval
 
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
@@ -239,11 +292,13 @@ def create_lstm_realization(
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     # python version of the lstm
     python_template_path = FilePaths.template_lstm_realization_config
-    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time)
+    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time, 
+                               output_interval=3600)
     realization_path.rename(paths.config_dir / "python_lstm_real.json")
     # rust version of the lstm
     rust_template_path = FilePaths.template_lstm_rust_realization_config
-    make_ngen_realization_json(paths.config_dir, rust_template_path, start_time, end_time)
+    make_ngen_realization_json(paths.config_dir, rust_template_path, start_time, end_time, 
+    output_interval=3600)
     realization_path.rename(paths.config_dir / "rust_lstm_real.json")
 
     if use_rust:
@@ -255,6 +310,21 @@ def create_lstm_realization(
     # create some partitions for parallelization
     paths.setup_run_folders()
 
+def create_dhbv2_realization(
+    cat_id: str, start_time: datetime, end_time: datetime
+):
+    paths = FilePaths(cat_id)
+    realization_path = paths.config_dir / "realization.json"
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+
+    python_template_path = FilePaths.template_dhbv2_realization_config
+    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time,
+                               output_interval=86400)
+    realization_path.rename(paths.config_dir / "dhbv2_real.json")
+
+    make_dhbv2_config(paths.geopackage_path, paths.config_dir)
+    # create some partitions for parallelization
+    paths.setup_run_folders()
 
 def create_realization(
     cat_id: str,
@@ -281,7 +351,7 @@ def create_realization(
         else:
             logger.warning(f"could not download parameters for {gage_id}, using default template")
 
-    conf_df = get_model_attributes(paths.geopackage_path)
+    conf_df = get_model_attributes(paths.geopackage_path, "divides")
 
     if use_nwm_gw:
         gw_levels = get_approximate_gw_storage(paths, start_time)
@@ -294,7 +364,8 @@ def create_realization(
 
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
-    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
+    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time,
+                               output_interval=3600)
 
     # create some partitions for parallelization
     paths.setup_run_folders()
