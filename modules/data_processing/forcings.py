@@ -176,7 +176,28 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     num_ts = len(dataset['time'])
     day_chunk_start_idx = 0
     pet_array = np.empty((num_cats, num_ts))
+
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        "[progress.percentage]{task.percentage:>3.0f}%",
+        TextColumn("{task.completed}/{task.total}"),
+        "•",
+        TextColumn(" Elapsed Time:"),
+        TimeElapsedColumn(),
+        TextColumn(" Remaining Time:"),
+        TimeRemainingColumn(),
+    )
+
+    int_days = np.ceil(num_ts / 24)
+
+    timer = time.perf_counter()
+    day_chunk_task = progress.add_task(
+        "[cyan]Processing days...", total=int_days, elapsed=0
+    )
+    progress.start()
     while day_chunk_start_idx <= num_ts - 1:
+        progress.update(day_chunk_task, advance=1)
         if day_chunk_start_idx + 23 <= num_ts - 1:
             ts_start = dataset.time.values[day_chunk_start_idx]
             ts_end = dataset.time.values[day_chunk_start_idx+23]
@@ -210,7 +231,11 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
             pet_array[i, day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
 
         day_chunk_start_idx += 24
-
+    progress.update(
+        day_chunk_task,
+        description=f"PET calculated in {time.perf_counter() - timer:2f} seconds",
+    )
+    progress.stop()
     dataset["PET"] = (("catchment", "time"), pet_array)
     dataset["PET"].attrs["units"] = "mm day^-1"  # ^-1 notation copied from source data
     return dataset
