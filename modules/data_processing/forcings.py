@@ -175,7 +175,7 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # if a 24 hr chunk not available, then stats computed for whatever length of timestep is there
     num_ts = len(dataset['time'])
     day_chunk_start_idx = 0
-    pet_array = np.empty(num_ts)
+    pet_array = np.empty((num_cats, num_ts))
     while day_chunk_start_idx <= num_ts - 1:
         if day_chunk_start_idx + 23 <= num_ts - 1:
             ts_start = dataset.time.values[day_chunk_start_idx]
@@ -207,13 +207,12 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
             lat = dataset['lat'][i]
             pet = hargreaves(tmin, tmax, tmean, lat, time_range)
             day_pet = np.tile(np.array([pet]), ts_diff)
-            pet_array[day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
+            pet_array[i, day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
 
         day_chunk_start_idx += 24
 
-    dataset["PET"] = pet_array
+    dataset["PET"] = (("catchment", "time"), pet_array)
     dataset["PET"].attrs["units"] = "mm day^-1"  # ^-1 notation copied from source data
-
     return dataset
 
 def get_index_chunks(data: xr.DataArray) -> list[tuple[int, int]]:
