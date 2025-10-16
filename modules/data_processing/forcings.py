@@ -457,9 +457,15 @@ def compute_zonal_stats(
     progress_file = FilePaths(output_dir=forcings_dir.parent).forcing_progress_file
     ex_var_name = list(gridded_data.data_vars)[0]
     example_time_chunks = get_index_chunks(gridded_data[ex_var_name])
-    all_steps = len(example_time_chunks) * len(gridded_data.data_vars)
+
+    if dhbv: # cut down on processing time for dhbv
+        data_vars = ['APCP_surface', 'TMP_2maboveground']
+    else:
+        data_vars = gridded_data.data_vars
+
+    all_steps = len(example_time_chunks) * len(data_vars)
     logger.info(
-        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(gridded_data.data_vars)}"
+        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(data_vars)}"
     )
     steps_completed = 0
     with open(progress_file, "w") as f:
@@ -482,7 +488,8 @@ def compute_zonal_stats(
         "[cyan]Processing variables...", total=len(gridded_data.data_vars), elapsed=0
     )
     progress.start()
-    for data_var_name in list(gridded_data.data_vars):
+
+    for data_var_name in list(data_vars):
         data_var_name: str
         progress.update(variable_task, advance=1)
         progress.update(variable_task, description=f"Processing {data_var_name}")
@@ -583,7 +590,8 @@ def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) ->
 
     final_ds = final_ds.rename_vars(rename_dict)
     if "APCP_surface" in final_ds.data_vars:
-        final_ds = add_precip_rate_to_dataset(final_ds)
+        if not dhbv:
+            final_ds = add_precip_rate_to_dataset(final_ds)
     elif "precip_rate" in final_ds.data_vars:
         final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
@@ -601,8 +609,13 @@ def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) ->
 
     # lat 1d var and PET added for dHBV
     if dhbv:
-        final_ds["lat"] = [cat_lat[cat] for cat in final_ds["ids"].values]
+        logger.info("Calculating PET from temperature values...")
+        final_ds["lat"] = (("catchment"), [cat_lat[cat] for cat in final_ds["ids"].values])
         final_ds = add_pet_to_dataset(final_ds)
+
+        dhbv_renamedict = {'APCP_surface': 'P',
+                    'TMP_2maboveground': 'Temp'}
+        final_ds = final_ds.rename_vars(dhbv_renamedict)
 
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
     with warnings.catch_warnings():
