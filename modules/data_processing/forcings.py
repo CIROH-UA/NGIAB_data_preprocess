@@ -141,8 +141,80 @@ def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     )
     return dataset
 
-# def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
-#     # used for dHBV2
+def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
+    # used for dHBV2
+    def hargreaves(tmin, tmax, tmean, lat, time_range):
+        # calculate the day of year
+        dfdate = pd.date_range(start=str(time_range[0]), end=str(time_range[1]), freq='D') # end not included
+        day_of_year = dfdate.dayofyear
+        # Loop to reduce memory usage
+        temp_range = tmax - tmin
+        if temp_range < 0:
+            temp_range = 0
+
+        latitude = np.deg2rad(lat).item()
+        SOLAR_CONSTANT = 0.0820
+        sol_dec = 0.409 * np.sin(((2.0 * np.pi / 365.0) * day_of_year - 1.39))
+        sol_dec = float(sol_dec[0])
+        sha = np.arccos(-np.tan(latitude) * np.tan(sol_dec))
+
+        ird = 1 + (0.033 * np.cos((2.0 * np.pi / 365.0) * day_of_year))
+        tmp1 = (24.0 * 60.0) / np.pi
+        tmp2 = sha * np.sin(latitude) * np.sin(sol_dec)
+        tmp3 = np.cos(latitude) * np.cos(sol_dec) * np.sin(sha)
+        et_rad = tmp1 * SOLAR_CONSTANT * ird * (tmp2 + tmp3)
+
+        pet = 0.0023 * (tmean + 17.8) * temp_range ** 0.5 * 0.408 * et_rad
+
+        if pet < 0:
+            pet = 0
+
+        return pet
+
+    # read 24 hour chunks at a time to calculate temperature stats
+    # if a 24 hr chunk not available, then stats computed for whatever length of timestep is there
+    num_ts = len(dataset['time'])
+    day_chunk_start_idx = 0
+    pet_array = np.empty(num_ts)
+    while day_chunk_start_idx <= num_ts - 1:
+        if day_chunk_start_idx + 23 <= num_ts - 1:
+            ts_start = dataset.time.values[day_chunk_start_idx]
+            ts_end = dataset.time.values[day_chunk_start_idx+23]
+            start_time = pd.to_datetime(ts_start)
+            end_time = pd.to_datetime(ts_end)
+            time_range = [start_time, end_time]
+            ts_diff = 24
+            # select 24 hour chunk
+            day_chunk = dataset.isel(
+                time=slice(day_chunk_start_idx,day_chunk_start_idx+24))['TMP_2maboveground']
+        else: # in case there isn't a full day left in the forcings file
+            ts_start = dataset.time.values[day_chunk_start_idx]
+            ts_end = dataset.time.values[num_ts-1]
+            start_time = pd.to_datetime(ts_start)
+            end_time = pd.to_datetime(ts_end)
+            time_range = [start_time, end_time]
+            ts_diff = num_ts-day_chunk_start_idx
+            # select 24 hour chunk
+            day_chunk = dataset.isel(
+                time=slice(day_chunk_start_idx,day_chunk_start_idx+ts_diff))['TMP_2maboveground']
+
+        for i in range(len(day_chunk)): # loop through catchments
+            cat_temps = day_chunk[i].values
+            # calculate stats
+            tmin = np.min(cat_temps)
+            tmax = np.max(cat_temps)
+            tmean = np.mean(cat_temps)
+            lat = dataset['lat'][i]
+            pet = hargreaves(tmin, tmax, tmean, lat, time_range)
+            day_pet = np.tile(np.array([pet]), ts_diff)
+            pet_array[day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
+
+        day_chunk_start_idx += 24
+
+    dataset["PET"] = pet_array
+    dataset["PET"].attrs["units"] = "mm day^-1"  # ^-1 notation copied from source data
+
+    return dataset
 
 def get_index_chunks(data: xr.DataArray) -> list[tuple[int, int]]:
     """
@@ -355,7 +427,7 @@ def interpolate_nan_values(
 
 @no_cluster
 def compute_zonal_stats(
-    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path
+    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path, dhbv: bool
 ) -> None:
     """
     Compute zonal statistics in parallel for all timesteps over all desired
@@ -379,6 +451,7 @@ def compute_zonal_stats(
 
     catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
     units = get_units(gridded_data)
+    cat_lat = get_lats(gdf)
 
     cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
@@ -474,13 +547,13 @@ def compute_zonal_stats(
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
-    write_outputs(forcings_dir, units)
+    write_outputs(forcings_dir, units, cat_lat, dhbv)
     time.sleep(1)  # wait for progress bar to update
     progress_file.unlink()
 
 
 @use_cluster
-def write_outputs(forcings_dir: Path, units: dict) -> None:
+def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) -> None:
     """
     Write outputs to disk in the form of a NetCDF file, using dask clusters to
     facilitate parallel computing.
@@ -526,6 +599,12 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     # time is stored as unix timestamps, units have to be set
     # add the catchment ids as a 1d data var
     final_ds["ids"] = final_ds["catchment"].astype(str)
+
+    # lat 1d var and PET added for dHBV
+    if dhbv:
+        final_ds["lat"] = [cat_lat[cat] for cat in final_ds["ids"].values]
+        final_ds = add_pet_to_dataset(final_ds)
+
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -570,7 +649,7 @@ def setup_directories(cat_id: str) -> FilePaths:
     return forcing_paths
 
 
-def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
+def create_forcings(dataset: xr.Dataset, output_folder_name: str, dhbv: bool) -> None:
     validate_dataset_format(dataset)
     forcing_paths = setup_directories(output_folder_name)
     logger.debug(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
