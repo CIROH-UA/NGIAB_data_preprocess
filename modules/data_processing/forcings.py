@@ -422,6 +422,22 @@ def get_lats(gdf: gpd.GeoDataFrame) -> dict:
     return cat_lat
 
 
+def get_lats(gdf: gpd.GeoDataFrame) -> dict:
+    '''
+    return latitudes for each catchment
+    '''
+    cats = gdf['divide_id']
+
+    # convert to a geographic crs so we get actual degrees for lat/lon
+    gdf_geog = gdf.to_crs(4326)
+    with warnings.catch_warnings(): # it will complain about it being a geographic CRS, this is to shut it up
+        warnings.simplefilter("ignore")
+        lats = gdf_geog.centroid.y
+
+    cat_lat = dict(zip(cats, lats))
+    return cat_lat
+
+
 def interpolate_nan_values(
     dataset: xr.Dataset,
     dim: str = "time",
@@ -464,6 +480,7 @@ def interpolate_nan_values(
 
 @no_cluster
 def compute_zonal_stats(
+    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path, dhbv: bool
     gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path, dhbv: bool
 ) -> None:
     """

@@ -201,6 +201,7 @@ def main() -> None:
                 cached_data,
                 output_folder_name=output_folder,
                 dhbv=args.dhbv2 # need this argument to determine if we do the PET calculation or not
+                dhbv = args.dhbv2 # need this argument to determine if we do the PET calculation or not
             )
             logging.info("Forcings generation complete.")
 
