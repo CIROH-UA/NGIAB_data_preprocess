@@ -143,32 +143,34 @@ def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
 
 def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # used for dHBV2
+    SOLAR_CONSTANT = 0.0820
+    tmp1 = (24.0 * 60.0) / np.pi
     def hargreaves(tmin, tmax, tmean, lat, time_range):
-        # calculate the day of year
+        #calculate the day of year
         dfdate = pd.date_range(start=str(time_range[0]), end=str(time_range[1]), freq='D') # end not included
-        day_of_year = dfdate.dayofyear
+        tempday = np.array(dfdate.dayofyear)
+        day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
         # Loop to reduce memory usage
+        pet = np.zeros(tmin.shape, dtype=np.float32) * np.nan
+
         temp_range = tmax - tmin
-        if temp_range < 0:
-            temp_range = 0
+        print("temp-range", temp_range.shape)
+        temp_range[temp_range < 0] = 0
 
-        latitude = np.deg2rad(lat).item()
-        SOLAR_CONSTANT = 0.0820
+        latitude = np.deg2rad(lat)
+
         sol_dec = 0.409 * np.sin(((2.0 * np.pi / 365.0) * day_of_year - 1.39))
-        sol_dec = float(sol_dec[0])
-        sha = np.arccos(-np.tan(latitude) * np.tan(sol_dec))
-
+        sha = np.arccos(np.clip(-np.tan(latitude) * np.tan(sol_dec), -1, 1))
         ird = 1 + (0.033 * np.cos((2.0 * np.pi / 365.0) * day_of_year))
-        tmp1 = (24.0 * 60.0) / np.pi
         tmp2 = sha * np.sin(latitude) * np.sin(sol_dec)
         tmp3 = np.cos(latitude) * np.cos(sol_dec) * np.sin(sha)
         et_rad = tmp1 * SOLAR_CONSTANT * ird * (tmp2 + tmp3)
-
+        et_rad = et_rad.reshape(-1)
+        print("et rad", et_rad.shape)
         pet = 0.0023 * (tmean + 17.8) * temp_range ** 0.5 * 0.408 * et_rad
 
-        if pet < 0:
-            pet = 0
-
+        pet[pet < 0] = 0
+        print(pet.shape)
         return pet
 
     # read 24 hour chunks at a time to calculate temperature stats
@@ -231,6 +233,7 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
             pet_array[i, day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
 
         day_chunk_start_idx += 24
+
     progress.update(
         day_chunk_task,
         description=f"PET calculated in {time.perf_counter() - timer:2f} seconds",
