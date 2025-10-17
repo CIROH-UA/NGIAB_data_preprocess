@@ -174,11 +174,16 @@ def make_lstm_config(
 def make_dhbv2_config(
     hydrofabric: Path,
     output_dir: Path,
+    start_time: datetime,
+    end_time: datetime,
     template_path: Path = FilePaths.template_dhbv2_config,
 ):
     # test if modspatialite is available
 
-    divide_conf_df = get_model_attributes(hydrofabric, "dhbv_attributes")
+    divide_conf_df = get_model_attributes(hydrofabric, "divides")
+    divide_ids = divide_conf_df['divide_id'].to_list()
+    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
+    atts_df = dhbv_atts.loc[dhbv_atts['divide_id'].isin(divide_ids)]
 
     cat_config_dir = output_dir / "cat_config" / "dhbv2"
     if cat_config_dir.exists():
@@ -188,7 +193,7 @@ def make_dhbv2_config(
     with open(template_path, "r") as file:
         template = file.read()
 
-    for _, row in divide_conf_df.iterrows():
+    for _, row in atts_df.iterrows():
         divide = row["divide_id"]
         with open(cat_config_dir / f"{divide}.yml", "w") as file:
             file.write(
@@ -207,6 +212,7 @@ def make_dhbv2_config(
                     HWSD_clay=row["HWSD_clay"],
                     HWSD_gravel=row["HWSD_gravel"],
                     HWSD_sand=row["HWSD_sand"],
+                    HWSD_silt=row["HWSD_silt"],
                     meanelevation=row["meanelevation"],
                     meanTa=row["meanTa"],
                     permafrost=row["permafrost"],
@@ -221,6 +227,8 @@ def make_dhbv2_config(
                     T_silt=row["T_silt"],
                     Porosity=row["Porosity"],
                     uparea=row["uparea"],
+                    start_time=start_time,
+                    end_time=end_time
                 )
             )
 
@@ -322,7 +330,7 @@ def create_dhbv2_realization(
                                output_interval=86400)
     realization_path.rename(paths.config_dir / "dhbv2_real.json")
 
-    make_dhbv2_config(paths.geopackage_path, paths.config_dir)
+    make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     # create some partitions for parallelization
     paths.setup_run_folders()
 
