@@ -154,7 +154,6 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
         pet = np.zeros(tmin.shape, dtype=np.float32) * np.nan
 
         temp_range = tmax - tmin
-        print("temp-range", temp_range.shape)
         temp_range[temp_range < 0] = 0
 
         latitude = np.deg2rad(lat)
@@ -166,11 +165,9 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
         tmp3 = np.cos(latitude) * np.cos(sol_dec) * np.sin(sha)
         et_rad = tmp1 * SOLAR_CONSTANT * ird * (tmp2 + tmp3)
         et_rad = et_rad.reshape(-1)
-        print("et rad", et_rad.shape)
         pet = 0.0023 * (tmean + 17.8) * temp_range ** 0.5 * 0.408 * et_rad
 
         pet[pet < 0] = 0
-        print(pet.shape)
         return pet
 
     # read 24 hour chunks at a time to calculate temperature stats
@@ -221,16 +218,16 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
             day_chunk = dataset.isel(
                 time=slice(day_chunk_start_idx,day_chunk_start_idx+ts_diff))['TMP_2maboveground']
 
-        for i in range(len(day_chunk)): # loop through catchments
-            cat_temps = day_chunk[i].values
-            # calculate stats
-            tmin = np.min(cat_temps)
-            tmax = np.max(cat_temps)
-            tmean = np.mean(cat_temps)
-            lat = dataset['lat'][i]
-            pet = hargreaves(tmin, tmax, tmean, lat, time_range)
-            day_pet = np.tile(np.array([pet]), ts_diff)
-            pet_array[i, day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
+        cat_temps = day_chunk.values
+        # calculate stats
+        tmin = np.min(cat_temps, axis=1)
+        tmax = np.max(cat_temps, axis=1)
+        tmean = np.mean(cat_temps, axis=1)
+        lat = dataset['lat'].values
+
+        pet = hargreaves(tmin, tmax, tmean, lat, time_range)
+        day_pet = np.repeat(pet[:, np.newaxis], ts_diff, axis=1)
+        pet_array[:, day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
 
         day_chunk_start_idx += 24
 
