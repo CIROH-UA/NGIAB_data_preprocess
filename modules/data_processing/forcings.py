@@ -663,7 +663,7 @@ def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) ->
     final_ds["Time"].attrs["epoch_start"] = (
         "01/01/1970 00:00:00"  # not needed but suppresses the ngen warning
     )
-    interpolate_nan_values(final_ds)
+    # interpolate_nan_values(final_ds)
 
     logger.info("Saving to disk")
     final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
