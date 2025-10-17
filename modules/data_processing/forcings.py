@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
+import datetime
 from data_processing.dask_utils import no_cluster, use_cluster
 from data_processing.dataset_utils import validate_dataset_format
 from data_processing.file_paths import FilePaths
@@ -145,10 +146,10 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # used for dHBV2
     SOLAR_CONSTANT = 0.0820
     tmp1 = (24.0 * 60.0) / np.pi
-    def hargreaves(tmin, tmax, tmean, lat, time_range):
+    def hargreaves(tmin, tmax, tmean, lat, date):
         #calculate the day of year
-        dfdate = pd.date_range(start=str(time_range[0]), end=str(time_range[1]), freq='D') # end not included
-        tempday = np.array(dfdate.dayofyear)
+        dfdate = date
+        tempday = np.array(dfdate.timetuple().tm_yday)
         day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
         # Loop to reduce memory usage
         pet = np.zeros(tmin.shape, dtype=np.float32) * np.nan
@@ -192,31 +193,18 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
 
     timer = time.perf_counter()
     day_chunk_task = progress.add_task(
-        "[cyan]Processing days...", total=int_days, elapsed=0
+        "[cyan]Calculating PET...", total=int_days, elapsed=0
     )
     progress.start()
     while day_chunk_start_idx <= num_ts - 1:
         progress.update(day_chunk_task, advance=1)
+        ts_start = pd.to_datetime(dataset.time.values[day_chunk_start_idx])
         if day_chunk_start_idx + 23 <= num_ts - 1:
-            ts_start = dataset.time.values[day_chunk_start_idx]
-            ts_end = dataset.time.values[day_chunk_start_idx+23]
-            start_time = pd.to_datetime(ts_start)
-            end_time = pd.to_datetime(ts_end)
-            time_range = [start_time, end_time]
             ts_diff = 24
-            # select 24 hour chunk
-            day_chunk = dataset.isel(
-                time=slice(day_chunk_start_idx,day_chunk_start_idx+24))['TMP_2maboveground']
         else: # in case there isn't a full day left in the forcings file
-            ts_start = dataset.time.values[day_chunk_start_idx]
-            ts_end = dataset.time.values[num_ts-1]
-            start_time = pd.to_datetime(ts_start)
-            end_time = pd.to_datetime(ts_end)
-            time_range = [start_time, end_time]
             ts_diff = num_ts-day_chunk_start_idx
-            # select 24 hour chunk
-            day_chunk = dataset.isel(
-                time=slice(day_chunk_start_idx,day_chunk_start_idx+ts_diff))['TMP_2maboveground']
+        day_chunk = dataset.isel(
+            time=slice(day_chunk_start_idx,day_chunk_start_idx+ts_diff))['TMP_2maboveground']
 
         cat_temps = day_chunk.values
         # calculate stats
@@ -225,7 +213,7 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
         tmean = np.mean(cat_temps, axis=1)
         lat = dataset['lat'].values
 
-        pet = hargreaves(tmin, tmax, tmean, lat, time_range)
+        pet = hargreaves(tmin, tmax, tmean, lat, ts_start)
         day_pet = np.repeat(pet[:, np.newaxis], ts_diff, axis=1)
         pet_array[:, day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
 
@@ -510,7 +498,7 @@ def compute_zonal_stats(
 
     timer = time.perf_counter()
     variable_task = progress.add_task(
-        "[cyan]Processing variables...", total=len(gridded_data.data_vars), elapsed=0
+        "[cyan]Processing variables...", total=len(data_vars), elapsed=0
     )
     progress.start()
 
