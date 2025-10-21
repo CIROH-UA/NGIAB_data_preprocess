@@ -198,6 +198,8 @@ Installed with uv: `uv run cli`
 - `-s`, `--subset`: Subset the hydrofabric to the given feature.
 - `-f`, `--forcings`: Generate forcings for the given feature.
 - `-r`, `--realization`: Create a realization for the given feature.
+- `--lstm`: Configures the data for the [python lstm](https://github.com/ciroh-ua/lstm/).
+- `--lstm_rust`: Configures the data for the [rust lstm](https://github.com/ciroh-ua/rust-lstm-1025/).
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
@@ -257,11 +259,17 @@ Installed with uv: `uv run cli`
 
 # Realization information
 
-This tool currently offers one default realization.
+This tool currently offers three realizations.
 
-## NOAH + CFE
+## NOAH + CFE (Default)
 
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/cfe-nowpm-realization-template.json) is intended to be roughly comparable to earlier versions of the National Water Model.
 - [NOAH-OWP-Modular](https://github.com/NOAA-OWP/NOAH-OWP-Modular): A refactoring of Noah-MP, a land-surface model. Used to model groundwater properties.
 - [Conceptual Functional Equivalent (CFE)](https://github.com/NOAA-OWP/CFE): A simplified conceptual approximation of versions 1.2, 2.0, and 2.1 of the National Water Model. Used to model precipitation and evaporation.
 - [SLoTH](https://github.com/NOAA-OWP/SLoTH): A module used to feed through unchanged values. In this default configuration, it simply forces certain soil moisture and ice fraction properties to zero.
+
+## LSTM (Python)
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/lstm-realization-template.json) will run the [python lstm](https://github.com/ciroh-ua/lstm/). It's designed to work with ngiab using [these example weights](https://github.com/CIROH-UA/lstm/tree/example_weights/trained_neuralhydrology_models) generously contributed by [jmframe/lstm](https://github.com/jmframe/lstm)
+
+## LSTM (Rust)
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/lstm-rust-realization-template.json) will run the [rust port](https://github.com/CIROH-UA/rust-lstm-1025/tree/main) of the python lstm above. It's an experimental drop in replacement that should produce identical results with a ~2-5x speedup depending on your setup.
