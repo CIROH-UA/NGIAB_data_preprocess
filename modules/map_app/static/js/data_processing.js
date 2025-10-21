@@ -91,6 +91,7 @@ function pollForcingsProgress(progressFile) {
 }
 
 async function forcings() {
+    var cat_id = $('#selected-basins').text()
     fetch('/subset_check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

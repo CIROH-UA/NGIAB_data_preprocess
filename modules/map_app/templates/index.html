@@ -23,6 +23,16 @@
     <main>
         <section id="map-container">
             <div id="map">
+                <div id="map-crosshair">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
+                        <path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/>
+                    </svg>
+                </div>
+                <div id="map-box">
+                    <svg>
+                        <rect width="150" height="150"/>
+                    </svg>
+                </div>
                 <button id="toggle-button-gages">Show gages</button> 
                 <button id="toggle-button-camels">Show CAMELS basins</button>
                 <button id="toggle-button-nwm">Overlay NWM chunks</button>
@@ -36,12 +46,16 @@
                         <span class="toggle-handle toggle-handle-subset"></span>
                     </label>
                 </div>
+                <br>
+                <span class="map-hint">
+                    Shift++/Shift+- to zoom in/out. Arrow keys to pan around map. Enter to select catchments. Space to show information on gages within selection box when gages are turned on.
+                </span>
             </div>
 
             <div class="command-container">
                 <div class="command-header">
                         <div class="toggle-switch">
-                            <input type="checkbox" id="runcmd-toggle" class="toggle-input">
+                            <input type="checkbox" id="runcmd-toggle" class="toggle-input" >
                             <label for="runcmd-toggle" class="toggle-label">
                                 <span class="toggle-text toggle-text-left">UVX</span>
                                 <span class="toggle-text toggle-text-right">Pip</span>
@@ -126,7 +140,7 @@
             </div>
             <!-- div below to show source data toggle -->
             <div style="display: flex; justify-content: left;">
-                <div class="toggle-switch">
+                <div class="toggle-switch" >
                     <input type="checkbox" id="datasource-toggle" class="toggle-input">
                     <label for="datasource-toggle" class="toggle-label">
                         <span class="toggle-text toggle-text-left">NWM</span>

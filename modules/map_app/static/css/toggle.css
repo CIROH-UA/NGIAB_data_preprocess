@@ -6,9 +6,14 @@
     margin-right: 15px;
 }
 
+.toggle-switch:focus-within {
+  border-color: #00d9ff; /* highlight color */
+  box-shadow: 0 0 0 3px rgba(3, 251, 235, 1);
+}   
+
 /* Hide the default checkbox */
 .toggle-input {
-    display: none;
+    opacity: 0;
 }
 
 /* Toggle Label (the switch background) */
