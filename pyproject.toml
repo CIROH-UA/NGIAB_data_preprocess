@@ -53,6 +53,7 @@ dependencies = [
     "boto3",
     "numcodecs<0.16.0",
     "scipy>=1.15.3",
+    "h5py<=3.11"
 ]
 
 [project.optional-dependencies]
