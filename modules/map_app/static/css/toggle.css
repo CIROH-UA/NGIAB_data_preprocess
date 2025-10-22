@@ -84,31 +84,122 @@
     color: #888; /* Grey color for non-selected text */
 }
 
-/* toggle switch for the subset option */
-.toggle-switch-subset {
+.menu-switch {
+  margin: 5px;
+  position: relative;
+  display: block;
+  top: -40px;
+}
+
+.menu-switch__input {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  position: absolute;
+}
+
+.menu-switch__input:checked ~ .menu-switch__label::before {
+  background: #007bff;
+}
+
+.menu-switch__input:checked ~ .menu-switch__label::after {
+  border-color: #007bff;
+  transform: translate(23px, -50%);
+}
+
+.menu-switch__label {
+  cursor: pointer;
+  padding-left: 60px;
+  position: relative;
+  display: inline-block;
+  font-size: 0.9rem;
+}
+
+.menu-switch__label::before,
+.menu-switch__label::after {
+  content: '';
+  left: 0;
+  position: absolute;
+}
+
+.menu-switch__label::before {
+  top: 50%;
+  width: 30px;
+  height: 12px;
+  border-radius: 20px;
+  transform: translateY(-50%);
+  background: #ccc;
+}
+
+.menu-switch__label::after {
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 100%;
+  transition: transform .3s;
+  background: #fff;
+  transform: translate(0, -50%);
+  border: 2px solid #ccc;
+}
+
+.radio {
+  margin: 0.5rem;
+  font-size: 0.9rem;
+  top: -35px;
+  position: relative;
+  input[type="radio"] {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
-    z-index: 10;
-    width: 240px;
-}
-
-.toggle-text-subset {
-    font-size: 10px;
-}
-
-/* I didn't mean to have four styles for one element but it looked terrible without this*/
-.toggle-text-left-subset {
-    left: 20px;
-}
-
-.toggle-handle-subset {
-    width: 120px;
-    font-size: 10px;
-}
-
-.toggle-input:checked + .toggle-label .toggle-handle-subset {
-    transform: translateX(116px);
-    box-shadow: 0 0 10px rgba(0, 123, 255, 0.8); /* Blue glow effect */
-    color: #007bff; /* Blue color for the selected text */
+    opacity: 0;
+    + .radio-label {
+      &:before {
+        content: '';
+        background: #ccc;
+        border-radius: 100%;
+        border: 1px solid darken(#ccc, 25%);
+        display: inline-block;
+        width: 1.4em;
+        height: 1.4em;
+        position: relative;
+        top: -0.2em;
+        margin-right: 1em; 
+        vertical-align: top;
+        cursor: pointer;
+        text-align: center;
+        transition: all 250ms ease;
+      }
+    }
+    &:checked {
+      + .radio-label {
+        &:before {
+          background-color: #007bff;
+          box-shadow: inset 0 0 0 4px #ccc;
+        }
+      }
+    }
+    &:focus {
+      + .radio-label {
+        &:before {
+          outline: none;
+          border-color: #ccc;
+        }
+      }
+    }
+    &:disabled {
+      + .radio-label {
+        &:before {
+          box-shadow: inset 0 0 0 4px #ccc;
+          border-color: darken(#ccc, 25%);
+          background: darken(#007bff, 25%);
+        }
+      }
+    }
+    + .radio-label {
+      &:empty {
+        &:before {
+          margin-right: 0;
+        }
+      }
+    }
+  }
 }
