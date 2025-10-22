@@ -182,7 +182,7 @@ def make_dhbv2_config(
 
     divide_conf_df = get_model_attributes(hydrofabric, "divides")
     divide_ids = divide_conf_df['divide_id'].to_list()
-    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
+    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes, storage_options={"anon": True})
     atts_df = dhbv_atts.loc[dhbv_atts['divide_id'].isin(divide_ids)]
 
     cat_config_dir = output_dir / "cat_config" / "dhbv2"

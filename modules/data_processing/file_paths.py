@@ -22,7 +22,7 @@ class FilePaths:
     template_sql = data_sources / "template.sql"
     triggers_sql = data_sources / "triggers.sql"
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
-    dhbv_attributes = hydrofabric_dir / "dhbv_attrs.parquet"
+    dhbv_attributes = "s3://communityhydrofabric/hydrofabrics/community/resources/dhbv_attrs.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     template_nc = data_sources / "forcing_template.nc"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
