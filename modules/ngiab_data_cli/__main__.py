@@ -194,7 +194,7 @@ def main() -> None:
                 data = load_v3_retrospective_zarr()
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
             cached_data = save_and_clip_dataset(
-                data, gdf, args.start_date, args.end_date, paths.cached_nc_file
+                data, gdf, args.start_date, args.end_date, paths.cached_zarr_file
             )
 
             create_forcings(
