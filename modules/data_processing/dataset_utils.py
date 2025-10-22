@@ -115,11 +115,12 @@ def clip_dataset_to_bounds(
     logger.info("Selected time range and clipped to bounds")
     return dataset
 
+
 @temp_cluster
 def save_dataset(
     ds_to_save: xr.Dataset,
     target_path: Path,
-    engine: Literal["netcdf4", "scipy", "h5netcdf"] = "h5netcdf",
+    engine: Literal["netcdf4", "scipy"] = "netcdf4",
 ):
     """
     Helper function to compute and save an xarray.Dataset (specifically, the raw
@@ -148,9 +149,7 @@ def save_dataset(
 
 
 @no_cluster
-def save_to_cache(
-    stores: xr.Dataset, cached_nc_path: Path
-) -> xr.Dataset:
+def save_to_cache(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     """
     Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
     """
@@ -164,7 +163,7 @@ def save_to_cache(
     # save dataset locally before manipulating it
     save_dataset(stores, cached_nc_path)
 
-    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
+    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
     return stores
 
 
@@ -183,7 +182,7 @@ def check_local_cache(
 
     logger.info("Found cached nc file")
     # open the cached file and check that the time range is correct
-    cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
+    cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
 
     if "name" not in cached_data.attrs or "name" not in remote_dataset.attrs:
         logger.warning("No name attribute found to compare datasets")
