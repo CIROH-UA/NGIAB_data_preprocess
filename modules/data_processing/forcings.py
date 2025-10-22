@@ -603,8 +603,7 @@ def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) ->
 
     final_ds = final_ds.rename_vars(rename_dict)
     if "APCP_surface" in final_ds.data_vars:
-        if not dhbv:
-            final_ds = add_precip_rate_to_dataset(final_ds)
+        final_ds = add_precip_rate_to_dataset(final_ds)
     elif "precip_rate" in final_ds.data_vars:
         final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
@@ -626,8 +625,9 @@ def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) ->
         final_ds["lat"] = (("catchment"), [cat_lat[cat] for cat in final_ds["ids"].values])
         final_ds = add_pet_to_dataset(final_ds)
 
-        dhbv_renamedict = {'APCP_surface': 'P',
+        dhbv_renamedict = {'precip_rate': 'P',
                     'TMP_2maboveground': 'Temp'}
+        final_ds = final_ds.drop_vars("APCP_surface")
         final_ds = final_ds.rename_vars(dhbv_renamedict)
 
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
