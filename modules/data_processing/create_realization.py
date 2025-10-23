@@ -20,6 +20,7 @@ from data_processing.gpkg_utils import (
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
 )
+from data_sources.source_validation import download_from_s3
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -171,6 +172,41 @@ def make_lstm_config(
                 )
             )
 
+
+def get_headers(url):
+    try:
+        response = requests.head(url)
+    except requests.exceptions.ConnectionError:
+        return 500, {}
+    return response.status_code, response.headers
+
+
+def download_dhbv_attributes():
+    S3_BUCKET = "communityhydrofabric"
+    S3_KEY = "hydrofabrics/community/resources/dhbv_attrs.parquet"
+    S3_REGION = "us-east-1"
+    attributes_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
+
+    status, headers = get_headers(attributes_url)
+    download_log = FilePaths.dhbv_attributes.with_suffix(".log")
+    if download_log.exists():
+        with open(download_log, "r") as f:
+            local_headers = json.load(f)
+    else:
+        local_headers = {}
+
+    if not FilePaths.dhbv_attributes.exists() or headers.get("ETag", "") != local_headers.get(
+        "ETag", ""
+    ):
+        download_from_s3(
+            FilePaths.dhbv_attributes,
+            bucket=S3_BUCKET,
+            key=S3_KEY,
+        )
+        with open(FilePaths.dhbv_attributes.with_suffix(".log"), "w") as f:
+            json.dump(dict(headers), f)
+
+
 def make_dhbv2_config(
     hydrofabric: Path,
     output_dir: Path,
@@ -178,12 +214,12 @@ def make_dhbv2_config(
     end_time: datetime,
     template_path: Path = FilePaths.template_dhbv2_config,
 ):
-    # test if modspatialite is available
-
     divide_conf_df = get_model_attributes(hydrofabric)
-    divide_ids = divide_conf_df['divide_id'].to_list()
-    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes, storage_options={"anon": True})
-    atts_df = dhbv_atts.loc[dhbv_atts['divide_id'].isin(divide_ids)]
+    divide_ids = divide_conf_df["divide_id"].to_list()
+
+    download_dhbv_attributes()
+    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
+    atts_df = dhbv_atts.loc[dhbv_atts["divide_id"].isin(divide_ids)]
 
     cat_config_dir = output_dir / "cat_config" / "dhbv2"
     if cat_config_dir.exists():
@@ -228,9 +264,10 @@ def make_dhbv2_config(
                     Porosity=row["Porosity"],
                     uparea=row["uparea"],
                     start_time=start_time,
-                    end_time=end_time
+                    end_time=end_time,
                 )
             )
+
 
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
@@ -278,8 +315,11 @@ def configure_troute(
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime,
-    output_interval: int = 3600
+    config_dir: Path,
+    template_path: Path,
+    start_time: datetime,
+    end_time: datetime,
+    output_interval: int = 3600,
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
@@ -316,21 +356,22 @@ def create_lstm_realization(
     # create some partitions for parallelization
     paths.setup_run_folders()
 
-def create_dhbv2_realization(
-    cat_id: str, start_time: datetime, end_time: datetime
-):
+
+def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = FilePaths(cat_id)
     realization_path = paths.config_dir / "realization.json"
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
     python_template_path = FilePaths.template_dhbv2_realization_config
-    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time,
-                               output_interval=86400)
+    make_ngen_realization_json(
+        paths.config_dir, python_template_path, start_time, end_time, output_interval=86400
+    )
     realization_path.rename(paths.config_dir / "dhbv2_real.json")
 
     make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     # create some partitions for parallelization
     paths.setup_run_folders()
+
 
 def create_realization(
     cat_id: str,
