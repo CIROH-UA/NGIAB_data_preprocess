@@ -112,7 +112,7 @@ def make_noahowp_config(
             )
 
 
-def get_model_attributes(hydrofabric: Path, layer: str) -> pandas.DataFrame:
+def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
         conf_df = pandas.read_sql_query(
             """
@@ -139,7 +139,7 @@ def make_lstm_config(
 ):
     # test if modspatialite is available
 
-    divide_conf_df = get_model_attributes(hydrofabric, "divides")
+    divide_conf_df = get_model_attributes(hydrofabric)
 
     cat_config_dir = output_dir / "cat_config" / "lstm"
     if cat_config_dir.exists():
@@ -180,7 +180,7 @@ def make_dhbv2_config(
 ):
     # test if modspatialite is available
 
-    divide_conf_df = get_model_attributes(hydrofabric, "divides")
+    divide_conf_df = get_model_attributes(hydrofabric)
     divide_ids = divide_conf_df['divide_id'].to_list()
     dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes, storage_options={"anon": True})
     atts_df = dhbv_atts.loc[dhbv_atts['divide_id'].isin(divide_ids)]
@@ -279,7 +279,7 @@ def configure_troute(
 
 def make_ngen_realization_json(
     config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime,
-    output_interval: int
+    output_interval: int = 3600
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
@@ -300,13 +300,11 @@ def create_lstm_realization(
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     # python version of the lstm
     python_template_path = FilePaths.template_lstm_realization_config
-    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time, 
-                               output_interval=3600)
+    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time)
     realization_path.rename(paths.config_dir / "python_lstm_real.json")
     # rust version of the lstm
     rust_template_path = FilePaths.template_lstm_rust_realization_config
-    make_ngen_realization_json(paths.config_dir, rust_template_path, start_time, end_time, 
-    output_interval=3600)
+    make_ngen_realization_json(paths.config_dir, rust_template_path, start_time, end_time)
     realization_path.rename(paths.config_dir / "rust_lstm_real.json")
 
     if use_rust:
@@ -359,7 +357,7 @@ def create_realization(
         else:
             logger.warning(f"could not download parameters for {gage_id}, using default template")
 
-    conf_df = get_model_attributes(paths.geopackage_path, "divides")
+    conf_df = get_model_attributes(paths.geopackage_path)
 
     if use_nwm_gw:
         gw_levels = get_approximate_gw_storage(paths, start_time)
@@ -372,8 +370,7 @@ def create_realization(
 
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
-    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time,
-                               output_interval=3600)
+    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
 
     # create some partitions for parallelization
     paths.setup_run_folders()
