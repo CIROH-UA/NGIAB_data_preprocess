@@ -359,15 +359,11 @@ def create_lstm_realization(
 
 def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = FilePaths(cat_id)
-    realization_path = paths.config_dir / "realization.json"
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
-    python_template_path = FilePaths.template_dhbv2_realization_config
     make_ngen_realization_json(
-        paths.config_dir, python_template_path, start_time, end_time, output_interval=86400
+        paths.config_dir, FilePaths.template_dhbv2_realization_config, start_time, end_time, output_interval=86400
     )
-    realization_path.rename(paths.config_dir / "dhbv2_real.json")
-
     make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     # create some partitions for parallelization
     paths.setup_run_folders()
