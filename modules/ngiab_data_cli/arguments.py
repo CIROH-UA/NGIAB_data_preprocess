@@ -123,6 +123,14 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable experimental high speed Rust bindings of LSTM model realization and forcings",
     )
+
+    dhbv2_group = parser.add_mutually_exclusive_group(required=False)
+    dhbv2_group.add_argument(
+        "--dhbv2",
+        action="store_true",
+        help="enable dHBV2 model realization and forcings",
+    )
+    
     parser.add_argument(
         "--nwm_gw",
         action="store_true",

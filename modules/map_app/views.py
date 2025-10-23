@@ -135,7 +135,7 @@ def download_forcings(data_source, start_time, end_time, paths):
     return cached_data
 
 def compute_forcings(cached_data, paths):
-    create_forcings(cached_data, paths.output_dir.stem)  # type: ignore
+    create_forcings(cached_data, paths.output_dir.stem, dhbv=False)  # type: ignore
     
 @main.route("/forcings", methods=["POST"])
 def get_forcings():
