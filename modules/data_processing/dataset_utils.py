@@ -182,7 +182,11 @@ def check_local_cache(
 
     logger.info("Found cached nc file")
     # open the cached file and check that the time range is correct
-    cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
+    try:
+        cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
+    except:
+        logger.info("Cache produced with outdated backend, redownloading")
+        return
 
     if "name" not in cached_data.attrs or "name" not in remote_dataset.attrs:
         logger.warning("No name attribute found to compare datasets")
