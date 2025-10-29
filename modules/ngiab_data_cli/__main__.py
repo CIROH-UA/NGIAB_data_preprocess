@@ -29,7 +29,7 @@ with rich.status.Status("loading") as status:
 def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     """Validate input arguments."""
 
-    feature_name = None
+    feature_names = []
     output_folder = None
 
     if args.vpu:
@@ -39,38 +39,40 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
         return args.vpu, args.output_name
 
     if args.input_feature:
-        input_feature = args.input_feature.replace("_", "-")
-
-        if args.gage and not input_feature.startswith("gage-"):
-            input_feature = "gage-" + input_feature
-
-        # look at the prefix for autodetection, if -g or -l is used then there is no prefix
-        if len(input_feature.split("-")) > 1:
-            prefix = input_feature.split("-")[0]
-            if prefix.lower() == "gage":
-                args.gage = True
-            elif prefix.lower() == "wb":
-                logging.warning("Waterbody IDs are no longer supported!")
-                logging.warning(f"Automatically converting {input_feature} to catid")
-                time.sleep(2)
-
-        # always add or replace the prefix with cat if it is not a lat lon or gage
-        if not args.latlon and not args.gage:
-            input_feature = "cat-" + input_feature.split("-")[-1]
-
         if args.latlon and args.gage:
             raise ValueError("Cannot use both --latlon and --gage options at the same time.")
 
-        if args.latlon:
-            validate_hydrofabric()
-            feature_name = get_cat_id_from_lat_lon(input_feature)
-            logging.info(f"Found {feature_name} from {input_feature}")
-        elif args.gage:
-            validate_hydrofabric()
-            feature_name = get_cat_from_gage_id(input_feature)
-            logging.info(f"Found {feature_name} from {input_feature}")
-        else:
-            feature_name = input_feature
+        for input_feature in args.input_feature:
+            input_feature = input_feature.replace("_", "-")
+
+            is_gage = False
+            if args.gage and not input_feature.startswith("gage-"):
+                input_feature = "gage-" + input_feature
+
+            # look at the prefix for autodetection, if -g or -l is used then there is no prefix
+            if len(input_feature.split("-")) > 1:
+                prefix = input_feature.split("-")[0]
+                if prefix.lower() == "gage":
+                    is_gage = True
+                elif prefix.lower() == "wb":
+                    logging.warning("Waterbody IDs are no longer supported!")
+                    logging.warning(f"Automatically converting {input_feature} to catid")
+                    time.sleep(2)
+
+            # always add or replace the prefix with cat if it is not a lat lon or gage
+            if not args.latlon and not is_gage:
+                input_feature = "cat-" + input_feature.split("-")[-1]
+
+            if args.latlon:
+                validate_hydrofabric()
+                feature_names.append(get_cat_id_from_lat_lon(input_feature))
+                logging.info(f"Found {feature_names[-1]} from {input_feature}")
+            elif args.gage:
+                validate_hydrofabric()
+                feature_names.append(get_cat_from_gage_id(input_feature))
+                logging.info(f"Found {feature_names[-1]} from {input_feature}")
+            else:
+                feature_names.append(input_feature)
 
         if args.output_name:
             output_folder = args.output_name
@@ -79,10 +81,11 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             output_folder = input_feature
             validate_output_dir()
         else:
-            output_folder = feature_name
+            #TODO: Require output_name if len(input_feature) > 1 ?
+            output_folder = feature_names[-1]
             validate_output_dir()
 
-    return feature_name, output_folder
+    return feature_names, output_folder
 
 
 def get_cat_id_from_lat_lon(input_feature: str) -> str:
@@ -149,24 +152,25 @@ def main() -> None:
                 f"Changed default directory where outputs are stored to {args.output_root}"
             )
 
-        feature_to_subset, output_folder = validate_input(args)
+        features_to_subset, output_folder = validate_input(args)
 
-        if (feature_to_subset, output_folder) == (
-            None,
+        if (features_to_subset, output_folder) == (
+            [],
             None,
         ):  # in case someone just passes an argument to change default output dir
             return
 
         paths = FilePaths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
-        if feature_to_subset:
-            logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
+        if features_to_subset:
+            logging.info(f"Processing {len(features_to_subset)} features in {paths.output_dir}")
             if not args.vpu:
-                upstream_count = len(get_upstream_cats(feature_to_subset))
+                upstream_count = len(get_upstream_cats(features_to_subset))
                 logging.info(f"Upstream catchments: {upstream_count}")
                 if upstream_count == 0:
                     # if there are no upstreams, exit
-                    logging.error("No upstream catchments found.")
+                    #TODO: This bails if *all* had no hits... fail if *any* have none?
+                    logging.error(f"No upstream catchments found for {features_to_subset}.")
                     return
 
         if args.subset:
@@ -180,7 +184,7 @@ def main() -> None:
                 if args.gage:
                     include_outlet = False
                 subset(
-                    feature_to_subset,
+                    features_to_subset,
                     output_gpkg_path=paths.geopackage_path,
                     include_outlet=include_outlet,
                 )

@@ -24,6 +24,7 @@ def parse_arguments() -> argparse.Namespace:
         "--input_feature",
         "--input_file",
         type=str,
+        nargs='+',
         help="ID of feature to subset, providing a prefix will automatically convert to catid, \n e.g. cat-5173 or gage-01646500 or wb-1234",
     )
     group.add_argument(
