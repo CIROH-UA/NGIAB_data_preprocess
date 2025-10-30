@@ -57,6 +57,13 @@ def parse_arguments() -> argparse.Namespace:
             "18",
         ],
     )
+    group.add_argument(
+        "-b",
+        "--bounds",
+        type=str,
+        nargs=2,
+        help="Two lat,lon corners defining a bounding rectangle inside which to select features"
+    )
 
     parser.add_argument(
         "-l",
@@ -70,6 +77,13 @@ def parse_arguments() -> argparse.Namespace:
         "--gage",
         action="store_true",
         help="Use gage ID instead of catid, expects a single gage ID via the cli \n e.g. python -m ngiab_data_cli -i 01646500 -g -s",
+    )
+    parser.add_argument(
+        "--bounds-operation",
+        type=str,
+        help="The operation to use when selecting features by bounding box (default is \"intersects\")",
+        choices=["intersects","within"],
+        default="intersects"
     )
     parser.add_argument(
         "-s",

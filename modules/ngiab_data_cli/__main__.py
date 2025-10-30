@@ -17,6 +17,9 @@ with rich.status.Status("loading") as status:
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
     from data_processing.file_paths import FilePaths
+    from shapely.geometry import Polygon
+    from shapely.ops import transform
+    import pyproj
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
@@ -37,6 +40,13 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             args.output_name = f"vpu-{args.vpu}"
             validate_output_dir()
         return args.vpu, args.output_name
+    
+    if args.bounds:
+        if args.gage:
+            # Mainly to avoid confusing error message when falling through into args.input_feature block
+            raise ValueError("Cannot use both --bounds and --gage options at the same time.")
+        args.input_feature = get_cat_id_from_lat_lon_bounds(args.bounds, args.bounds_operation)
+        logging.info(f"Retrieved {len(args.input_feature)} catchments")
 
     if args.input_feature:
         if args.latlon and args.gage:
@@ -96,6 +106,38 @@ def get_cat_id_from_lat_lon(input_feature: str) -> str:
     else:
         raise ValueError("Lat Lon input must be comma separated e.g. -l 54.33,-69.4")
 
+def get_cat_id_from_lat_lon_bounds(bounds: tuple[str], op: str = "intersects") -> list[str]:
+    """Read catchment IDs based on a lat,lon bounding box."""
+    try:
+        ((ymin,xmin),(ymax,xmax)) = (bounds[0].split(','), bounds[1].split(','))
+        xmin = float(xmin)
+        xmax = float(xmax)
+        ymin = float(ymin)
+        ymax = float(ymax)
+        (ymin,ymax) = (min(ymin,ymax),max(ymin,ymax))
+        (xmin,xmax) = (min(xmin,xmax),max(xmin,xmax))
+    except Exception as e:
+        raise ValueError("Error parsing bounding box. Should be of the form \"lat.min,lon.min lat.max,lon.max\"")
+    #TODO: Subdivide the box edges so that the 5070 version will have curved edges?
+    polygon = Polygon([(xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax),(xmin,ymin)])
+    #TODO: Adapt gpkg_utils.convert_to_5070 to accept polygon and use that?
+    project = pyproj.Transformer.from_crs(pyproj.CRS('EPSG:4326'),pyproj.CRS('EPSG:5070'), always_xy=True).transform
+    polygon = transform(project, polygon)
+    with rich.status.Status("finding catchments matching polygon") as status:
+        return get_cat_ids_from_polygon(polygon, op)
+
+def get_cat_ids_from_polygon(polygon: Polygon, op: str = "intersects"):
+    """Extract catchment IDs based on the provided polygon, returning 
+    catchments that either intersect the polygon or are enclosed by it
+    completely, depending on the `op` argument."""
+    hydrofabric_gdf = gpd.read_file(FilePaths.conus_hydrofabric, layer="divides")
+    if op == "intersects":
+        selected_catchments = hydrofabric_gdf[hydrofabric_gdf.intersects(polygon)]
+    elif op == "within":
+        selected_catchments = hydrofabric_gdf[hydrofabric_gdf.within(polygon)]
+    else:
+        raise ValueError(f"Unsupported bounds operation: {op}")
+    return selected_catchments["divide_id"].tolist()
 
 def set_dependent_flags(args, paths: FilePaths):
     # if validate is set, run everything that is missing
