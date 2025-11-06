@@ -621,12 +621,14 @@ def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) ->
 
     # lat 1d var and PET added for dHBV
     if dhbv:
+        final_ds['TMP_2maboveground'] = final_ds['TMP_2maboveground'] - 273.15 # convert to celsius
+        final_ds['TMP_2maboveground'].attrs['units'] = 'degC'
         logger.info("Calculating PET from temperature values...")
         final_ds["lat"] = (("catchment"), [cat_lat[cat] for cat in final_ds["ids"].values])
         final_ds = add_pet_to_dataset(final_ds)
 
         dhbv_renamedict = {'precip_rate': 'P',
-                    'TMP_2maboveground': 'Temp'}
+                           "TMP_2maboveground": 'Temp'}
         final_ds = final_ds.drop_vars("APCP_surface")
         final_ds = final_ds.rename_vars(dhbv_renamedict)
 
