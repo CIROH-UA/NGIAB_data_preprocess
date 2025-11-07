@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
-import datetime
+
 from data_processing.dask_utils import no_cluster, use_cluster
 from data_processing.dataset_utils import validate_dataset_format
 from data_processing.file_paths import FilePaths
@@ -147,12 +147,12 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     SOLAR_CONSTANT = 0.0820
     tmp1 = (24.0 * 60.0) / np.pi
     def hargreaves(tmin, tmax, tmean, lat, date):
-        #calculate the day of year
+        # calculate the day of year
         dfdate = date
         tempday = np.array(dfdate.timetuple().tm_yday)
         day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
         # Loop to reduce memory usage
-        pet = np.zeros(tmin.shape, dtype=np.float32) * np.nan
+
 
         temp_range = tmax - tmin
         temp_range[temp_range < 0] = 0
@@ -202,9 +202,9 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
         if day_chunk_start_idx + 23 <= num_ts - 1:
             ts_diff = 24
         else: # in case there isn't a full day left in the forcings file
-            ts_diff = num_ts-day_chunk_start_idx
+            ts_diff = num_ts - day_chunk_start_idx
         day_chunk = dataset.isel(
-            time=slice(day_chunk_start_idx,day_chunk_start_idx+ts_diff))['TMP_2maboveground']
+            time=slice(day_chunk_start_idx, day_chunk_start_idx + ts_diff))['TMP_2maboveground']
 
         cat_temps = day_chunk.values
         # calculate stats
@@ -215,7 +215,7 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
 
         pet = hargreaves(tmin, tmax, tmean, lat, ts_start)
         day_pet = np.repeat(pet[:, np.newaxis], ts_diff, axis=1)
-        pet_array[:, day_chunk_start_idx:day_chunk_start_idx+ts_diff] = day_pet
+        pet_array[:, day_chunk_start_idx:day_chunk_start_idx + ts_diff] = day_pet
 
         day_chunk_start_idx += 24
 

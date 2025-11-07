@@ -131,7 +131,7 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable dHBV2 model realization and forcings",
     )
-    
+
     parser.add_argument(
         "--nwm_gw",
         action="store_true",

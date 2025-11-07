@@ -200,7 +200,7 @@ def main() -> None:
             create_forcings(
                 cached_data,
                 output_folder_name=output_folder,
-                dhbv = args.dhbv2 # need this argument to determine if we do the PET calculation or not
+                dhbv=args.dhbv2 # need this argument to determine if we do the PET calculation or not
             )
             logging.info("Forcings generation complete.")
 
@@ -221,8 +221,8 @@ def main() -> None:
             if args.dhbv2:
                 create_dhbv2_realization(
                     output_folder,
-                    start_time = args.start_date,
-                    end_time = args.end_date,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
                 )
             else:
                 create_realization(
