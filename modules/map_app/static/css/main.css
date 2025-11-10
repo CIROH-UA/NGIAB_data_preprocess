@@ -111,6 +111,47 @@ h2 {
   border-radius: var(--border-radius);
   overflow: hidden;
 }
+.map-hint {
+  display: none;
+  font-size: 0.8rem;
+  color: var(--text-color);
+  z-index: 1;
+  position: relative;
+  background-color: var(--background-color);
+  margin-top: 100px;
+  margin-left: 20px;
+}
+
+#map:focus-within .map-hint {
+  display: inline;
+}
+
+#map-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  pointer-events: none; /* don't block map interaction */
+  fill: light-dark(black, white);
+  display: none; /* hidden by default */
+  z-index: 999; 
+  transform: translate(-12px, -12px);
+}
+
+#map-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150px;
+  height: 150px;
+  pointer-events: none; /* don't block map interaction */
+  stroke: light-dark(black, white);
+  display: none; /* hidden by default */
+  fill-opacity: 0;
+  z-index: 999;
+  transform: translate(-75px, -75px);
+} 
 
 #basins-container {
   background: var(--surface-color);
