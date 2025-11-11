@@ -146,8 +146,17 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # used for dHBV2
     SOLAR_CONSTANT = 0.0820
     tmp1 = (24.0 * 60.0) / np.pi
-    def hargreaves(tmin, tmax, tmean, lat, date):
-        # calculate the day of year
+    def hargreaves(tmin: np.ndarray, tmax: np.ndarray, tmean: np.ndarray, 
+                   lat: np.ndarray, date: datetime.datetime) -> np.ndarray:
+        """
+        tmax: (num_catchments, )
+        tmin: (num_catchments, )
+        tmean: (num_catchments, )
+        lat: (num_catchments, )
+        date: datetime object
+        returns pet: (num_catchments, )
+        """
+        #calculate the day of year
         dfdate = date
         tempday = np.array(dfdate.timetuple().tm_yday)
         day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
@@ -167,7 +176,6 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
         et_rad = tmp1 * SOLAR_CONSTANT * ird * (tmp2 + tmp3)
         et_rad = et_rad.reshape(-1)
         pet = 0.0023 * (tmean + 17.8) * temp_range ** 0.5 * 0.408 * et_rad
-
         pet[pet < 0] = 0
         return pet
 
