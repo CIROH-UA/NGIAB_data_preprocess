@@ -1,8 +1,9 @@
 import logging
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Tuple, Union
+from typing import Tuple, Union
 
 import geopandas as gpd
 import numpy as np
@@ -120,40 +121,43 @@ def clip_dataset_to_bounds(
 def save_dataset(
     ds_to_save: xr.Dataset,
     target_path: Path,
-    engine: Literal["netcdf4", "scipy"] = "netcdf4",
 ):
     """
     Helper function to compute and save an xarray.Dataset (specifically, the raw
-    forcing data) to a NetCDF file.
+    forcing data) to a Zarr archive.
     Uses a temporary file and rename for atomicity.
     """
     if not target_path.parent.exists():
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
-    temp_file_path = target_path.with_name(target_path.name + ".saving.nc")
+    temp_file_path = target_path.with_suffix(".saving.zarr")
     if temp_file_path.exists():
-        os.remove(temp_file_path)
+        shutil.rmtree(temp_file_path)
+
+    for var in ds_to_save.data_vars:
+        chunks = [max(chunk_lens) for chunk_lens in ds_to_save[var].chunks]
+        ds_to_save[var] = ds_to_save[var].chunk(chunks)
 
     client = Client.current()
-    future: Future = client.compute(
-        ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False)
-    )  # type: ignore
+    future: Future = client.compute(ds_to_save.to_zarr(temp_file_path, compute=False))  # type: ignore
     logger.debug(
-        f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
+        f"Zarr write task submitted to Dask. Waiting for completion to {temp_file_path}..."
     )
     logger.info("For more detailed progress, see the Dask dashboard http://localhost:8787/status")
     progress(future)
     future.result()
-    os.rename(str(temp_file_path), str(target_path))
+    if target_path.exists():
+        shutil.rmtree(target_path)
+    temp_file_path.rename(target_path)
     logger.info(f"Successfully saved data to: {target_path}")
 
 
 @no_cluster
-def save_to_cache(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
+def save_to_cache(stores: xr.Dataset, cached_zarr_path: Path) -> xr.Dataset:
     """
-    Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
+    Compute the store and save it to a cached Zarr archive. This is not required but will save time and bandwidth.
     """
-    logger.debug(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
+    logger.debug(f"Processing dataset for caching. Final cache target: {cached_zarr_path}")
 
     # lasily cast all numbers to f32
     for name, var in stores.data_vars.items():
@@ -161,14 +165,14 @@ def save_to_cache(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
             stores[name] = var.astype("float32", casting="same_kind")
 
     # save dataset locally before manipulating it
-    save_dataset(stores, cached_nc_path)
+    save_dataset(stores, cached_zarr_path)
 
-    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
+    stores = xr.open_mfdataset(cached_zarr_path, parallel=True, engine="zarr")
     return stores
 
 
 def check_local_cache(
-    cached_nc_path: Path,
+    cached_zarr_path: Path,
     start_time: str,
     end_time: str,
     gdf: gpd.GeoDataFrame,
@@ -176,17 +180,13 @@ def check_local_cache(
 ) -> Union[xr.Dataset, None]:
     merged_data = None
 
-    if not os.path.exists(cached_nc_path):
+    if not os.path.exists(cached_zarr_path):
         logger.info("No cache found")
         return
 
-    logger.info("Found cached nc file")
+    logger.info("Found cached zarr archive")
     # open the cached file and check that the time range is correct
-    try:
-        cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
-    except:
-        logger.info("Cache produced with outdated backend, redownloading")
-        return
+    cached_data = xr.open_mfdataset(cached_zarr_path, parallel=True, engine="zarr")
 
     if "name" not in cached_data.attrs or "name" not in remote_dataset.attrs:
         logger.warning("No name attribute found to compare datasets")
@@ -214,7 +214,7 @@ def check_local_cache(
 
     if range_in_cache:
         logger.info("Time range is within cached data")
-        logger.debug(f"Opened cached nc file: [{cached_nc_path}]")
+        logger.debug(f"Opened cached zarr archive: [{cached_zarr_path}]")
         merged_data = clip_dataset_to_bounds(cached_data, gdf.total_bounds, start_time, end_time)
         logger.debug("Clipped stores")
 

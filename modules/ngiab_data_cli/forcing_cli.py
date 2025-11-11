@@ -80,8 +80,8 @@ def main() -> None:
     start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
     end_time = args.end_date.strftime("%Y-%m-%d %H:%M")
 
-    cached_nc_path = args.output_file.parent / (args.input_file.stem + "-raw-gridded-data.nc")
-    print(cached_nc_path)
+    cached_zarr_path = args.output_file.parent / (args.input_file.stem + "-raw-gridded-data.nc")
+    print(cached_zarr_path)
     if args.source == "aorc":
         data = load_aorc_zarr(args.start_date.year, args.end_date.year)
     elif args.source == "nwm":
@@ -89,11 +89,11 @@ def main() -> None:
 
     gdf = gdf.to_crs(data.crs)
 
-    cached_data = check_local_cache(cached_nc_path, start_time, end_time, gdf, data)
+    cached_data = check_local_cache(cached_zarr_path, start_time, end_time, gdf, data)
 
     if not cached_data:
         clipped_data = clip_dataset_to_bounds(data, gdf.total_bounds, start_time, end_time)
-        cached_data = save_to_cache(clipped_data, cached_nc_path)
+        cached_data = save_to_cache(clipped_data, cached_zarr_path)
 
     forcing_working_dir = args.output_file.parent / (args.input_file.stem + "-working-dir")
     if not forcing_working_dir.exists():

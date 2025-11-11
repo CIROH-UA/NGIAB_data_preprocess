@@ -100,8 +100,8 @@ class FilePaths:
         return self.config_dir / f"{self.folder_name}_subset.gpkg"
 
     @property
-    def cached_nc_file(self) -> Path:
-        return self.forcings_dir / "raw_gridded_data.nc"
+    def cached_zarr_file(self) -> Path:
+        return self.forcings_dir / "raw_gridded_data.zarr"
 
     def append_cli_command(self, command: list[str]) -> None:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
