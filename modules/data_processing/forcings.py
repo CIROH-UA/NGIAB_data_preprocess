@@ -147,16 +147,17 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     SOLAR_CONSTANT = 0.0820
     tmp1 = (24.0 * 60.0) / np.pi
     def hargreaves(tmin: np.ndarray, tmax: np.ndarray, tmean: np.ndarray, 
-                   lat: np.ndarray, date: datetime.datetime) -> np.ndarray:
+                   lat: np.ndarray, date: pd.Timestamp) -> np.ndarray:
         """
         tmax: (num_catchments, )
         tmin: (num_catchments, )
         tmean: (num_catchments, )
         lat: (num_catchments, )
-        date: datetime object
+        date: pandas Timestamp
         returns pet: (num_catchments, )
         """
         #calculate the day of year
+        print(type(date))
         dfdate = date
         tempday = np.array(dfdate.timetuple().tm_yday)
         day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
