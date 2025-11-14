@@ -20,6 +20,7 @@ from data_processing.gpkg_utils import (
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
 )
+from data_sources.source_validation import download_from_s3
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -112,7 +113,7 @@ def make_noahowp_config(
             )
 
 
-def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
+def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
         conf_df = pandas.read_sql_query(
             """
@@ -124,7 +125,7 @@ def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
             """,
             conn,
         )
-    source_crs = get_table_crs_short(hydrofabric, "divides")
+    source_crs = get_table_crs_short(hydrofabric, layer)
     transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
     conf_df["longitude"] = lon
@@ -168,6 +169,102 @@ def make_lstm_config(
                     lon=row["longitude"],
                     slope_mean=row["mean_slope_mpkm"],
                     elevation_mean=row["mean.elevation"] / 100,  # convert cm in hf to m
+                )
+            )
+
+
+def get_headers(url):
+    try:
+        response = requests.head(url)
+    except requests.exceptions.ConnectionError:
+        return 500, {}
+    return response.status_code, response.headers
+
+
+def download_dhbv_attributes():
+    S3_BUCKET = "communityhydrofabric"
+    S3_KEY = "hydrofabrics/community/resources/dhbv_attrs.parquet"
+    S3_REGION = "us-east-1"
+    attributes_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
+
+    status, headers = get_headers(attributes_url)
+    download_log = FilePaths.dhbv_attributes.with_suffix(".log")
+    if download_log.exists():
+        with open(download_log, "r") as f:
+            local_headers = json.load(f)
+    else:
+        local_headers = {}
+
+    if not FilePaths.dhbv_attributes.exists() or headers.get("ETag", "") != local_headers.get(
+        "ETag", ""
+    ):
+        download_from_s3(
+            FilePaths.dhbv_attributes,
+            bucket=S3_BUCKET,
+            key=S3_KEY,
+        )
+        with open(FilePaths.dhbv_attributes.with_suffix(".log"), "w") as f:
+            json.dump(dict(headers), f)
+
+
+def make_dhbv2_config(
+    hydrofabric: Path,
+    output_dir: Path,
+    start_time: datetime,
+    end_time: datetime,
+    template_path: Path = FilePaths.template_dhbv2_config,
+):
+    divide_conf_df = get_model_attributes(hydrofabric)
+    divide_ids = divide_conf_df["divide_id"].to_list()
+
+    download_dhbv_attributes()
+    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
+    atts_df = dhbv_atts.loc[dhbv_atts["divide_id"].isin(divide_ids)]
+
+    cat_config_dir = output_dir / "cat_config" / "dhbv2"
+    if cat_config_dir.exists():
+        shutil.rmtree(cat_config_dir)
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(template_path, "r") as file:
+        template = file.read()
+
+    for _, row in atts_df.iterrows():
+        divide = row["divide_id"]
+        with open(cat_config_dir / f"{divide}.yml", "w") as file:
+            file.write(
+                template.format(
+                    divide_id=divide,
+                    aridity=row["aridity"],
+                    meanP=row["meanP"],
+                    ETPOT_Hargr=row["ETPOT_Hargr"],
+                    NDVI=row["NDVI"],
+                    FW=row["FW"],
+                    meanslope=row["meanslope"],
+                    SoilGrids1km_sand=row["SoilGrids1km_sand"],
+                    SoilGrids1km_clay=row["SoilGrids1km_clay"],
+                    SoilGrids1km_silt=row["SoilGrids1km_silt"],
+                    glaciers=row["glaciers"],
+                    HWSD_clay=row["HWSD_clay"],
+                    HWSD_gravel=row["HWSD_gravel"],
+                    HWSD_sand=row["HWSD_sand"],
+                    HWSD_silt=row["HWSD_silt"],
+                    meanelevation=row["meanelevation"],
+                    meanTa=row["meanTa"],
+                    permafrost=row["permafrost"],
+                    permeability=row["permeability"],
+                    seasonality_P=row["seasonality_P"],
+                    seasonality_PET=row["seasonality_PET"],
+                    snow_fraction=row["snow_fraction"],
+                    snowfall_fraction=row["snowfall_fraction"],
+                    T_clay=row["T_clay"],
+                    T_gravel=row["T_gravel"],
+                    T_sand=row["T_sand"],
+                    T_silt=row["T_silt"],
+                    Porosity=row["Porosity"],
+                    uparea=row["uparea"],
+                    start_time=start_time,
+                    end_time=end_time,
                 )
             )
 
@@ -218,14 +315,18 @@ def configure_troute(
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime
+    config_dir: Path,
+    template_path: Path,
+    start_time: datetime,
+    end_time: datetime,
+    output_interval: int = 3600,
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
 
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-    realization["time"]["output_interval"] = 3600
+    realization["time"]["output_interval"] = output_interval
 
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
@@ -252,6 +353,18 @@ def create_lstm_realization(
         (paths.config_dir / "python_lstm_real.json").rename(realization_path)
 
     make_lstm_config(paths.geopackage_path, paths.config_dir)
+    # create some partitions for parallelization
+    paths.setup_run_folders()
+
+
+def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: datetime):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+
+    make_ngen_realization_json(
+        paths.config_dir, FilePaths.template_dhbv2_realization_config, start_time, end_time, output_interval=86400
+    )
+    make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     # create some partitions for parallelization
     paths.setup_run_folders()
 
