@@ -107,9 +107,13 @@ def clip_dataset_to_bounds(
     """
     # check time range here in case just this function is imported and not the whole module
     start_time, end_time = validate_time_range(dataset, start_time, end_time)
+    samplex = dataset.x.values[:2]
+    intervalx = samplex[1] - samplex[0]
+    sampley = dataset.y.values[:2]
+    intervaly = sampley[1] - sampley[0]
     dataset = dataset.sel(
-        x=slice(bounds[0], bounds[2]),
-        y=slice(bounds[1], bounds[3]),
+        x=slice(bounds[0]-intervalx, bounds[2]+intervalx),
+        y=slice(bounds[1]-intervaly, bounds[3]+intervaly),
         time=slice(start_time, end_time),
     )
     logger.info("Selected time range and clipped to bounds")
