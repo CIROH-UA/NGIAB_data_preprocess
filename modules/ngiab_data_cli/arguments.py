@@ -148,6 +148,13 @@ def parse_arguments() -> argparse.Namespace:
         default="nwm",
     )
     parser.add_argument(
+        "--subset_type",
+        type=str,
+        help="By nexus: get everything flowing into the downstream nexus of the selected catchment. By catchment: get everything flowing into the selected catchment.",
+        choices=["nexus", "catchment"],
+        default="nexus",
+    )
+    parser.add_argument(
         "-a",
         "--all",
         action="store_true",
