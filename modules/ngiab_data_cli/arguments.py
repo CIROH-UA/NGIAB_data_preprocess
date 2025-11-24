@@ -25,7 +25,9 @@ def parse_arguments() -> argparse.Namespace:
         "--input_file",
         type=str,
         nargs='+',
-        help="ID of feature to subset, providing a prefix will automatically convert to catid, \n e.g. cat-5173 or gage-01646500 or wb-1234",
+        help="ID of feature to subset, providing a prefix will automatically convert to catid, \n e.g. cat-5173 or gage-01646500 or wb-1234. \
+May include multiple space-separated IDs as arguments. \
+If exactly one argument is provided and the argument is an existing file, the file will be read and each line must contain a feature ID.",
     )
     group.add_argument(
         "--vpu",

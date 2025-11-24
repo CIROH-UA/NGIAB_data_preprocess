@@ -51,6 +51,11 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     if args.input_feature:
         if args.latlon and args.gage:
             raise ValueError("Cannot use both --latlon and --gage options at the same time.")
+        
+        if len(args.input_feature) == 1 and Path(args.input_feature[0]).is_file():
+            with open(args.input_feature[0], "r") as f:
+                args.input_feature = [line.strip() for line in f if line.strip()]
+            logging.debug(f"Read {len(args.input_feature)} features from {args.input_feature}")
 
         for input_feature in args.input_feature:
             input_feature = input_feature.replace("_", "-")
