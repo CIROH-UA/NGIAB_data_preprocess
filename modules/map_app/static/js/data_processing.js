@@ -21,15 +21,11 @@ async function subset() {
             }
         }
         // check what kind of subset
-        // get the position of the subset toggle
-        // false means subset by nexus, true means subset by catchment
         if (document.getElementById('radio-nexus').checked) {
             var subset_type = 'nexus'
         } else {
             var subset_type = 'catchment'
         }
-        // var nexus_catchment = document.getElementById('radio-nexus').checked;
-        // var subset_type = nexus_catchment ? 'catchment' : 'nexus';
 
         const startTime = performance.now(); // Start the timer
         fetch('/subset', {
