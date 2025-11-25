@@ -530,7 +530,7 @@ def get_cat_to_nhd_feature_id(gpkg: Path = FilePaths.conus_hydrofabric) -> Dict[
         )
 
     table_name = list(tables)[0]
-    sql_query = f"SELECT divide_id, hf_id FROM {table_name} WHERE divide_id IS NOT NULL AND hf_id IS NOT NULL"
+    sql_query = f"SELECT divide_id, hf_id FROM {table_name} WHERE divide_id IS NOT NULL AND hf_id IS NOT NULL ORDER BY hf_hydroseq DESC"
 
     with sqlite3.connect(gpkg) as conn:
         result: List[Tuple[str, str]] = conn.execute(sql_query).fetchall()
@@ -539,6 +539,7 @@ def get_cat_to_nhd_feature_id(gpkg: Path = FilePaths.conus_hydrofabric) -> Dict[
     for cat, feature in result:
         # the ids are stored as floats this converts to int to match nwm output
         # numeric ids should be stored as strings.
+        # Because of the ORDER BY above, the lowest hf_hydroseq "wins"
         mapping[cat] = int(feature)
 
     return mapping
