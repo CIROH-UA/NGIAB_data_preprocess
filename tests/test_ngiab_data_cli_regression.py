@@ -1,40 +1,25 @@
 import logging
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 import pytest
 import xarray as xr
+from data_processing.file_paths import FilePaths
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-CONFIG_PATH = Path.home() / ".ngiab" / "ngiab_preprocess"
-
-
-@pytest.fixture(scope="module")
-def test_output_dir():
-    """Create a temporary directory for test outputs."""
-    temp_path = Path(tempfile.mkdtemp(prefix="ngiab_test_"))
-    yield temp_path
-
-    if temp_path.exists():
-        shutil.rmtree(temp_path)
+CONFIG_PATH = FilePaths.config_file
 
 
 def run_cli(input_id, start_date, end_date, output_name, source="aorc"):
     """Run the CLI and return output paths."""
     # Read config to get output root
-    if CONFIG_PATH.exists():
-        import json
-
-        config = json.loads(CONFIG_PATH.read_text())
-        output_root = Path(config.get("output_dir", Path.home() / "ngiab_preprocess_output"))
-    else:
-        output_root = Path.home() / "ngiab_preprocess_output"
+    with open(CONFIG_PATH, "r") as f:
+        output_root = Path(f.readline().strip()).expanduser()
 
     output_path = output_root / output_name
 
@@ -191,7 +176,9 @@ class TestCat1555522Geopackage:
         gpkg = cat_1555522_output["gpkg_path"]
         assert gpkg.exists()
         actual = set(gpd.list_layers(gpkg)["name"])
-        assert not (set(GEOPACKAGE_LAYERS) - actual), f"Missing layers: {set(GEOPACKAGE_LAYERS) - actual}"
+        assert not (set(GEOPACKAGE_LAYERS) - actual), (
+            f"Missing layers: {set(GEOPACKAGE_LAYERS) - actual}"
+        )
 
     @pytest.mark.parametrize("layer", ["divides", "flowpaths", "nexus"])
     def test_table_row_counts(self, cat_1555522_output, layer):
@@ -319,7 +306,9 @@ class TestGage10109001ProcessedForcings:
             assert cat_id in nc_ids
 
     def test_catchment_ids_match_gpkg(self, gage_10109001_output):
-        gpkg_ids = set(gpd.read_file(gage_10109001_output["gpkg_path"], layer="divides")["divide_id"])
+        gpkg_ids = set(
+            gpd.read_file(gage_10109001_output["gpkg_path"], layer="divides")["divide_id"]
+        )
         with xr.open_dataset(gage_10109001_output["forcings_nc"]) as ds:
             nc_ids = set(ds["ids"].values)
         assert gpkg_ids == nc_ids
@@ -376,7 +365,9 @@ class TestEndToEnd:
     @pytest.mark.parametrize("fixture_name", ["cat_1555522_output", "gage_10109001_output"])
     def test_output_size_reasonable(self, fixture_name, request):
         output = request.getfixturevalue(fixture_name)
-        size_mb = sum(f.stat().st_size for f in output["output_dir"].rglob("*") if f.is_file()) / (1024 * 1024)
+        size_mb = sum(f.stat().st_size for f in output["output_dir"].rglob("*") if f.is_file()) / (
+            1024 * 1024
+        )
         assert 0.1 < size_mb < 1000, f"Suspicious output size: {size_mb:.2f} MB"
 
 
