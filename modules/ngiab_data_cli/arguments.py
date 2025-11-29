@@ -3,6 +3,7 @@ from datetime import datetime
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
+DATE_FORMAT2 = "%Y-%m-%d %H:%M"  # used for datetime parsing
 DATE_FORMAT_HINT = "YYYY-MM-DD"  # printed in help message
 
 
@@ -91,13 +92,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--start_date",
         "--start",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
         help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
         "--end_date",
         "--end",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
         help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
