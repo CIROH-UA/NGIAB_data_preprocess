@@ -1,9 +1,8 @@
 import json
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
-import os
-import threading
 
 import geopandas as gpd
 from data_processing.create_realization import create_realization
@@ -11,7 +10,7 @@ from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import FilePaths
 from data_processing.forcings import create_forcings
-from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
+from data_processing.graph_utils import get_upstream_ids
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
 
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 @main.route("/")
 def index():
     return render_template("index.html")
+
 
 # this subset does not include the downstream nexus
 @main.route("/get_upstream_catids", methods=["POST"])
@@ -39,6 +39,7 @@ def get_upstream_catids():
     if cat_id in cleaned_upstreams:
         cleaned_upstreams.remove(cat_id)
     return list(cleaned_upstreams), 200
+
 
 # this subset includes the downstream nexus
 @main.route("/get_upstream_wbids", methods=["POST"])
@@ -65,12 +66,12 @@ def subset_check():
     if run_paths.geopackage_path.exists():
         return str(run_paths.geopackage_path), 409
     else:
-        return "no conflict",200
+        return "no conflict", 200
 
 
 @main.route("/subset", methods=["POST"])
 def subset_selection():
-    #body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type})
+    # body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type})
     data = json.loads(request.data.decode("utf-8"))
     cat_ids = data.get("cat_id")
     subset_type = data.get("subset_type")
@@ -82,7 +83,12 @@ def subset_selection():
     if subset_type == "nexus":
         subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
     else:
-        subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, include_outlet=False, override_gpkg=True)
+        subset(
+            cat_ids,
+            output_gpkg_path=run_paths.geopackage_path,
+            include_outlet=False,
+            override_gpkg=True,
+        )
     return str(run_paths.geopackage_path), 200
 
 
@@ -100,6 +106,7 @@ def subset_to_file():
         f.write("\n".join(total_subset))
     return str(subset_paths.subset_dir), 200
 
+
 @main.route("/make_forcings_progress_file", methods=["POST"])
 def make_forcings_progress_file():
     data = json.loads(request.data.decode("utf-8"))
@@ -110,18 +117,20 @@ def make_forcings_progress_file():
         json.dump({"total_steps": 0, "steps_completed": 0}, f)
     return str(paths.forcing_progress_file), 200
 
+
 @main.route("/forcings_progress", methods=["POST"])
 def forcings_progress_endpoint():
     progress_file = Path(json.loads(request.data.decode("utf-8")))
     with open(progress_file, "r") as f:
         forcings_progress = json.load(f)
-    forcings_progress_all = forcings_progress['total_steps']
-    forcings_progress_completed = forcings_progress['steps_completed']
+    forcings_progress_all = forcings_progress["total_steps"]
+    forcings_progress_completed = forcings_progress["steps_completed"]
     try:
         percent = int((forcings_progress_completed / forcings_progress_all) * 100)
     except ZeroDivisionError:
         percent = "NaN"
     return str(percent), 200
+
 
 def download_forcings(data_source, start_time, end_time, paths):
     if data_source == "aorc":
@@ -134,9 +143,11 @@ def download_forcings(data_source, start_time, end_time, paths):
     cached_data = save_and_clip_dataset(raw_data, gdf, start_time, end_time, paths.cached_nc_file)
     return cached_data
 
+
 def compute_forcings(cached_data, paths):
     create_forcings(cached_data, paths.output_dir.stem)  # type: ignore
-    
+
+
 @main.route("/forcings", methods=["POST"])
 def get_forcings():
     # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time}),
@@ -163,10 +174,10 @@ def get_forcings():
 
     cached_data = download_forcings(data_source, start_time, end_time, paths)
     # threading implemented so that main process can periodically poll progress file
-    thread = threading.Thread(target=compute_forcings,
-                              args=(cached_data, paths))
+    thread = threading.Thread(target=compute_forcings, args=(cached_data, paths))
     thread.start()
     return "started", 200
+
 
 @main.route("/realization", methods=["POST"])
 def get_realization():

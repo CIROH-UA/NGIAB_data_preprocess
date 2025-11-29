@@ -232,26 +232,17 @@ def main() -> None:
 
             try:
                 subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
-            except:
-                logging.error("Docker is not running, please start Docker and try again.")
+            except Exception as e:
+                logging.error(f"Docker is not running, please start Docker and try again: {str(e)}")
             try:
                 command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
-            except:
-                logging.error("Next Gen run failed.")
+            except Exception as e:
+                logging.error(f"Next Gen run failed: {str(e)}")
 
         if args.eval:
             plot = False
-            try:
-                import matplotlib
-                import seaborn
-
-                plot = True
-            except ImportError:
-                # silently fail as plotting isn't publicly supported
-                pass
-
             try:
                 from ngiab_eval import evaluate_folder
 
@@ -261,7 +252,7 @@ def main() -> None:
                 evaluate_folder(paths.subset_dir, plot=plot, debug=args.debug)
             except ImportError:
                 logging.error(
-                    "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
+                    "Evaluation module not found. Please run with uvx ngiab-prep[eval] or install the ngiab_eval package to evaluate model performance."
                 )
                 args.vis = False
 
@@ -269,8 +260,8 @@ def main() -> None:
             try:
                 command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:v0.2.1'
                 subprocess.run(command, shell=True)
-            except:
-                logging.error("Failed to launch docker container.")
+            except Exception as e:
+                logging.error(f"Failed to launch docker container: {str(e)}")
 
         logging.info("All operations completed successfully.")
         logging.info(f"Output folder: file:///{paths.subset_dir}")

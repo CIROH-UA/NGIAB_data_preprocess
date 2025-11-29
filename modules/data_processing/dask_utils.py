@@ -53,9 +53,9 @@ def use_cluster(func):
 
     def wrapper(*args, **kwargs):
         try:
-            client = Client.current()
+            _client = Client.current()
         except ValueError:
-            client = Client()
+            _client = Client()
         result = func(*args, **kwargs)
         return result
 

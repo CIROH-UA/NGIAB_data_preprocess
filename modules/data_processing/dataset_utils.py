@@ -112,8 +112,8 @@ def clip_dataset_to_bounds(
     sampley = dataset.y.values[:2]
     intervaly = sampley[1] - sampley[0]
     dataset = dataset.sel(
-        x=slice(bounds[0]-intervalx, bounds[2]+intervalx),
-        y=slice(bounds[1]-intervaly, bounds[3]+intervaly),
+        x=slice(bounds[0] - intervalx, bounds[2] + intervalx),
+        y=slice(bounds[1] - intervaly, bounds[3] + intervaly),
         time=slice(start_time, end_time),
     )
     logger.info("Selected time range and clipped to bounds")
@@ -188,8 +188,8 @@ def check_local_cache(
     # open the cached file and check that the time range is correct
     try:
         cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
-    except:
-        logger.info("Cache produced with outdated backend, redownloading")
+    except Exception as e:
+        logger.warning(f"Cache produced with outdated backend, redownloading: {e}")
         return
 
     if "name" not in cached_data.attrs or "name" not in remote_dataset.attrs:
