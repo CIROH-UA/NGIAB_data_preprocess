@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
+
 from data_processing.dask_utils import no_cluster, use_cluster
 from data_processing.dataset_utils import validate_dataset_format
 from data_processing.file_paths import FilePaths
@@ -140,8 +141,103 @@ def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
         "This is just the APCP_surface variable converted to mm/s by dividing by 3600"
     )
     return dataset
+  
+def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
+    # used for dHBV2
+    SOLAR_CONSTANT = 0.0820
+    tmp1 = (24.0 * 60.0) / np.pi
+    def hargreaves(tmin: np.ndarray, tmax: np.ndarray, tmean: np.ndarray, 
+                   lat: np.ndarray, date: pd.Timestamp) -> np.ndarray:
+        """
+        tmax: (num_catchments, )
+        tmin: (num_catchments, )
+        tmean: (num_catchments, )
+        lat: (num_catchments, )
+        date: pandas Timestamp
+        returns pet: (num_catchments, )
+        """
+        #calculate the day of year
+        print(type(date))
+        dfdate = date
+        tempday = np.array(dfdate.timetuple().tm_yday)
+        day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
+        # Loop to reduce memory usage
 
 
+        temp_range = tmax - tmin
+        temp_range[temp_range < 0] = 0
+
+        latitude = np.deg2rad(lat)
+
+        sol_dec = 0.409 * np.sin(((2.0 * np.pi / 365.0) * day_of_year - 1.39))
+        sha = np.arccos(np.clip(-np.tan(latitude) * np.tan(sol_dec), -1, 1))
+        ird = 1 + (0.033 * np.cos((2.0 * np.pi / 365.0) * day_of_year))
+        tmp2 = sha * np.sin(latitude) * np.sin(sol_dec)
+        tmp3 = np.cos(latitude) * np.cos(sol_dec) * np.sin(sha)
+        et_rad = tmp1 * SOLAR_CONSTANT * ird * (tmp2 + tmp3)
+        et_rad = et_rad.reshape(-1)
+        pet = 0.0023 * (tmean + 17.8) * temp_range ** 0.5 * 0.408 * et_rad
+        pet[pet < 0] = 0
+        return pet
+    
+    # read 24 hour chunks at a time to calculate temperature stats
+    # if a 24 hr chunk not available, then stats computed for whatever length of timestep is there    
+    num_cats = len(dataset['catchment'])
+    num_ts = len(dataset['time'])
+    day_chunk_start_idx = 0
+    pet_array = np.empty((num_cats, num_ts))
+
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        "[progress.percentage]{task.percentage:>3.0f}%",
+        TextColumn("{task.completed}/{task.total}"),
+        "•",
+        TextColumn(" Elapsed Time:"),
+        TimeElapsedColumn(),
+        TextColumn(" Remaining Time:"),
+        TimeRemainingColumn(),
+    )
+
+    int_days = np.ceil(num_ts / 24)
+
+    timer = time.perf_counter()
+    day_chunk_task = progress.add_task(
+        "[cyan]Calculating PET...", total=int_days, elapsed=0
+    )
+    progress.start()
+    while day_chunk_start_idx <= num_ts - 1:
+        progress.update(day_chunk_task, advance=1)
+        ts_start = pd.to_datetime(dataset.time.values[day_chunk_start_idx])
+        if day_chunk_start_idx + 23 <= num_ts - 1:
+            ts_diff = 24
+        else: # in case there isn't a full day left in the forcings file
+            ts_diff = num_ts - day_chunk_start_idx
+        day_chunk = dataset.isel(
+            time=slice(day_chunk_start_idx, day_chunk_start_idx + ts_diff))['TMP_2maboveground']
+
+        cat_temps = day_chunk.values
+        # calculate stats
+        tmin = np.min(cat_temps, axis=1)
+        tmax = np.max(cat_temps, axis=1)
+        tmean = np.mean(cat_temps, axis=1)
+        lat = dataset['lat'].values
+
+        pet = hargreaves(tmin, tmax, tmean, lat, ts_start)
+        day_pet = np.repeat(pet[:, np.newaxis], ts_diff, axis=1)
+        pet_array[:, day_chunk_start_idx:day_chunk_start_idx + ts_diff] = day_pet
+
+        day_chunk_start_idx += 24
+
+    progress.update(
+        day_chunk_task,
+        description=f"PET calculated in {time.perf_counter() - timer:2f} seconds",
+    )
+    progress.stop()
+    dataset["PET"] = (("catchment", "time"), pet_array)
+    dataset["PET"].attrs["units"] = "mm day^-1"  # ^-1 notation copied from source data
+    return dataset
+    
 def get_index_chunks(data: xr.DataArray) -> list[tuple[int, int]]:
     """
     Take a DataArray and calculate the start and end index for each chunk based
@@ -311,6 +407,22 @@ def get_units(dataset: xr.Dataset) -> dict:
             units[var] = dataset[var].attrs["units"]
     return units
 
+def get_lats(gdf: gpd.GeoDataFrame) -> dict:
+    '''
+    return latitudes for each catchment
+    '''
+    cats = gdf['divide_id']
+
+    # convert to a geographic crs so we get actual degrees for lat/lon
+    gdf_geog = gdf.to_crs(4326)
+    with warnings.catch_warnings(): # it will complain about it being a geographic CRS, this is to shut it up
+        warnings.simplefilter("ignore")
+        lats = gdf_geog.centroid.y
+
+    cat_lat = dict(zip(cats, lats))
+    return cat_lat
+
+
 def interpolate_nan_values(
     dataset: xr.Dataset,
     dim: str = "time",
@@ -353,7 +465,7 @@ def interpolate_nan_values(
 
 @no_cluster
 def compute_zonal_stats(
-    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path
+    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path, dhbv: bool
 ) -> None:
     """
     Compute zonal statistics in parallel for all timesteps over all desired
@@ -377,15 +489,22 @@ def compute_zonal_stats(
 
     catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
     units = get_units(gridded_data)
+    cat_lat = get_lats(gdf)
 
     cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
     progress_file = FilePaths(output_dir=forcings_dir.parent).forcing_progress_file
     ex_var_name = list(gridded_data.data_vars)[0]
     example_time_chunks = get_index_chunks(gridded_data[ex_var_name])
-    all_steps = len(example_time_chunks) * len(gridded_data.data_vars)
+
+    if dhbv: # cut down on processing time for dhbv
+        data_vars = ['APCP_surface', 'TMP_2maboveground']
+    else:
+        data_vars = gridded_data.data_vars
+
+    all_steps = len(example_time_chunks) * len(data_vars)
     logger.info(
-        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(gridded_data.data_vars)}"
+        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(data_vars)}"
     )
     steps_completed = 0
     with open(progress_file, "w") as f:
@@ -405,10 +524,11 @@ def compute_zonal_stats(
 
     timer = time.perf_counter()
     variable_task = progress.add_task(
-        "[cyan]Processing variables...", total=len(gridded_data.data_vars), elapsed=0
+        "[cyan]Processing variables...", total=len(data_vars), elapsed=0
     )
     progress.start()
-    for data_var_name in list(gridded_data.data_vars):
+
+    for data_var_name in list(data_vars):
         data_var_name: str
         progress.update(variable_task, advance=1)
         progress.update(variable_task, description=f"Processing {data_var_name}")
@@ -472,13 +592,13 @@ def compute_zonal_stats(
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
-    write_outputs(forcings_dir, units)
+    write_outputs(forcings_dir, units, cat_lat, dhbv)
     time.sleep(1)  # wait for progress bar to update
     progress_file.unlink()
 
 
 @use_cluster
-def write_outputs(forcings_dir: Path, units: dict) -> None:
+def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) -> None:
     """
     Write outputs to disk in the form of a NetCDF file, using dask clusters to
     facilitate parallel computing.
@@ -524,6 +644,20 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     # time is stored as unix timestamps, units have to be set
     # add the catchment ids as a 1d data var
     final_ds["ids"] = final_ds["catchment"].astype(str)
+
+    # lat 1d var and PET added for dHBV
+    if dhbv:
+        final_ds['TMP_2maboveground'] = final_ds['TMP_2maboveground'] - 273.15 # convert to celsius
+        final_ds['TMP_2maboveground'].attrs['units'] = 'degC'
+        logger.info("Calculating PET from temperature values...")
+        final_ds["lat"] = (("catchment"), [cat_lat[cat] for cat in final_ds["ids"].values])
+        final_ds = add_pet_to_dataset(final_ds)
+
+        dhbv_renamedict = {'precip_rate': 'P',
+                           "TMP_2maboveground": 'Temp'}
+        final_ds = final_ds.drop_vars("APCP_surface")
+        final_ds = final_ds.rename_vars(dhbv_renamedict)
+
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -568,7 +702,7 @@ def setup_directories(cat_id: str) -> FilePaths:
     return forcing_paths
 
 
-def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
+def create_forcings(dataset: xr.Dataset, output_folder_name: str, dhbv: bool) -> None:
     validate_dataset_format(dataset)
     forcing_paths = setup_directories(output_folder_name)
     logger.debug(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
@@ -576,4 +710,4 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
     gdf = gdf.to_crs(dataset.crs)
     dataset = dataset.isel(y=slice(None, None, -1)) # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
-    compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
+    compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir, dhbv)

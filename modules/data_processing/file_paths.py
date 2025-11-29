@@ -22,6 +22,7 @@ class FilePaths:
     template_sql = data_sources / "template.sql"
     triggers_sql = data_sources / "triggers.sql"
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
+    dhbv_attributes = hydrofabric_dir / "dhbv_attrs.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     template_nc = data_sources / "forcing_template.nc"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
@@ -32,6 +33,8 @@ class FilePaths:
     template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
     template_cfe_config = data_sources / "cfe-template.ini"
     template_lstm_config = data_sources / "lstm-catchment-template.yml"
+    template_dhbv2_realization_config = data_sources / "dhbv2-realization-template.json"
+    template_dhbv2_config = data_sources / "dhbv2-catchment-template.yaml"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
