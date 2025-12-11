@@ -144,7 +144,7 @@
       }
     ],
     "forcing": {
-      "path": "./forcing/forcings.nc",
+      "path": "./forcings/forcings.nc",
       "provider": "NetCDF"
     }
   },
