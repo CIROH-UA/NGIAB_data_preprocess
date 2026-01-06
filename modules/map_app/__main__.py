@@ -3,18 +3,20 @@
 import logging
 import webbrowser
 from threading import Timer
+from pathlib import Path
 
 from data_processing.file_paths import FilePaths
 from data_processing.graph_utils import get_graph
 
 from map_app import app, console_handler
 
+LOG_PATH = Path.home() / ".ngiab" / "app.log"
 
 def open_browser():
     # find the last line in the log file that contains the port number
     # * running on http://0.0.0.0:port_number
     port_number = None
-    with open("app.log", "r") as f:
+    with open(LOG_PATH, 'r') as f:
         lines = f.readlines()
         for line in reversed(lines):
             if "Running on http" in line:
@@ -38,12 +40,12 @@ def main():
 
     if FilePaths.dev_file.is_file():
         Timer(2, set_logs_to_warning).start()
-        with open("app.log", "a") as f:
+        with open(LOG_PATH, "a") as f:
             f.write("Running in debug mode\n")
         app.run(debug=True, host="0.0.0.0", port="8080")  # type: ignore
     else:
         Timer(1, open_browser).start()
-        with open("app.log", "a") as f:
+        with open(LOG_PATH, "a") as f:
             f.write("Running in production mode\n")
         app.run(host="0.0.0.0", port="0")  # type: ignore
 
