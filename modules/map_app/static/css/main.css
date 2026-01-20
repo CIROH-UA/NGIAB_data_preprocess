@@ -1,19 +1,7 @@
 /* ============================================
    HYDRO SELECT - Minimal Custom CSS
-   Most styling now handled by DaisyUI + Tailwind
+   Using DaisyUI "night" theme with minimal overrides
    ============================================ */
-
-/* Custom theme colors for industrial hydro aesthetic */
-:root {
-    --hydro-dark: #0a0e14;
-    --hydro-surface: #111820;
-    --hydro-elevated: #1a2332;
-    --hydro-border: #2a3a4a;
-    --hydro-cyan: #00d4ff;
-    --hydro-green: #00ff88;
-    --hydro-warning: #ffaa00;
-    --hydro-danger: #ff4466;
-}
 
 html,
 body {
@@ -21,89 +9,59 @@ body {
     overflow: hidden;
 }
 
-body {
-    font-family: "Outfit", sans-serif;
-    background: var(--hydro-dark);
-    -webkit-font-smoothing: antialiased;
-}
+/*:root {
+    --color-primary: oklch(0.8043 0.145943 219.5151);
+}*/
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: var(--hydro-dark);
+    background: oklch(var(--b1));
 }
 ::-webkit-scrollbar-thumb {
-    background: var(--hydro-border);
+    background: oklch(var(--b3));
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #3a4a5a;
+    background: oklch(var(--bc) / 0.3);
 }
 
 /* Map controls styling (MapLibre overrides) */
 .maplibregl-ctrl-group {
-    background: var(--hydro-surface) !important;
-    border: 1px solid var(--hydro-border) !important;
+    background: oklch(var(--b2)) !important;
+    border: 1px solid oklch(var(--b3)) !important;
     border-radius: 8px !important;
 }
 .maplibregl-ctrl-group button {
     background-color: transparent !important;
 }
 .maplibregl-ctrl-group button:hover {
-    background-color: var(--hydro-elevated) !important;
+    background-color: oklch(var(--b3)) !important;
 }
 .maplibregl-ctrl button .maplibregl-ctrl-icon {
     filter: invert(0.7);
 }
 
-/* Map container - ensure map fills available space */
-#map-container {
-    flex: 1;
-    display: flex;
-    position: relative;
-    min-height: 0;
-}
-#map {
+/* Map tooltip styling */
+.map-tooltip {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
+    pointer-events: none;
+    background: oklch(var(--b2));
+    border: 1px solid oklch(var(--b3));
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.75rem;
+    color: oklch(var(--bc));
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 150ms ease;
 }
-
-/* Glow effect for accent elements */
-.glow-cyan {
-    filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.4));
-}
-
-/* Custom DaisyUI toggle colors */
-.toggle-cyan:checked {
-    --tglbg: var(--hydro-cyan);
-    background-color: var(--hydro-cyan);
-    border-color: var(--hydro-cyan);
-}
-
-/* Custom DaisyUI radio colors */
-.radio-cyan:checked {
-    --bc: var(--hydro-cyan);
-    background-color: var(--hydro-cyan);
-    border-color: var(--hydro-cyan);
-}
-
-/* Custom input focus state */
-.input-hydro:focus {
-    border-color: var(--hydro-cyan);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
-}
-
-/* Selection panel accent border */
-.selection-panel {
-    border-left: 3px solid var(--hydro-cyan);
+.map-tooltip.visible {
+    opacity: 1;
 }
 
 /* Console slide animation */
@@ -134,35 +92,15 @@ body {
 @keyframes pulse-btn {
     0%,
     100% {
-        box-shadow: 0 0 0 0 rgba(255, 68, 102, 0.4);
+        box-shadow: 0 0 0 0 oklch(var(--er) / 0.4);
     }
     50% {
-        box-shadow: 0 0 0 10px rgba(255, 68, 102, 0);
+        box-shadow: 0 0 0 10px oklch(var(--er) / 0);
     }
 }
 
 .btn-recording {
     animation: pulse-btn 1s ease-in-out infinite;
-}
-
-/* Map tooltip styling */
-.map-tooltip {
-    position: absolute;
-    pointer-events: none;
-    background: var(--hydro-elevated);
-    border: 1px solid var(--hydro-border);
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 0.75rem;
-    color: #e6edf5;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    z-index: 100;
-    opacity: 0;
-    transition: opacity 150ms ease;
-}
-.map-tooltip.visible {
-    opacity: 1;
 }
 
 /* Recording overlay */
@@ -171,8 +109,8 @@ body {
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255, 68, 102, 0.9);
-    color: white;
+    background: oklch(var(--er) / 0.9);
+    color: oklch(var(--erc));
     padding: 8px 24px;
     border-radius: 8px;
     font-weight: 600;
@@ -181,12 +119,12 @@ body {
     align-items: center;
     gap: 8px;
     z-index: 1000;
-    box-shadow: 0 4px 20px rgba(255, 68, 102, 0.4);
+    box-shadow: 0 4px 20px oklch(var(--er) / 0.4);
 }
 .recording-overlay .dot {
     width: 12px;
     height: 12px;
-    background: white;
+    background: oklch(var(--erc));
     border-radius: 50%;
     animation: pulse-recording 1s ease-in-out infinite;
 }
@@ -195,7 +133,7 @@ body {
 @media (max-width: 1024px) {
     .console-collapsed,
     .console-expanded {
-        width: calc(100% - 281px);
+        width: calc(100% - 320px);
     }
 }
 

@@ -11,6 +11,9 @@ const { DeckAdapter, DeckAnimation } = hubble;
 
 // State management
 const state = {
+  style_url:
+    "https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/",
+  style: "",
   selectedBasin: null,
   upstreamBasins: [],
   upstreamFlowpaths: [], // Store flowpath IDs for animation
@@ -28,7 +31,7 @@ const state = {
   viewState: {
     longitude: -96,
     latitude: 40,
-    zoom: 4,
+    zoom: 3.5,
     pitch: 0,
     bearing: 0,
   },
@@ -60,11 +63,54 @@ let deckgl = null;
 
 // Initialize the application
 function init() {
+  initTheme();
   initMap();
   initEventListeners();
   startLogPolling();
   startClickAnimation();
   startTripsAnimation();
+}
+
+// Initialize theme
+function initTheme() {
+  const isDark =
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  // get the last selected theme from local storage
+  const lastTheme = localStorage.getItem("theme");
+  // if there is no last theme, set it to the default theme
+  if (!lastTheme) {
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    lastTheme = localStorage.getItem("theme");
+  }
+  const themeToggle = document.getElementById("theme-toggle");
+  // set the theme-toggle based on the last selected theme
+  themeToggle.checked = lastTheme === "dark";
+
+  // set the style
+  state.style = lastTheme === "dark" ? "dark-style.json" : "light-style.json";
+
+  // add theme onclick event listener
+  themeToggle.addEventListener("change", () => {
+    const theme = themeToggle.checked ? "dark" : "light";
+    localStorage.setItem("theme", theme);
+    document.documentElement.setAttribute("data-theme", theme);
+    state.style = theme === "dark" ? "dark-style.json" : "light-style.json";
+    map.setStyle(state.style_url + state.style, {
+      transformStyle: (previousStyle, nextStyle) => ({
+        ...previousStyle,
+        // use the previous layers, but swap in the new ones with matching ids
+        layers: previousStyle.layers.map((layer) => {
+          const newLayer = nextStyle.layers.find((l) => l.id === layer.id);
+          if (newLayer && layer.filter) {
+            newLayer.filter = layer.filter;
+          }
+          return newLayer || layer;
+        }),
+      }),
+    });
+  });
 }
 
 // Initialize MapLibre and DeckGL
@@ -73,22 +119,19 @@ function initMap() {
   const protocol = new pmtiles.Protocol();
   maplibregl.addProtocol("pmtiles", protocol.tile);
 
-  // Detect color scheme
-  const isDark =
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const style = isDark
-    ? "https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json"
-    : "https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json";
-
+  // Detect color scheme from local storage
+  const lastTheme = localStorage.getItem("theme");
   // Create MapLibre map (non-interactive, controlled by DeckGL)
   map = new maplibregl.Map({
     container: "map",
-    style: style,
+    style: state.style_url + state.style,
     center: [state.viewState.longitude, state.viewState.latitude],
     zoom: state.viewState.zoom,
     interactive: false, // DeckGL handles all interactions
     preserveDrawingBuffer: true, // Required for recording
+    attributionControl: new maplibregl.AttributionControl({
+      compact: true,
+    }),
   });
 
   map.on("load", () => {
@@ -445,59 +488,81 @@ function addMapLayers() {
   // - 'selected-catchments' (fill, conus_divides, filter on divide_id)
   // - 'upstream-catchments' (fill, conus_divides, filter on divide_id)
   // - 'conus_gages' (circle, conus_gages, filter on hl_reference)
+  //
+  const layers = map.getStyle().layers;
+  // Find the index of the first symbol layer in the map style
+  let firstSymbolId;
+  for (let i = 0; i < layers.length; i++) {
+    if (layers[i].type === "symbol") {
+      firstSymbolId = layers[i].id;
+      break;
+    }
+  }
 
   // Add a subtle static highlight for upstream flowpaths (DeckGL TripsLayer will animate on top)
-  map.addLayer({
-    id: "upstream-flowpaths-highlight",
-    type: "line",
-    source: "hydrofabric",
-    "source-layer": "conus_flowpaths",
-    filter: ["in", "id", ""],
-    paint: {
-      "line-color": "#00d4ff",
-      "line-width": 2,
-      "line-opacity": 0.3,
+  map.addLayer(
+    {
+      id: "upstream-flowpaths-highlight",
+      type: "line",
+      source: "hydrofabric",
+      "source-layer": "conus_flowpaths",
+      filter: ["in", "id", ""],
+      paint: {
+        "line-color": "#00d4ff",
+        "line-width": 2,
+        "line-opacity": 0.3,
+      },
     },
-  });
+    firstSymbolId,
+  );
 
   // CAMELS basins layer (hidden by default)
-  map.addLayer({
-    id: "camels",
-    type: "line",
-    source: "camels",
-    "source-layer": "camels_basins",
-    filter: ["==", "hru_id", "__hidden__"],
-    paint: {
-      "line-color": "#861ee8",
-      "line-width": 2,
+  map.addLayer(
+    {
+      id: "camels",
+      type: "line",
+      source: "camels",
+      "source-layer": "camels_basins",
+      filter: ["==", "hru_id", "__hidden__"],
+      paint: {
+        "line-color": "#861ee8",
+        "line-width": 2,
+      },
     },
-  });
+    firstSymbolId,
+  );
 
   // NWM chunks layer (hidden by default)
-  map.addLayer({
-    id: "nwm-chunks",
-    type: "line",
-    source: "nwm",
-    "source-layer": "nwm_zarr_chunks",
-    filter: ["==", "id", "__hidden__"],
-    paint: {
-      "line-color": isDark ? "#ffffff" : "#000000",
-      "line-width": 1,
+  map.addLayer(
+    {
+      id: "nwm-chunks",
+      type: "line",
+      source: "nwm",
+      "source-layer": "nwm_zarr_chunks",
+      filter: ["==", "id", "__hidden__"],
+      paint: {
+        "line-color": isDark ? "#ffffff" : "#000000",
+        "line-width": 1,
+      },
     },
-  });
+    firstSymbolId,
+  );
 
   // AORC chunks layer (hidden by default)
-  map.addLayer({
-    id: "aorc-chunks",
-    type: "line",
-    source: "aorc",
-    "source-layer": "aorc_zarr_chunks",
-    filter: ["==", "id", "__hidden__"],
-    paint: {
-      "line-color": isDark ? "#f2fc7e" : "#473ade",
-      "line-width": 1,
+  map.addLayer(
+    {
+      id: "aorc-chunks",
+      type: "line",
+      source: "aorc",
+      "source-layer": "aorc_zarr_chunks",
+      filter: ["==", "id", "__hidden__"],
+      paint: {
+        "line-color": isDark ? "#f2fc7e" : "#473ade",
+        "line-width": 1,
+      },
     },
-  });
+    firstSymbolId,
+  );
 }
 
 // Select a basin and fetch upstreams
