@@ -1,210 +1,502 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Catchment Selector</title>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map Application</title>
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/toggle.css') }}">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://unpkg.com/maplibre-gl@^5.2.0/dist/maplibre-gl.js"></script>
-    <script src="https://unpkg.com/pmtiles@latest/dist/pmtiles.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@^5.2.0/dist/maplibre-gl.css" rel="stylesheet" />
-</head>
+        <!-- MapLibre GL -->
+        <script src="https://unpkg.com/maplibre-gl@^4.0.0/dist/maplibre-gl.js"></script>
+        <link
+            href="https://unpkg.com/maplibre-gl@^4.0.0/dist/maplibre-gl.css"
+            rel="stylesheet"
+        />
 
-<body>
-    <header>
-        <h1>Select catchments by clicking!</h1>
-    </header>
+        <!-- PMTiles -->
+        <script src="https://unpkg.com/pmtiles@latest/dist/pmtiles.js"></script>
 
-    <main>
-        <section id="map-container">
-            <div id="map">
-                <nav role="navigation">
-                    <div id="menuToggle">
-                        <!--
-                        A fake / hidden checkbox is used as click reciever,
-                        so you can use the :checked selector on it.
-                        -->
-                        <input type="checkbox" id="menuCheckbox" />
-                        <div class="icons">
-                            <svg class="gear" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free v7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
-                                <path d="M195.1 9.5C198.1-5.3 211.2-16 226.4-16l59.8 0c15.2 0 28.3 10.7 31.3 25.5L332 79.5c14.1 6 27.3 13.7 39.3 22.8l67.8-22.5c14.4-4.8 30.2 1.2 37.8 14.4l29.9 51.8c7.6 13.2 4.9 29.8-6.5 39.9L447 233.3c.9 7.4 1.3 15 1.3 22.7s-.5 15.3-1.3 22.7l53.4 47.5c11.4 10.1 14 26.8 6.5 39.9l-29.9 51.8c-7.6 13.1-23.4 19.2-37.8 14.4l-67.8-22.5c-12.1 9.1-25.3 16.7-39.3 22.8l-14.4 69.9c-3.1 14.9-16.2 25.5-31.3 25.5l-59.8 0c-15.2 0-28.3-10.7-31.3-25.5l-14.4-69.9c-14.1-6-27.2-13.7-39.3-22.8L73.5 432.3c-14.4 4.8-30.2-1.2-37.8-14.4L5.8 366.1c-7.6-13.2-4.9-29.8 6.5-39.9l53.4-47.5c-.9-7.4-1.3-15-1.3-22.7s.5-15.3 1.3-22.7L12.3 185.8c-11.4-10.1-14-26.8-6.5-39.9L35.7 94.1c7.6-13.2 23.4-19.2 37.8-14.4l67.8 22.5c12.1-9.1 25.3-16.7 39.3-22.8L195.1 9.5zM256.3 336a80 80 0 1 0 -.6-160 80 80 0 1 0 .6 160z"/>
-                            </svg>
-                        </div>
-                        <ul id="menu"> <h2>Map Settings</h2>  
-                        <div class="icons">
-                            <svg class="chevron-left" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><!--!Font Awesome Free v7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
-                                <path d="M169.4 297.4C156.9 309.9 156.9 330.2 169.4 342.7L361.4 534.7C373.9 547.2 394.2 547.2 406.7 534.7C419.2 522.2 419.2 501.9 406.7 489.4L237.3 320L406.6 150.6C419.1 138.1 419.1 117.8 406.6 105.3C394.1 92.8 373.8 92.8 361.3 105.3L169.3 297.3z"/>
-                            </svg>
-                        </div>
-                        <div class="menu-switch">
-                            <input type="checkbox" class="menu-switch__input gages__input" id="gages__input">
-                            <label for="gages__input" class="menu-switch__label">Show gages</label>
-                        </div>
-                        <div class="menu-switch">
-                            <input type="checkbox" class="menu-switch__input camels__input" id="camels__input">
-                            <label for="camels__input" class="menu-switch__label">Show CAMELS basins</label>
-                        </div>
-                        <div class="menu-switch">
-                            <input type="checkbox" class="menu-switch__input nwm__input" id="nwm__input">
-                            <label for="nwm__input" class="menu-switch__label">Show NWM chunks</label>
-                        </div>
-                        <div class="menu-switch">
-                            <input type="checkbox" class="menu-switch__input aorc__input" id="aorc__input">
-                            <label for="aorc__input" class="menu-switch__label">Show AORC chunks</label>
-                        </div>
+        <!-- DeckGL -->
+        <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+        <script src="https://unpkg.com/@deck.gl/mapbox@^9.0.0/dist.min.js"></script>
 
-                        <h4 class="menu-header">Subset type</h4>
-                        <div class="radio">
-                            <input id="radio-nexus" name="radio" type="radio" checked>
-                            <label for="radio-nexus" class="radio-label">Subset by nexus</label>
-                        </div>
+        <!-- HubbleGL for video export -->
+        <script src="https://unpkg.com/hubble.gl@^1.3.0/dist.min.js"></script>
 
-                        <div class="radio">
-                            <input id="radio-catchment" name="radio" type="radio">
-                            <label  for="radio-catchment" class="radio-label">Subset by catchment</label>
-                        </div>
-                        <!-- <button id="toggle-button-gages">Show gages</button> 
-                        <button id="toggle-button-camels">Show CAMELS basins</button>
-                        <button id="toggle-button-nwm">Overlay NWM chunks</button>
-                        <button id="toggle-button-aorc">Overlay AORC chunks</button> -->
-                        </ul>
+        <!-- Styles -->
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='css/main.css') }}"
+        />
+    </head>
+    <body>
+        <div class="app-container">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+                            />
+                            <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        <span>Hydro Select</span>
                     </div>
-                </nav>
+                </div>
 
-            </div>
-
-            <div class="command-container">
-                <div class="command-header">
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="runcmd-toggle" class="toggle-input">
-                            <label for="runcmd-toggle" class="toggle-label">
-                                <span class="toggle-text toggle-text-left">UVX</span>
-                                <span class="toggle-text toggle-text-right">Pip</span>
-                                <span class="toggle-handle"></span>
+                <div class="sidebar-content">
+                    <!-- Map Layers Section -->
+                    <section class="panel">
+                        <h3 class="panel-title">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <polygon
+                                    points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"
+                                />
+                                <line x1="8" y1="2" x2="8" y2="18" />
+                                <line x1="16" y1="6" x2="16" y2="22" />
+                            </svg>
+                            Map Layers
+                        </h3>
+                        <div class="toggle-group">
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-gages" />
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">USGS Gages</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-camels" />
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">CAMELS Basins</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-nwm" />
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">NWM Chunks</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-aorc" />
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">AORC Chunks</span>
                             </label>
                         </div>
-                    <span>Command</span>
-                    <button id="copy-to-clip" class="copy-button" aria-label="Copy to clipboard">
-                        <svg class="copy-icon" viewBox="0 0 16 16" width="16" height="16">
-                            <path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"></path>
-                            <path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"></path>
+                    </section>
+
+                    <!-- Subset Type Section -->
+                    <section class="panel">
+                        <h3 class="panel-title">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 6v6l4 2" />
+                            </svg>
+                            Subset Mode
+                        </h3>
+                        <div class="radio-group">
+                            <label class="radio">
+                                <input
+                                    type="radio"
+                                    name="subset-type"
+                                    value="nexus"
+                                    checked
+                                />
+                                <span class="radio-mark"></span>
+                                <span class="radio-label">By Nexus</span>
+                            </label>
+                            <label class="radio">
+                                <input
+                                    type="radio"
+                                    name="subset-type"
+                                    value="catchment"
+                                />
+                                <span class="radio-mark"></span>
+                                <span class="radio-label">By Catchment</span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Selection Info -->
+                    <section class="panel selection-panel">
+                        <h3 class="panel-title">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                                />
+                            </svg>
+                            Selection
+                        </h3>
+                        <div class="selection-display">
+                            <span class="selection-value" id="selected-basin"
+                                >Click map to select</span
+                            >
+                        </div>
+                        <div class="upstream-count">
+                            <span class="count-label"
+                                >Upstream catchments:</span
+                            >
+                            <span class="count-value" id="upstream-count"
+                                >0</span
+                            >
+                        </div>
+                    </section>
+
+                    <!-- Time Settings -->
+                    <section class="panel">
+                        <h3 class="panel-title">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <rect
+                                    x="3"
+                                    y="4"
+                                    width="18"
+                                    height="18"
+                                    rx="2"
+                                    ry="2"
+                                />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                            </svg>
+                            Time Range
+                        </h3>
+                        <div class="time-inputs">
+                            <div class="input-group">
+                                <label for="start-time">Start</label>
+                                <input
+                                    type="datetime-local"
+                                    id="start-time"
+                                    value="2010-01-01T00:00"
+                                />
+                            </div>
+                            <div class="input-group">
+                                <label for="end-time">End</label>
+                                <input
+                                    type="datetime-local"
+                                    id="end-time"
+                                    value="2010-01-02T00:00"
+                                />
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Data Source -->
+                    <section class="panel">
+                        <h3 class="panel-title">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                            </svg>
+                            Data Source
+                        </h3>
+                        <div class="source-toggle">
+                            <button class="source-btn active" data-source="nwm">
+                                NWM
+                            </button>
+                            <button class="source-btn" data-source="aorc">
+                                AORC
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="sidebar-footer">
+                    <!-- Recording Controls -->
+                    <div class="recording-controls" id="recording-controls">
+                        <div class="recording-status" id="recording-status">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Ready to record</span>
+                        </div>
+                        <div class="recording-settings">
+                            <div class="input-group">
+                                <label for="record-duration"
+                                    >Duration (sec)</label
+                                >
+                                <input
+                                    type="number"
+                                    id="record-duration"
+                                    value="5"
+                                    min="1"
+                                    max="30"
+                                />
+                            </div>
+                            <div class="input-group">
+                                <label for="record-fps">FPS</label>
+                                <select id="record-fps">
+                                    <option value="30" selected>30</option>
+                                    <option value="60">60</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="action-btn record-btn" id="btn-record">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                stroke="none"
+                            >
+                                <circle cx="12" cy="12" r="8" />
+                            </svg>
+                            Record Animation
+                        </button>
+                        <button
+                            class="action-btn secondary"
+                            id="btn-preview"
+                            style="display: none"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
+                            Preview
+                        </button>
+                    </div>
+
+                    <hr class="divider" />
+
+                    <button class="action-btn" id="btn-subset">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                            />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
-                        <span class="copy-text">Copy</span>
+                        Create Subset
+                    </button>
+                    <button class="action-btn secondary" id="btn-forcings">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
+                            />
+                        </svg>
+                        Generate Forcings
+                    </button>
+                    <button class="action-btn secondary" id="btn-realization">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                            />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                        Create Realization
                     </button>
                 </div>
-                <div id="command-builder">
-                    <span id="cli-prefix" class="command-content">uvx --from ngiab_data_preprocess cli </span>
-                    <span id="cli-command" class="command-content"></span>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Map Container -->
+                <div id="map-container">
+                    <div id="map"></div>
+
+                    <!-- Map Controls -->
+                    <div class="map-controls">
+                        <button class="map-ctrl" id="zoom-in" title="Zoom In">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                <line x1="11" y1="8" x2="11" y2="14" />
+                                <line x1="8" y1="11" x2="14" y2="11" />
+                            </svg>
+                        </button>
+                        <button class="map-ctrl" id="zoom-out" title="Zoom Out">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                <line x1="8" y1="11" x2="14" y2="11" />
+                            </svg>
+                        </button>
+                        <button
+                            class="map-ctrl"
+                            id="reset-view"
+                            title="Reset View"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                                />
+                                <path d="M3 3v5h5" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Tooltip -->
+                    <div id="tooltip" class="tooltip"></div>
+                </div>
+
+                <!-- Command Builder -->
+                <div class="command-section">
+                    <div class="command-header">
+                        <div class="command-toggle">
+                            <button class="cmd-btn active" data-cmd="uvx">
+                                UVX
+                            </button>
+                            <button class="cmd-btn" data-cmd="pip">Pip</button>
+                        </div>
+                        <button class="copy-btn" id="copy-command">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <rect
+                                    x="9"
+                                    y="9"
+                                    width="13"
+                                    height="13"
+                                    rx="2"
+                                    ry="2"
+                                />
+                                <path
+                                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                                />
+                            </svg>
+                            <span>Copy</span>
+                        </button>
+                    </div>
+                    <pre
+                        class="command-display"
+                    ><code id="cli-command">Select a catchment to generate command</code></pre>
+                </div>
+
+                <!-- Progress Section -->
+                <div
+                    class="progress-section"
+                    id="progress-section"
+                    style="display: none"
+                >
+                    <div class="progress-header">
+                        <span class="progress-title">Processing...</span>
+                        <span class="progress-percent" id="progress-percent"
+                            >0%</span
+                        >
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p class="progress-status" id="progress-status">
+                        Initializing...
+                    </p>
+                </div>
+
+                <!-- Output Section -->
+                <div
+                    class="output-section"
+                    id="output-section"
+                    style="display: none"
+                >
+                    <div class="output-header">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                        <span>Output</span>
+                    </div>
+                    <p class="output-path" id="output-path"></p>
+                </div>
+            </main>
+
+            <!-- Console -->
+            <div class="console" id="console">
+                <div class="console-header" id="console-header">
+                    <span>Console</span>
+                    <button class="console-toggle" id="toggle-console">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <polyline points="18 15 12 9 6 15" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="console-body" id="console-body">
+                    <div id="log-output"></div>
                 </div>
             </div>
-            <script>
-                document.getElementById('copy-to-clip').addEventListener('click', async function() {
-                    const commandPrefix = document.getElementById('cli-prefix').textContent;
-                    const commandText = document.getElementById('cli-command').textContent;
-                    if (commandPrefix && !commandPrefix.endsWith(' ')) {
-                        // Ensure there's a space after the prefix
-                        commandPrefix += ' ';
-                    }
-                    const full_command = commandPrefix + commandText;
-                    const button = this;
-
-                    try {
-                        await navigator.clipboard.writeText(full_command);
-
-                        // Update button state
-                        button.classList.add('copied');
-                        const copyText = button.querySelector('.copy-text');
-                        const originalText = copyText.textContent;
-                        copyText.textContent = 'Copied!';
-
-                        // Reset button state after 2 seconds
-                        setTimeout(() => {
-                            button.classList.remove('copied');
-                            copyText.textContent = originalText;
-                        }, 2000);
-                    } catch (err) {
-                        console.error('Failed to copy text:', err);
-                    }
-                });
-            </script>
-            <h2>For selection by gage id please use the cli.</h2>
-        </section>
-        <section id="basins-container">
-            <h2>Selected Basins</h2>
-            <div id="selected-basins">None - get clicking!</div>
-            <button id="subset-button">Create subset gpkg</button>
-            <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                id="subset-loading">
-            <!-- <button id="subset-to-file-button">Output list of upstreams to file</button>
-            <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                id="subset-to-file-loading"> -->
-            <div id="output-info">
-                <strong>Output folder is configured in the ~/.ngiab/preprocessor file</strong>
-            </div>
-            <div id="output-path"></div>
-        </section>
-
-        <section id="time-settings">
-            <div class="time-input">
-                <label for="start-time">Start Time:</label>
-                <input type="datetime-local" id="start-time" name="start-time" value="2010-01-01T00:00">
-            </div>
-            <div class="time-input">
-                <label for="end-time">End Time:</label>
-                <input type="datetime-local" id="end-time" name="end-time" value="2010-01-02T00:00">
-            </div>
-        </section>
-
-        <section id="forcings">
-            <div id="forcings-warning">
-                <strong>Forcing generation may take a while.<br> Use the Cli for progress bars and additional information</strong>
-            </div>
-            <!-- div below to show source data toggle -->
-            <div style="display: flex; justify-content: left;">
-                <div class="toggle-switch">
-                    <input type="checkbox" id="datasource-toggle" class="toggle-input">
-                    <label for="datasource-toggle" class="toggle-label">
-                        <span class="toggle-text toggle-text-left">NWM</span>
-                        <span class="toggle-text toggle-text-right">AORC</span>
-                        <span class="toggle-handle"></span>
-                    </label>
-                </div>
-                <button id="forcings-button">Create Forcing From Zarrs</button>
-                <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                    id="forcings-loading">
-                <br>
-            </div>
-            <br>
-            <div id="forcings-output-path"></div>
-            <div id="progress">
-                <div id="bar"></div>
-                <div id="bar-text"></div>
-            </div>
-        </section>
-
-        <section id="realization">
-            <button id="realization-button">Create Realization</button>
-            <div id="realization-output-path"></div>
-        </section>
-
-
-    </main>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}">
-    <div id="console" class="minimized">
-        <div class="center">
-            <button id="toggleConsole">Show Console</button>
         </div>
-        <div id="logOutput"></div>
-    </div>
-    <script src="{{ url_for('static', filename='js/console.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/data_processing.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js' ) }}"></script>
 
-</body>
-
+        <script
+            src="{{ url_for('static', filename='js/main.js') }}"
+            type="module"
+        ></script>
+    </body>
 </html>
