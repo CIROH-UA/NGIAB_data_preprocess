@@ -1,27 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Catchment Selector</title>
+    <title>Hydro Select - Catchment Selector</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
-    <!-- Styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
-
+    <!-- Tailwind CSS + DaisyUI CDN -->
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!--<link
-      href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css"
-      rel="stylesheet"
-      type="text/css"
-    />-->
 
     <!-- MapLibre GL -->
     <script src="https://unpkg.com/maplibre-gl@^4.0.0/dist/maplibre-gl.js"></script>
@@ -37,185 +31,350 @@
     <!-- HubbleGL for video export -->
     <script src="https://unpkg.com/hubble.gl@^1.3.0/dist.min.js"></script>
   </head>
-  <body>
-    <div class="app-container">
+
+  <body class="bg-[#0a0e14] text-[#e6edf5]">
+    <div class="grid grid-cols-[320px_1fr] h-screen gap-px bg-[#2a3a4a]">
       <!-- Sidebar -->
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="logo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <aside class="bg-[#111820] flex flex-col row-span-2 overflow-hidden">
+        <!-- Header -->
+        <div class="p-6 border-b border-[#2a3a4a] bg-gradient-to-b from-[#1a2332] to-[#111820]">
+          <div class="flex items-center gap-4">
+            <svg
+              class="w-7 h-7 text-[#00d4ff] glow-cyan"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            <span>Hydro Select</span>
+            <span class="text-xl font-semibold tracking-tight text-white">Hydro Select</span>
           </div>
         </div>
 
-        <div class="sidebar-content">
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
           <!-- Map Layers Section -->
-          <section class="panel">
-            <h3 class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-                <line x1="8" y1="2" x2="8" y2="18" />
-                <line x1="16" y1="6" x2="16" y2="22" />
-              </svg>
-              Map Layers
-            </h3>
-            <div class="toggle-group">
-              <label class="label">
-                <input type="checkbox" id="toggle-gages" class="toggle" />
-                USGS Gages
-              </label>
-              <label class="label">
-                <input type="checkbox" id="toggle-camels" class="toggle" />
-                CAMELS Basins
-              </label>
-              <label class="label">
-                <input type="checkbox" id="toggle-nwm" class="toggle" />
-                NWM Chunks
-              </label>
-              <label class="label">
-                <input type="checkbox" id="toggle-aorc" class="toggle" />
-                AORC Chunks
-              </label>
+          <div class="card bg-[#1a2332] border border-[#2a3a4a]">
+            <div class="card-body p-4">
+              <h3
+                class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8899aa] mb-4"
+              >
+                <svg
+                  class="w-4 h-4 opacity-70"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                  <line x1="8" y1="2" x2="8" y2="18" />
+                  <line x1="16" y1="6" x2="16" y2="22" />
+                </svg>
+                Map Layers
+              </h3>
+              <div class="flex flex-col gap-3">
+                <label class="flex items-center justify-between cursor-pointer">
+                  <span class="text-sm text-[#8899aa]">USGS Gages</span>
+                  <input type="checkbox" id="toggle-gages" class="toggle toggle-sm toggle-cyan" />
+                </label>
+                <label class="flex items-center justify-between cursor-pointer">
+                  <span class="text-sm text-[#8899aa]">CAMELS Basins</span>
+                  <input type="checkbox" id="toggle-camels" class="toggle toggle-sm toggle-cyan" />
+                </label>
+                <label class="flex items-center justify-between cursor-pointer">
+                  <span class="text-sm text-[#8899aa]">NWM Chunks</span>
+                  <input type="checkbox" id="toggle-nwm" class="toggle toggle-sm toggle-cyan" />
+                </label>
+                <label class="flex items-center justify-between cursor-pointer">
+                  <span class="text-sm text-[#8899aa]">AORC Chunks</span>
+                  <input type="checkbox" id="toggle-aorc" class="toggle toggle-sm toggle-cyan" />
+                </label>
+              </div>
             </div>
-          </section>
+          </div>
 
-          <!-- Subset Type Section -->
-          <section class="panel">
-            <h3 class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" />
-              </svg>
-              Subset Mode
-            </h3>
-            <div class="radio-group">
-              <label class="radio">
-                <input type="radio" name="subset-type" value="nexus" checked />
-                <span class="radio-mark"></span>
-                <span class="radio-label">By Nexus</span>
-              </label>
-              <label class="radio">
-                <input type="radio" name="subset-type" value="catchment" />
-                <span class="radio-mark"></span>
-                <span class="radio-label">By Catchment</span>
-              </label>
+          <!-- Subset Mode Section -->
+          <div class="card bg-[#1a2332] border border-[#2a3a4a]">
+            <div class="card-body p-4">
+              <h3
+                class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8899aa] mb-4"
+              >
+                <svg
+                  class="w-4 h-4 opacity-70"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+                Subset Mode
+              </h3>
+              <div class="flex flex-col gap-2">
+                <label class="flex items-center gap-3 cursor-pointer py-1">
+                  <input
+                    type="radio"
+                    name="subset-type"
+                    value="nexus"
+                    checked
+                    class="radio radio-sm radio-cyan"
+                  />
+                  <span class="text-sm text-[#8899aa]">By Nexus</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer py-1">
+                  <input
+                    type="radio"
+                    name="subset-type"
+                    value="catchment"
+                    class="radio radio-sm radio-cyan"
+                  />
+                  <span class="text-sm text-[#8899aa]">By Catchment</span>
+                </label>
+              </div>
             </div>
-          </section>
+          </div>
 
           <!-- Selection Info -->
-          <section class="panel selection-panel">
-            <h3 class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              Selection
-            </h3>
-            <div class="selection-display">
-              <span class="selection-value" id="selected-basin">Click map to select</span>
-            </div>
-            <div class="upstream-count">
-              <span class="count-label">Upstream catchments:</span>
-              <span class="count-value" id="upstream-count">0</span>
-            </div>
-          </section>
-
-          <!-- Time Settings -->
-          <section class="panel">
-            <h3 class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              Time Range
-            </h3>
-            <div class="time-inputs">
-              <div class="input-group">
-                <label for="start-time">Start</label>
-                <input type="datetime-local" id="start-time" value="2010-01-01T00:00" />
+          <div
+            class="card bg-gradient-to-br from-[#1a2332] to-[#232f42] border border-[#2a3a4a] selection-panel"
+          >
+            <div class="card-body p-4">
+              <h3
+                class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8899aa] mb-4"
+              >
+                <svg
+                  class="w-4 h-4 opacity-70"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Selection
+              </h3>
+              <div class="bg-[#0a0e14] rounded p-3 mb-3">
+                <span class="font-mono text-sm text-[#00d4ff] break-all" id="selected-basin"
+                  >Click map to select</span
+                >
               </div>
-              <div class="input-group">
-                <label for="end-time">End</label>
-                <input type="datetime-local" id="end-time" value="2010-01-02T00:00" />
+              <div class="flex justify-between items-center pt-2 border-t border-[#2a3a4a]">
+                <span class="text-xs text-[#556677]">Upstream catchments:</span>
+                <span class="font-mono text-base font-semibold text-[#00ff88]" id="upstream-count"
+                  >0</span
+                >
               </div>
             </div>
-          </section>
+          </div>
 
-          <!-- Data Source -->
-          <section class="panel">
-            <h3 class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <ellipse cx="12" cy="5" rx="9" ry="3" />
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-              </svg>
-              Data Source
-            </h3>
-            <div class="source-toggle">
-              <button class="source-btn active" data-source="nwm">NWM</button>
-              <button class="source-btn" data-source="aorc">AORC</button>
+          <!-- Time Range Section -->
+          <div class="card bg-[#1a2332] border border-[#2a3a4a]">
+            <div class="card-body p-4">
+              <h3
+                class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8899aa] mb-4"
+              >
+                <svg
+                  class="w-4 h-4 opacity-70"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                Time Range
+              </h3>
+              <div class="flex flex-col gap-4">
+                <div class="form-control">
+                  <label class="label py-1">
+                    <span
+                      class="label-text text-xs font-medium text-[#556677] uppercase tracking-wide"
+                      >Start</span
+                    >
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="start-time"
+                    value="2010-01-01T00:00"
+                    class="input input-sm input-bordered bg-[#0a0e14] border-[#2a3a4a] font-mono text-sm input-hydro"
+                  />
+                </div>
+                <div class="form-control">
+                  <label class="label py-1">
+                    <span
+                      class="label-text text-xs font-medium text-[#556677] uppercase tracking-wide"
+                      >End</span
+                    >
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="end-time"
+                    value="2010-01-02T00:00"
+                    class="input input-sm input-bordered bg-[#0a0e14] border-[#2a3a4a] font-mono text-sm input-hydro"
+                  />
+                </div>
+              </div>
             </div>
-          </section>
+          </div>
+
+          <!-- Data Source Section -->
+          <div class="card bg-[#1a2332] border border-[#2a3a4a]">
+            <div class="card-body p-4">
+              <h3
+                class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8899aa] mb-4"
+              >
+                <svg
+                  class="w-4 h-4 opacity-70"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <ellipse cx="12" cy="5" rx="9" ry="3" />
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                </svg>
+                Data Source
+              </h3>
+              <div class="join w-full">
+                <button
+                  class="join-item btn btn-sm flex-1 source-btn bg-[#00d4ff] text-[#0a0e14] border-[#00d4ff] hover:bg-[#00b8e6]"
+                  data-source="nwm"
+                >
+                  NWM
+                </button>
+                <button
+                  class="join-item btn btn-sm flex-1 source-btn bg-transparent text-[#556677] border-[#2a3a4a] hover:text-[#8899aa] hover:border-[#3a4a5a]"
+                  data-source="aorc"
+                >
+                  AORC
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="sidebar-footer">
+        <!-- Footer -->
+        <div class="p-4 border-t border-[#2a3a4a] bg-[#1a2332] flex flex-col gap-3">
           <!-- Recording Controls -->
-          <div class="recording-controls" id="recording-controls">
-            <div class="recording-status" id="recording-status">
-              <span class="status-dot"></span>
-              <span class="status-text">Ready to record</span>
+          <div class="flex flex-col gap-3" id="recording-controls">
+            <div
+              class="flex items-center gap-2 px-3 py-2 bg-[#0a0e14] rounded"
+              id="recording-status"
+            >
+              <span class="status-dot w-2.5 h-2.5 rounded-full bg-[#556677]"></span>
+              <span class="status-text text-xs text-[#8899aa]">Ready to record</span>
             </div>
-            <div class="recording-settings">
-              <div class="input-group">
-                <label for="record-duration">Duration (sec)</label>
-                <input type="number" id="record-duration" value="5" min="1" max="30" />
+            <div class="grid grid-cols-2 gap-2">
+              <div class="form-control">
+                <label class="label py-0.5">
+                  <span class="label-text text-[10px] text-[#556677] uppercase"
+                    >Duration (sec)</span
+                  >
+                </label>
+                <input
+                  type="number"
+                  id="record-duration"
+                  value="5"
+                  min="1"
+                  max="30"
+                  class="input input-xs input-bordered bg-[#0a0e14] border-[#2a3a4a] font-mono input-hydro"
+                />
               </div>
-              <div class="input-group">
-                <label for="record-fps">FPS</label>
-                <select id="record-fps">
+              <div class="form-control">
+                <label class="label py-0.5">
+                  <span class="label-text text-[10px] text-[#556677] uppercase">FPS</span>
+                </label>
+                <select
+                  id="record-fps"
+                  class="select select-xs select-bordered bg-[#0a0e14] border-[#2a3a4a] font-mono"
+                >
                   <option value="30" selected>30</option>
                   <option value="60">60</option>
                 </select>
               </div>
             </div>
-            <button class="action-btn record-btn" id="btn-record">
-              <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <button
+              class="btn btn-sm bg-gradient-to-r from-[#ff4466] to-[#cc2244] border-none text-white hover:from-[#ff5577] hover:to-[#dd3355]"
+              id="btn-record"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <circle cx="12" cy="12" r="8" />
               </svg>
               Record Animation
             </button>
-            <button class="action-btn secondary" id="btn-preview" style="display: none">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button
+              class="btn btn-sm btn-ghost border border-[#2a3a4a] text-[#8899aa] hover:border-[#00d4ff] hover:text-[#00d4ff]"
+              id="btn-preview"
+              style="display: none"
+            >
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
               Preview
             </button>
           </div>
 
-          <hr class="divider" />
+          <div class="divider my-0 before:bg-[#2a3a4a] after:bg-[#2a3a4a]"></div>
 
-          <button class="action-btn" id="btn-subset">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Action Buttons -->
+          <button
+            class="btn btn-sm bg-gradient-to-r from-[#00d4ff] to-[#0099cc] border-none text-[#0a0e14] font-semibold hover:from-[#00e5ff] hover:to-[#00aadd]"
+            id="btn-subset"
+          >
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
             Create Subset
           </button>
-          <button class="action-btn secondary" id="btn-forcings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button
+            class="btn btn-sm btn-ghost border border-[#2a3a4a] text-[#e6edf5] hover:border-[#00d4ff] hover:text-[#00d4ff]"
+            id="btn-forcings"
+          >
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path
                 d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
               />
             </svg>
             Generate Forcings
           </button>
-          <button class="action-btn secondary" id="btn-realization">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button
+            class="btn btn-sm btn-ghost border border-[#2a3a4a] text-[#e6edf5] hover:border-[#00d4ff] hover:text-[#00d4ff]"
+            id="btn-realization"
+          >
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="16" y1="13" x2="8" y2="13" />
@@ -228,30 +387,60 @@
       </aside>
 
       <!-- Main Content -->
-      <main class="main-content">
+      <main class="flex flex-col bg-[#0a0e14] overflow-hidden h-screen">
         <!-- Map Container -->
-        <div id="map-container">
-          <div id="map"></div>
+        <div id="map-container" class="flex-1 bg-[#111820] min-h-0">
+          <div id="map" class="h-full"></div>
 
           <!-- Map Controls -->
-          <div class="map-controls">
-            <button class="map-ctrl" id="zoom-in" title="Zoom In">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="absolute top-4 right-4 flex flex-col gap-1">
+            <button
+              class="btn btn-square btn-sm bg-[#111820] border-[#2a3a4a] text-[#8899aa] hover:bg-[#1a2332] hover:text-white hover:border-[#00d4ff]"
+              id="zoom-in"
+              title="Zoom In"
+            >
+              <svg
+                class="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 <line x1="11" y1="8" x2="11" y2="14" />
                 <line x1="8" y1="11" x2="14" y2="11" />
               </svg>
             </button>
-            <button class="map-ctrl" id="zoom-out" title="Zoom Out">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button
+              class="btn btn-square btn-sm bg-[#111820] border-[#2a3a4a] text-[#8899aa] hover:bg-[#1a2332] hover:text-white hover:border-[#00d4ff]"
+              id="zoom-out"
+              title="Zoom Out"
+            >
+              <svg
+                class="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 <line x1="8" y1="11" x2="14" y2="11" />
               </svg>
             </button>
-            <button class="map-ctrl" id="reset-view" title="Reset View">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button
+              class="btn btn-square btn-sm bg-[#111820] border-[#2a3a4a] text-[#8899aa] hover:bg-[#1a2332] hover:text-white hover:border-[#00d4ff]"
+              id="reset-view"
+              title="Reset View"
+            >
+              <svg
+                class="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                 <path d="M3 3v5h5" />
               </svg>
@@ -259,66 +448,111 @@
           </div>
 
           <!-- Tooltip -->
-          <div id="tooltip" class="tooltip"></div>
+          <div id="tooltip" class="map-tooltip"></div>
         </div>
 
         <!-- Command Builder -->
-        <div class="command-section">
-          <div class="command-header">
-            <div class="command-toggle">
-              <button class="cmd-btn active" data-cmd="uvx">UVX</button>
-              <button class="cmd-btn" data-cmd="pip">Pip</button>
+        <div class="bg-[#111820] border-t border-[#2a3a4a] px-6 py-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="join">
+              <button
+                class="join-item btn btn-xs font-mono cmd-btn bg-[#1a2332] text-[#00d4ff] border-[#2a3a4a]"
+                data-cmd="uvx"
+              >
+                UVX
+              </button>
+              <button
+                class="join-item btn btn-xs font-mono cmd-btn bg-transparent text-[#556677] border-[#2a3a4a] hover:text-[#8899aa]"
+                data-cmd="pip"
+              >
+                Pip
+              </button>
             </div>
-            <button class="copy-btn" id="copy-command">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button
+              class="btn btn-xs btn-ghost border border-[#2a3a4a] text-[#8899aa] hover:border-[#00d4ff] hover:text-[#00d4ff] gap-1"
+              id="copy-command"
+            >
+              <svg
+                class="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
               </svg>
               <span>Copy</span>
             </button>
           </div>
-          <pre
-            class="command-display"
-          ><code id="cli-command">Select a catchment to generate command</code></pre>
+          <div class="mockup-code bg-[#0a0e14] border border-[#2a3a4a] py-2 px-4 min-h-0">
+            <pre
+              class="m-0 !bg-transparent"
+            ><code id="cli-command" class="font-mono text-sm text-[#00d4ff]">Select a catchment to generate command</code></pre>
+          </div>
         </div>
 
         <!-- Progress Section -->
-        <div class="progress-section" id="progress-section" style="display: none">
-          <div class="progress-header">
-            <span class="progress-title">Processing...</span>
-            <span class="progress-percent" id="progress-percent">0%</span>
+        <div class="bg-[#111820] border-t border-[#2a3a4a] px-6 py-4 hidden" id="progress-section">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-white">Processing...</span>
+            <span class="font-mono text-sm text-[#00d4ff]" id="progress-percent">0%</span>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <p class="progress-status" id="progress-status">Initializing...</p>
+          <progress
+            class="progress progress-info w-full h-1.5 bg-[#0a0e14]"
+            id="progress-fill"
+            value="0"
+            max="100"
+          ></progress>
+          <p class="text-xs text-[#556677] mt-2" id="progress-status">Initializing...</p>
         </div>
 
         <!-- Output Section -->
-        <div class="output-section" id="output-section" style="display: none">
-          <div class="output-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="bg-[#1a2332] border-t border-[#00ff88] px-6 py-4 hidden" id="output-section">
+          <div class="flex items-center gap-2 mb-2 text-[#00ff88] font-medium">
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
             <span>Output</span>
           </div>
-          <p class="output-path" id="output-path"></p>
+          <p class="font-mono text-sm text-[#8899aa] break-all" id="output-path"></p>
         </div>
       </main>
 
       <!-- Console -->
-      <div class="console" id="console">
-        <div class="console-header" id="console-header">
-          <span>Console</span>
-          <button class="console-toggle" id="toggle-console">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div
+        class="fixed bottom-0 right-0 w-[calc(100%-321px)] bg-[#111820] border-t border-[#2a3a4a] z-50 transition-transform duration-300 console-collapsed"
+        id="console"
+      >
+        <div
+          class="flex justify-between items-center px-4 py-2 bg-[#1a2332] cursor-pointer"
+          id="console-header"
+        >
+          <span class="text-xs font-semibold uppercase tracking-wide text-[#556677]">Console</span>
+          <button class="btn btn-xs btn-ghost btn-square text-[#556677]" id="toggle-console">
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <polyline points="18 15 12 9 6 15" />
             </svg>
           </button>
         </div>
-        <div class="console-body" id="console-body">
-          <div id="log-output"></div>
+        <div
+          class="h-48 overflow-y-auto p-4 font-mono text-xs leading-relaxed text-[#8899aa]"
+          id="console-body"
+        >
+          <div id="log-output" class="flex flex-col-reverse"></div>
         </div>
       </div>
     </div>
