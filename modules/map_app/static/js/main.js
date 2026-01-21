@@ -97,6 +97,7 @@ function initTheme() {
     localStorage.setItem("theme", theme);
     document.documentElement.setAttribute("data-theme", theme);
     state.style = theme === "dark" ? "dark-style.json" : "light-style.json";
+
     map.setStyle(state.style_url + state.style, {
       transformStyle: (previousStyle, nextStyle) => ({
         ...previousStyle,
@@ -826,9 +827,6 @@ function initEventListeners() {
   document
     .getElementById("btn-realization")
     .addEventListener("click", handleRealization);
-
-  // Recording button
-  document.getElementById("btn-record").addEventListener("click", handleRecord);
 }
 
 // Handle subset action
@@ -1032,189 +1030,6 @@ function showOutput(message) {
   section.style.display = "block";
   document.getElementById("output-path").textContent = message;
 }
-
-// Handle recording
-async function handleRecord() {
-  if (state.flowpathTrips.length === 0) {
-    alert("Please select a catchment first to have something to animate");
-    return;
-  }
-
-  if (state.isRecording) {
-    return; // Already recording
-  }
-
-  const duration =
-    parseInt(document.getElementById("record-duration").value) || 5;
-  const fps = parseInt(document.getElementById("record-fps").value) || 30;
-
-  state.isRecording = true;
-  updateRecordingUI(true);
-
-  try {
-    await recordAnimation(duration, fps);
-  } catch (error) {
-    console.error("Recording error:", error);
-    alert("Recording failed: " + error.message);
-  }
-
-  state.isRecording = false;
-  updateRecordingUI(false);
-}
-
-// Update recording UI state
-function updateRecordingUI(isRecording) {
-  const statusEl = document.getElementById("recording-status");
-  const statusText = statusEl.querySelector(".status-text");
-  const recordBtn = document.getElementById("btn-record");
-
-  if (isRecording) {
-    statusEl.classList.add("recording");
-    statusEl.classList.remove("ready");
-    statusText.textContent = "Recording...";
-    recordBtn.classList.add("recording");
-    recordBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <rect x="6" y="6" width="12" height="12"/>
-            </svg>
-            Recording...
-        `;
-
-    // Add overlay
-    const overlay = document.createElement("div");
-    overlay.className = "recording-overlay";
-    overlay.id = "recording-overlay";
-    overlay.innerHTML = '<span class="dot"></span> Recording';
-    document.body.appendChild(overlay);
-  } else {
-    statusEl.classList.remove("recording");
-    statusEl.classList.add("ready");
-    statusText.textContent = "Ready to record";
-    recordBtn.classList.remove("recording");
-    recordBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <circle cx="12" cy="12" r="8"/>
-            </svg>
-            Record Animation
-        `;
-
-    // Remove overlay
-    const overlay = document.getElementById("recording-overlay");
-    if (overlay) overlay.remove();
-  }
-}
-
-// Record animation using canvas capture
-async function recordAnimation(durationSec, fps) {
-  const totalFrames = durationSec * fps;
-  const frameDuration = 1000 / fps;
-  const animationPerFrame = state.tripsLoopLength / totalFrames;
-
-  // Get the map container for dimensions
-  const mapContainer = document.getElementById("map");
-  const width = mapContainer.offsetWidth;
-  const height = mapContainer.offsetHeight;
-
-  // Create a canvas to composite MapLibre + DeckGL
-  const compositeCanvas = document.createElement("canvas");
-  compositeCanvas.width = width;
-  compositeCanvas.height = height;
-  const ctx = compositeCanvas.getContext("2d");
-
-  // Set up MediaRecorder
-  const stream = compositeCanvas.captureStream(fps);
-  const mediaRecorder = new MediaRecorder(stream, {
-    mimeType: "video/webm;codecs=vp9",
-    videoBitsPerSecond: 8000000,
-  });
-
-  const chunks = [];
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data.size > 0) chunks.push(e.data);
-  };
-
-  return new Promise((resolve, reject) => {
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "video/webm" });
-      downloadVideo(blob);
-      resolve();
-    };
-
-    mediaRecorder.onerror = reject;
-    mediaRecorder.start();
-
-    // Store original animation time
-    const originalTime = state.animationTime;
-    let frameCount = 0;
-
-    // Pause normal animation
-    const wasAnimating = true;
-
-    const captureFrame = () => {
-      if (frameCount >= totalFrames) {
-        mediaRecorder.stop();
-        // Restore animation
-        state.animationTime = originalTime;
-        return;
-      }
-
-      // Set animation time for this frame
-      state.animationTime =
-        (frameCount * animationPerFrame) % state.tripsLoopLength;
-
-      // Update deck layers
-      deckgl.setProps({ layers: getDeckLayers() });
-
-      // Wait for render then capture
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          // Get MapLibre canvas
-          const mapCanvas = map.getCanvas();
-
-          // Get DeckGL canvas
-          const deckCanvas = deckgl.getCanvas();
-
-          // Composite both canvases
-          ctx.clearRect(0, 0, width, height);
-          ctx.drawImage(mapCanvas, 0, 0);
-          if (deckCanvas) {
-            ctx.drawImage(deckCanvas, 0, 0);
-          }
-
-          frameCount++;
-
-          // Update progress
-          const progress = Math.round((frameCount / totalFrames) * 100);
-          const statusText = document.querySelector(
-            "#recording-status .status-text",
-          );
-          if (statusText) {
-            statusText.textContent = `Recording... ${progress}%`;
-          }
-
-          // Capture next frame
-          setTimeout(captureFrame, frameDuration / 2);
-        }, frameDuration / 2);
-      });
-    };
-
-    // Start capturing
-    captureFrame();
-  });
-}
-
-// Download the recorded video
-function downloadVideo(blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `flowpath-animation-${state.selectedBasin || "map"}-${Date.now()}.webm`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 // Log polling
 function startLogPolling() {
   setInterval(async () => {
