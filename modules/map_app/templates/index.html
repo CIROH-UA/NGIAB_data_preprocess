@@ -30,11 +30,14 @@ datetime_input %}
         <!-- Map Container -->
         <div id="map-container" class="flex-1 relative">
           <div id="map" class="h-full"></div>
-          <div id="tooltip" class="map-tooltip"></div>
+          <div
+            id="tooltip"
+            class="map-tooltip p-2 absolute shadow rounded-md backdrop-blur-sm border border-base-300 hidden"
+          ></div>
         </div>
 
         <!-- Command Builder -->
-        <div class="div px-6 py-4">
+        <div class="px-6 py-4 bg-base-100">
           <div class="flex justify-between items-center mb-3">
             {{ text_toggle(id='cmd-toggle', labels=['UVX', 'Pip'], size='sm') }}
             <button class="btn btn-sm btn-soft" id="copy-command">

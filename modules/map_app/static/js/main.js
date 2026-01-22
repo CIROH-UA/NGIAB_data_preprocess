@@ -432,7 +432,7 @@ function handleDeckHover(info) {
   const { coordinate, x, y } = info;
 
   if (!coordinate || !map) {
-    tooltip.classList.remove("visible");
+    tooltip.classList.add("hidden");
     return;
   }
 
@@ -448,12 +448,12 @@ function handleDeckHover(info) {
       tooltip.textContent = divideId;
       tooltip.style.left = `${x + 15}px`;
       tooltip.style.top = `${y + 15}px`;
-      tooltip.classList.add("visible");
+      tooltip.classList.remove("hidden");
       return;
     }
   }
 
-  tooltip.classList.remove("visible");
+  tooltip.classList.add("hidden");
 }
 
 // Add PMTiles sources to map (only ones not in base style)
