@@ -24,8 +24,8 @@ const state = {
     nwm: false,
     aorc: false,
   },
-  subsetType: "nexus",
-  dataSource: "nwm",
+  subsetType: "catchment",
+  dataSource: "aorc",
   commandType: "uvx",
   lastClickLngLat: null,
   viewState: {
@@ -673,9 +673,7 @@ function updateCliCommand() {
   const endTime = document.getElementById("end-time").value.split("T")[0];
 
   const prefix =
-    state.commandType === "uvx"
-      ? "uvx --from ngiab_data_preprocess cli"
-      : "python -m ngiab_data_cli";
+    state.commandType === "uvx" ? "uvx ngiab-prep" : "python -m ngiab_data_cli";
 
   const command = `${prefix} -i ${state.selectedBasin} --subset --start ${startTime} --end ${endTime} --forcings --realization --run`;
 
@@ -728,37 +726,27 @@ function initEventListeners() {
     toggleLayer("aorc-chunks", e.target.checked);
   });
 
-  // Subset type radio buttons
-  document.querySelectorAll('input[name="subset-type"]').forEach((radio) => {
-    radio.addEventListener("change", (e) => {
-      state.subsetType = e.target.value;
+  // Subset type toggle
+  document
+    .getElementById("subset-type-toggle")
+    .addEventListener("change", (e) => {
+      state.subsetType = e.target.checked ? "nexus" : "catchment";
       if (state.selectedBasin && state.lastClickLngLat) {
         selectBasin(state.selectedBasin);
       }
     });
-  });
 
   // Data source toggle
-  document.querySelectorAll(".source-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      document
-        .querySelectorAll(".source-btn")
-        .forEach((b) => b.classList.remove("active"));
-      e.target.classList.add("active");
-      state.dataSource = e.target.dataset.source;
+  document
+    .getElementById("data-source-toggle")
+    .addEventListener("change", (e) => {
+      state.dataSource = e.target.checked ? "nwm" : "aorc";
     });
-  });
 
   // Command type toggle
-  document.querySelectorAll(".cmd-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      document
-        .querySelectorAll(".cmd-btn")
-        .forEach((b) => b.classList.remove("active"));
-      e.target.classList.add("active");
-      state.commandType = e.target.dataset.cmd;
-      updateCliCommand();
-    });
+  document.getElementById("cmd-toggle").addEventListener("change", (e) => {
+    state.commandType = e.target.checked ? "pip" : "uvx";
+    updateCliCommand();
   });
 
   // Time inputs
@@ -768,28 +756,6 @@ function initEventListeners() {
   document
     .getElementById("end-time")
     .addEventListener("change", updateCliCommand);
-
-  // Map controls
-  document.getElementById("zoom-in").addEventListener("click", () => {
-    state.viewState.zoom = Math.min(state.viewState.zoom + 1, 18);
-    deckgl.setProps({ initialViewState: { ...state.viewState } });
-  });
-
-  document.getElementById("zoom-out").addEventListener("click", () => {
-    state.viewState.zoom = Math.max(state.viewState.zoom - 1, 2);
-    deckgl.setProps({ initialViewState: { ...state.viewState } });
-  });
-
-  document.getElementById("reset-view").addEventListener("click", () => {
-    state.viewState = {
-      longitude: -96,
-      latitude: 40,
-      zoom: 4,
-      pitch: 0,
-      bearing: 0,
-    };
-    deckgl.setProps({ initialViewState: { ...state.viewState } });
-  });
 
   // Copy command
   document
