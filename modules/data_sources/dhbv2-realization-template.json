@@ -13,7 +13,7 @@
             {
               "name": "bmi_python",
               "params": {
-                "python_type": "dhbv2.bmi.DeltaModelBmi",
+                "python_type": "dhbv2.mts_bmi.MtsDeltaModelBmi",
                 "model_type_name": "DeltaModelBmi",
                 "init_config": "./config/cat_config/dhbv2/{{id}}.yml",
                 "allow_exceed_end_time": true,
@@ -23,7 +23,7 @@
                 "variables_names_map" : {
                   "atmosphere_water__liquid_equivalent_precipitation_rate": "P",
                   "land_surface_air__temperature": "Temp",
-                  "land_surface_water__potential_evaporation_volume_flux": "PET",
+                  "water_potential_evaporation_flux": "PET",
                   "land_surface_water__runoff_volume_flux": "streamflow_cms"
 
                 }
@@ -42,7 +42,7 @@
   "time": {
     "start_time": "2000-01-01 00:00:00",
     "end_time": "2005-12-30 23:00:00",
-    "output_interval": 86400
+    "output_interval": 3600
   },
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
