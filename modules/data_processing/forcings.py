@@ -142,11 +142,12 @@ def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     )
     return dataset
 
+
 def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # used for dHBV2
     SOLAR_CONSTANT = 0.0820
     tmp1 = (24.0 * 60.0) / np.pi
-    def hargreaves(tmin: np.ndarray, tmax: np.ndarray, tmean: np.ndarray, 
+    def hargreaves(tmin: np.ndarray, tmax: np.ndarray, tmean: np.ndarray,
                    lat: np.ndarray, date: pd.Timestamp) -> np.ndarray:
         """
         tmax: (num_catchments, )
@@ -157,7 +158,6 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
         returns pet: (num_catchments, )
         """
         #calculate the day of year
-        print(type(date))
         dfdate = date
         tempday = np.array(dfdate.timetuple().tm_yday)
         day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
@@ -182,6 +182,7 @@ def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
 
     # read 24 hour chunks at a time to calculate temperature stats
     # if a 24 hr chunk not available, then stats computed for whatever length of timestep is there
+    num_cats = len(dataset['catchment'])
     num_ts = len(dataset['time'])
     day_chunk_start_idx = 0
     pet_array = np.empty((num_cats, num_ts))
