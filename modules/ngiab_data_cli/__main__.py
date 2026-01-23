@@ -177,7 +177,7 @@ def main() -> None:
             else:
                 logging.info("Subsetting hydrofabric")
                 include_outlet = True
-                if args.gage:
+                if args.gage or args.subset_type == "catchment":
                     include_outlet = False
                 subset(
                     feature_to_subset,

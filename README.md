@@ -35,13 +35,13 @@ This repository contains tools for preparing data to run a [NextGen](https://git
 
 ## What does this tool do?
 
-This tool prepares data to run a NextGen-based simulation by creating a run package that can be used with NGIAB.  
-It uses geometry and model attributes from the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) more information on [all data sources here](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html).  
+This tool prepares data to run a NextGen-based simulation by creating a run package that can be used with NGIAB.
+It uses geometry and model attributes from the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) more information on [all data sources here](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html).
 The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data or the [AORC 1km gridded data](https://noaa-nws-aorc-v1-1-1km.s3.amazonaws.com/index.html) depending on user input
 
-1. **Subsets** (delineates) everything upstream of your point of interest (catchment, gage, flowpath etc) from the hydrofabric. This subset is output as a geopackage (.gpkg). 
-2. Calculates **forcings** as a weighted mean of the gridded NWM or AORC forcings. Weights are calculated using [exact extract](https://isciences.github.io/exactextract/) and computed with numpy. 
-3. Creates **configuration files** for a default NGIAB model run. 
+1. **Subsets** (delineates) everything upstream of your point of interest (catchment, gage, flowpath etc) from the hydrofabric. This subset is output as a geopackage (.gpkg).
+2. Calculates **forcings** as a weighted mean of the gridded NWM or AORC forcings. Weights are calculated using [exact extract](https://isciences.github.io/exactextract/) and computed with numpy.
+3. Creates **configuration files** for a default NGIAB model run.
     -  realization.json  - ngen model configuration
     -  troute.yaml - routing configuration.
     -  **per catchment** model configuration
@@ -96,13 +96,13 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Create a virtual environment in the current directory
 uv venv
 
-# Install the tool in the virtual environment 
+# Install the tool in the virtual environment
 uv pip install ngiab_data_preprocess
 
 # To run the cli
 uv run cli --help
 
-# To run the map 
+# To run the map
 uv run map_app
 ```
 
@@ -120,7 +120,7 @@ UV automatically detects any virtual environments in the current directory and w
 (notebook) jovyan@jupyter-user:~$ conda deactivate
 jovyan@jupyter-user:~$
 # The interactive map won't work on 2i2c
-```    
+```
 
 ```bash
 # This tool is likely to not work without a virtual environment
@@ -165,7 +165,7 @@ To install and run the tool, follow these steps:
 
 Running the `map_app` tool will open the app in a new browser tab.
 
-Install-free: `uvx --from ngiab-data-preprocess map_app`  
+Install-free: `uvx --from ngiab-data-preprocess map_app`
 Installed with uv: `uv run map_app`
 
 ## Using the map interface
@@ -185,7 +185,7 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
 
 ## Running the CLI
 
-Install-free: `uvx ngiab-prep`  
+Install-free: `uvx ngiab-prep`
 Installed with uv: `uv run cli`
 
 ## Arguments
@@ -196,6 +196,7 @@ Installed with uv: `uv run cli`
 - `-l`, `--latlon`: Use latitude and longitude instead of catid. Expects comma-separated values via the CLI, e.g., `python -m ngiab_data_cli -i 54.33,-69.4 -l -s`.
 - `-g`, `--gage`: Use gage ID instead of catid. Expects a single gage ID via the CLI, e.g., `python -m ngiab_data_cli -i 01646500 -g -s`.
 - `-s`, `--subset`: Subset the hydrofabric to the given feature.
+- `--subset_type`: Specify the subset type. `nexus`: get everything flowing into the downstream nexus of the selected catchment. `catchment`: get everything flowing into the selected catchment.
 - `-f`, `--forcings`: Generate forcings for the given feature.
 - `-r`, `--realization`: Create a realization for the given feature.
 - `--lstm`: Configures the data for the [python lstm](https://github.com/ciroh-ua/lstm/).
@@ -219,7 +220,7 @@ Installed with uv: `uv run cli`
 
 1. Prepare everything for an NGIAB run at a given gage:
    ```bash
-   uvx ngiab-prep -i gage-10154200 -sfr --start 2022-01-01 --end 2022-02-28 
+   uvx ngiab-prep -i gage-10154200 -sfr --start 2022-01-01 --end 2022-02-28
    #         add --run or replace -sfr with --all to run NGIAB, too
    # to name the folder, add -o folder_name
    ```

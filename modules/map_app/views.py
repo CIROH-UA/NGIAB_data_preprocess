@@ -190,7 +190,7 @@ def get_catids_from_vpu():
 
 @main.route("/logs", methods=["GET"])
 def get_logs():
-    log_file_path = "app.log"
+    log_file_path = Path.home() / ".ngiab" / "app.log"
     try:
         with open(log_file_path, "r") as file:
             lines = file.readlines()

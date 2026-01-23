@@ -19,12 +19,13 @@ async function subset() {
                 document.getElementById('output-path').innerHTML = "Subset canceled. Geopackage located at " + filename;
                 return;
             }
-        } 
+        }
         // check what kind of subset
-        // get the position of the subset toggle
-        // false means subset by nexus, true means subset by catchment
-        var nexus_catchment = document.getElementById('subset-toggle').checked;
-        var subset_type = nexus_catchment ? 'catchment' : 'nexus';
+        if (document.getElementById('radio-nexus').checked) {
+            var subset_type = 'nexus'
+        } else {
+            var subset_type = 'catchment'
+        }
 
         const startTime = performance.now(); // Start the timer
         fetch('/subset', {
@@ -126,7 +127,7 @@ async function forcings() {
                 body: JSON.stringify(forcing_dir),
             })
             .then(async (response) => response.text())
-            .then(progressFile => { 
+            .then(progressFile => {
                 pollForcingsProgress(progressFile); // Start polling for progress
             })
             fetch('/forcings', {
@@ -138,7 +139,7 @@ async function forcings() {
             .catch(error => {
                 console.error('Error:', error);
             }).finally(() => {
-                document.getElementById('forcings-button').disabled = false;        
+                document.getElementById('forcings-button').disabled = false;
             });
         } else {
             alert('No existing geopackage found. Please subset the data before getting forcings');
