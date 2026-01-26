@@ -33,6 +33,7 @@ classifiers = [
 dependencies = [
     "pyogrio>=0.7.2",
     "pyproj>=3.6.1",
+    "pandas<3.0.0",
     "Flask==3.0.2",
     "geopandas>=1.0.0",
     "requests==2.32.4",
