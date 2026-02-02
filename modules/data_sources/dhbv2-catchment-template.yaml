@@ -31,6 +31,8 @@ T_sand: {T_sand}
 T_silt: {T_silt}
 Porosity: {Porosity}
 uparea: {uparea}
+catchsize: {catchsize}
+lengthkm: {lengthkm}
 
 model_dir: /ngen/ngen/extern/dhbv2/ngen_resources/data/dhbv_2_mts/model/dhbv_2_mts
 stepwise: True  # True: stepwise inference, False: Single forward simulation on all data in one go

@@ -119,6 +119,7 @@ def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.Da
             """
             SELECT
             d.areasqkm,
+            d.lengthkm,
             da.*
             FROM divides AS d
             JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
@@ -231,6 +232,8 @@ def make_dhbv2_config(
 
     for _, row in atts_df.iterrows():
         divide = row["divide_id"]
+        divide_conf_df_row = divide_conf_df.loc[divide_conf_df["divide_id"] == divide]
+
         with open(cat_config_dir / f"{divide}.yml", "w") as file:
             file.write(
                 template.format(
@@ -263,6 +266,8 @@ def make_dhbv2_config(
                     T_silt=row["T_silt"],
                     Porosity=row["Porosity"],
                     uparea=row["uparea"],
+                    catchsize=divide_conf_df_row["areasqkm"].values[0],
+                    lengthkm=divide_conf_df_row["lengthkm"].values[0],
                     start_time=start_time,
                     end_time=end_time,
                 )
