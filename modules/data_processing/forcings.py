@@ -353,7 +353,8 @@ def interpolate_nan_values(
 
 @no_cluster
 def compute_zonal_stats(
-    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path, dhbv: bool
+    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path,
+    dhbv: bool=False
 ) -> None:
     """
     Compute zonal statistics in parallel for all timesteps over all desired
@@ -377,7 +378,6 @@ def compute_zonal_stats(
 
     catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
     units = get_units(gridded_data)
-    cat_lat = get_lats(gdf)
 
     cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
@@ -477,13 +477,13 @@ def compute_zonal_stats(
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
-    write_outputs(forcings_dir, units, cat_lat, dhbv)
+    write_outputs(forcings_dir, units)
     time.sleep(1)  # wait for progress bar to update
     progress_file.unlink()
 
 
 @use_cluster
-def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) -> None:
+def write_outputs(forcings_dir: Path, units: dict) -> None:
     """
     Write outputs to disk in the form of a NetCDF file, using dask clusters to
     facilitate parallel computing.
@@ -574,7 +574,7 @@ def setup_directories(cat_id: str) -> FilePaths:
     return forcing_paths
 
 
-def create_forcings(dataset: xr.Dataset, output_folder_name: str, dhbv: bool) -> None:
+def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     validate_dataset_format(dataset)
     forcing_paths = setup_directories(output_folder_name)
     logger.debug(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
