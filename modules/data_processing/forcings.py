@@ -142,101 +142,6 @@ def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     )
     return dataset
 
-# def add_pet_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
-#     # used for dHBV2
-#     SOLAR_CONSTANT = 0.0820
-#     tmp1 = (24.0 * 60.0) / np.pi
-#     def hargreaves(tmin: np.ndarray, tmax: np.ndarray, tmean: np.ndarray,
-#                    lat: np.ndarray, date: pd.Timestamp) -> np.ndarray:
-#         """
-#         tmax: (num_catchments, )
-#         tmin: (num_catchments, )
-#         tmean: (num_catchments, )
-#         lat: (num_catchments, )
-#         date: pandas Timestamp
-#         returns pet: (num_catchments, )
-#         """
-#         #calculate the day of year
-#         dfdate = date
-#         tempday = np.array(dfdate.timetuple().tm_yday)
-#         day_of_year = np.tile(tempday.reshape(-1, 1), [1, tmin.shape[-1]])
-#         # Loop to reduce memory usage
-
-
-#         temp_range = tmax - tmin
-#         temp_range[temp_range < 0] = 0
-
-#         latitude = np.deg2rad(lat)
-
-#         sol_dec = 0.409 * np.sin(((2.0 * np.pi / 365.0) * day_of_year - 1.39))
-#         sha = np.arccos(np.clip(-np.tan(latitude) * np.tan(sol_dec), -1, 1))
-#         ird = 1 + (0.033 * np.cos((2.0 * np.pi / 365.0) * day_of_year))
-#         tmp2 = sha * np.sin(latitude) * np.sin(sol_dec)
-#         tmp3 = np.cos(latitude) * np.cos(sol_dec) * np.sin(sha)
-#         et_rad = tmp1 * SOLAR_CONSTANT * ird * (tmp2 + tmp3)
-#         et_rad = et_rad.reshape(-1)
-#         pet = 0.0023 * (tmean + 17.8) * temp_range ** 0.5 * 0.408 * et_rad
-#         pet[pet < 0] = 0
-#         return pet
-
-#     # read 24 hour chunks at a time to calculate temperature stats
-#     # if a 24 hr chunk not available, then stats computed for whatever length of timestep is there
-#     num_cats = len(dataset['catchment'])
-#     num_ts = len(dataset['time'])
-#     day_chunk_start_idx = 0
-#     pet_array = np.empty((num_cats, num_ts))
-
-#     progress = Progress(
-#         TextColumn("[progress.description]{task.description}"),
-#         BarColumn(),
-#         "[progress.percentage]{task.percentage:>3.0f}%",
-#         TextColumn("{task.completed}/{task.total}"),
-#         "•",
-#         TextColumn(" Elapsed Time:"),
-#         TimeElapsedColumn(),
-#         TextColumn(" Remaining Time:"),
-#         TimeRemainingColumn(),
-#     )
-
-#     int_days = np.ceil(num_ts / 24)
-
-#     timer = time.perf_counter()
-#     day_chunk_task = progress.add_task(
-#         "[cyan]Calculating PET...", total=int_days, elapsed=0
-#     )
-#     progress.start()
-#     while day_chunk_start_idx <= num_ts - 1:
-#         progress.update(day_chunk_task, advance=1)
-#         ts_start = pd.to_datetime(dataset.time.values[day_chunk_start_idx])
-#         if day_chunk_start_idx + 23 <= num_ts - 1:
-#             ts_diff = 24
-#         else: # in case there isn't a full day left in the forcings file
-#             ts_diff = num_ts - day_chunk_start_idx
-#         day_chunk = dataset.isel(
-#             time=slice(day_chunk_start_idx, day_chunk_start_idx + ts_diff))['TMP_2maboveground']
-
-#         cat_temps = day_chunk.values
-#         # calculate stats
-#         tmin = np.min(cat_temps, axis=1)
-#         tmax = np.max(cat_temps, axis=1)
-#         tmean = np.mean(cat_temps, axis=1)
-#         lat = dataset['lat'].values
-
-#         pet = hargreaves(tmin, tmax, tmean, lat, ts_start)
-#         day_pet = np.repeat(pet[:, np.newaxis], ts_diff, axis=1)
-#         pet_array[:, day_chunk_start_idx:day_chunk_start_idx + ts_diff] = day_pet
-
-#         day_chunk_start_idx += 24
-
-#     progress.update(
-#         day_chunk_task,
-#         description=f"PET calculated in {time.perf_counter() - timer:2f} seconds",
-#     )
-#     progress.stop()
-#     dataset["PET"] = (("catchment", "time"), pet_array)
-#     dataset["PET"].attrs["units"] = "mm day^-1"  # ^-1 notation copied from source data
-#     return dataset
-
 def get_index_chunks(data: xr.DataArray) -> list[tuple[int, int]]:
     """
     Take a DataArray and calculate the start and end index for each chunk based
@@ -480,11 +385,6 @@ def compute_zonal_stats(
     ex_var_name = list(gridded_data.data_vars)[0]
     example_time_chunks = get_index_chunks(gridded_data[ex_var_name])
 
-    # if dhbv: # cut down on processing time for dhbv
-    #     data_vars = ['APCP_surface', 'TMP_2maboveground']
-    # else:
-    #     data_vars = gridded_data.data_vars
-
     data_vars = gridded_data.data_vars
 
     all_steps = len(example_time_chunks) * len(data_vars)
@@ -629,19 +529,6 @@ def write_outputs(forcings_dir: Path, units: dict, cat_lat: dict, dhbv: bool) ->
     # time is stored as unix timestamps, units have to be set
     # add the catchment ids as a 1d data var
     final_ds["ids"] = final_ds["catchment"].astype(str)
-
-    # lat 1d var and PET added for dHBV
-    # if dhbv:
-    #     final_ds['TMP_2maboveground'] = final_ds['TMP_2maboveground'] - 273.15 # convert to celsius
-    #     final_ds['TMP_2maboveground'].attrs['units'] = 'degC'
-    #     logger.info("Calculating PET from temperature values...")
-    #     final_ds["lat"] = (("catchment"), [cat_lat[cat] for cat in final_ds["ids"].values])
-    #     final_ds = add_pet_to_dataset(final_ds)
-
-    #     dhbv_renamedict = {'precip_rate': 'P',
-    #                        "TMP_2maboveground": 'Temp'}
-    #     final_ds = final_ds.drop_vars("APCP_surface")
-    #     final_ds = final_ds.rename_vars(dhbv_renamedict)
 
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
     with warnings.catch_warnings():
