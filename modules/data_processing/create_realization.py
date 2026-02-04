@@ -177,8 +177,10 @@ def make_lstm_config(
 def get_headers(url):
     try:
         response = requests.head(url)
-    except requests.exceptions.ConnectionError:
-        return 500, {}
+    except requests.exceptions.RequestException as exc:
+        logger.warning("Failed to retrieve headers from %s: %s", url, exc)
+        # Return a non-HTTP sentinel status code and empty headers on request failure
+        return None, {}
     return response.status_code, response.headers
 
 

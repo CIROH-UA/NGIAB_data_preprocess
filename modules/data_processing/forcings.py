@@ -353,8 +353,7 @@ def interpolate_nan_values(
 
 @no_cluster
 def compute_zonal_stats(
-    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path,
-    dhbv: bool=False
+    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path
 ) -> None:
     """
     Compute zonal statistics in parallel for all timesteps over all desired
