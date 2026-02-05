@@ -20,7 +20,7 @@ from data_processing.gpkg_utils import (
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
 )
-from data_sources.source_validation import download_from_s3
+from data_sources.source_validation import download_dhbv_attributes
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -172,42 +172,6 @@ def make_lstm_config(
                     elevation_mean=row["mean.elevation"] / 100,  # convert cm in hf to m
                 )
             )
-
-
-def get_headers(url):
-    try:
-        response = requests.head(url)
-    except requests.exceptions.RequestException as exc:
-        logger.warning("Failed to retrieve headers from %s: %s", url, exc)
-        # Return a non-HTTP sentinel status code and empty headers on request failure
-        return None, {}
-    return response.status_code, response.headers
-
-
-def download_dhbv_attributes():
-    S3_BUCKET = "communityhydrofabric"
-    S3_KEY = "hydrofabrics/community/resources/dhbv_attrs.parquet"
-    S3_REGION = "us-east-1"
-    attributes_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
-
-    status, headers = get_headers(attributes_url)
-    download_log = FilePaths.dhbv_attributes.with_suffix(".log")
-    if download_log.exists():
-        with open(download_log, "r") as f:
-            local_headers = json.load(f)
-    else:
-        local_headers = {}
-
-    if not FilePaths.dhbv_attributes.exists() or headers.get("ETag", "") != local_headers.get(
-        "ETag", ""
-    ):
-        download_from_s3(
-            FilePaths.dhbv_attributes,
-            bucket=S3_BUCKET,
-            key=S3_KEY,
-        )
-        with open(FilePaths.dhbv_attributes.with_suffix(".log"), "w") as f:
-            json.dump(dict(headers), f)
 
 
 def make_dhbv2_config(
