@@ -201,6 +201,8 @@ Installed with uv: `uv run cli`
 - `-r`, `--realization`: Create a realization for the given feature.
 - `--lstm`: Configures the data for the [python lstm](https://github.com/ciroh-ua/lstm/).
 - `--lstm_rust`: Configures the data for the [rust lstm](https://github.com/ciroh-ua/rust-lstm-1025/).
+- `--dhbv2`: Configures the data for the hourly [dHBV2](https://github.com/mhpi/dhbv2).
+- `--dhbv2_daily`: Configures the data for the daily [dHBV2](https://github.com/mhpi/dhbv2).
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
