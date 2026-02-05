@@ -262,13 +262,14 @@ def make_ngen_realization_json(
     template_path: Path,
     start_time: datetime,
     end_time: datetime,
+    output_interval: int = 3600,
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
 
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-    realization["time"]["output_interval"] = 3600
+    realization["time"]["output_interval"] = output_interval
 
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
@@ -311,6 +312,20 @@ def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: dateti
     make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     paths.setup_run_folders()
 
+def create_dhbv2_daily_realization(cat_id: str, start_time: datetime, end_time: datetime):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_dhbv2_daily_realization_config,
+        start_time,
+        end_time,
+        output_interval=86400,
+    )
+    make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time,
+                      template_path = FilePaths.template_dhbv2_daily_config)
+    paths.setup_run_folders()
 
 def create_realization(
     cat_id: str,
