@@ -326,14 +326,13 @@ def make_ngen_realization_json(
     template_path: Path,
     start_time: datetime,
     end_time: datetime,
-    output_interval: int = 3600,
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
 
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-    realization["time"]["output_interval"] = output_interval
+    realization["time"]["output_interval"] = 3600
 
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
@@ -360,7 +359,6 @@ def create_lstm_realization(
         (paths.config_dir / "python_lstm_real.json").rename(realization_path)
 
     make_lstm_config(paths.geopackage_path, paths.config_dir)
-    # create some partitions for parallelization
     paths.setup_run_folders()
 
 
@@ -373,10 +371,8 @@ def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: dateti
         FilePaths.template_dhbv2_realization_config,
         start_time,
         end_time,
-        output_interval=3600,
     )
     make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
-    # create some partitions for parallelization
     paths.setup_run_folders()
 
 
