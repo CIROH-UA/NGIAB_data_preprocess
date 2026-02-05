@@ -20,6 +20,7 @@ from data_processing.gpkg_utils import (
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
 )
+from data_sources.source_validation import download_dhbv_attributes
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -112,19 +113,20 @@ def make_noahowp_config(
             )
 
 
-def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
+def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
         conf_df = pandas.read_sql_query(
             """
             SELECT
             d.areasqkm,
+            d.lengthkm,
             da.*
             FROM divides AS d
             JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
             """,
             conn,
         )
-    source_crs = get_table_crs_short(hydrofabric, "divides")
+    source_crs = get_table_crs_short(hydrofabric, layer)
     transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
     conf_df["longitude"] = lon
@@ -168,6 +170,44 @@ def make_lstm_config(
                     lon=row["longitude"],
                     slope_mean=row["mean_slope_mpkm"],
                     elevation_mean=row["mean.elevation"] / 100,  # convert cm in hf to m
+                )
+            )
+
+
+def make_dhbv2_config(
+    hydrofabric: Path,
+    output_dir: Path,
+    start_time: datetime,
+    end_time: datetime,
+    template_path: Path = FilePaths.template_dhbv2_config,
+):
+    divide_conf_df = get_model_attributes(hydrofabric)
+    divide_ids = divide_conf_df["divide_id"].to_list()
+
+    download_dhbv_attributes()
+    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
+    atts_df = dhbv_atts.loc[dhbv_atts["divide_id"].isin(divide_ids)]
+
+    cat_config_dir = output_dir / "cat_config" / "dhbv2"
+    if cat_config_dir.exists():
+        shutil.rmtree(cat_config_dir)
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(template_path, "r") as file:
+        template = file.read()
+
+    for _, row in atts_df.iterrows():
+        divide = row["divide_id"]
+        divide_conf_df_row = divide_conf_df.loc[divide_conf_df["divide_id"] == divide]
+
+        with open(cat_config_dir / f"{divide}.yml", "w") as file:
+            file.write(
+                template.format(
+                    **row,
+                    catchsize=divide_conf_df_row["areasqkm"].values[0],
+                    lengthkm=divide_conf_df_row["lengthkm"].values[0],
+                    start_time=start_time,
+                    end_time=end_time,
                 )
             )
 
@@ -218,7 +258,10 @@ def configure_troute(
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime
+    config_dir: Path,
+    template_path: Path,
+    start_time: datetime,
+    end_time: datetime,
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
@@ -252,7 +295,20 @@ def create_lstm_realization(
         (paths.config_dir / "python_lstm_real.json").rename(realization_path)
 
     make_lstm_config(paths.geopackage_path, paths.config_dir)
-    # create some partitions for parallelization
+    paths.setup_run_folders()
+
+
+def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: datetime):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_dhbv2_realization_config,
+        start_time,
+        end_time,
+    )
+    make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     paths.setup_run_folders()
 
 

@@ -92,13 +92,17 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--start_date",
         "--start",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT)
+        if len(s) == 10
+        else datetime.strptime(s, DATE_FORMAT2),
         help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
         "--end_date",
         "--end",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT)
+        if len(s) == 10
+        else datetime.strptime(s, DATE_FORMAT2),
         help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
@@ -124,6 +128,13 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable experimental high speed Rust bindings of LSTM model realization and forcings",
     )
+
+    parser.add_argument(
+        "--dhbv2",
+        action="store_true",
+        help="enable dHBV2 model realization and forcings",
+    )
+
     parser.add_argument(
         "--nwm_gw",
         action="store_true",

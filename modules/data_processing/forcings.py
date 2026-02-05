@@ -117,6 +117,7 @@ def get_cell_weights(raster: xr.Dataset, gdf: gpd.GeoDataFrame, wkt: str) -> pd.
     )  # type: ignore
     return output.set_index("divide_id")
 
+
 def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     """Convert precipitation value to correct units."""
     # precip_rate is mm/s
@@ -311,6 +312,7 @@ def get_units(dataset: xr.Dataset) -> dict:
             units[var] = dataset[var].attrs["units"]
     return units
 
+
 def interpolate_nan_values(
     dataset: xr.Dataset,
     dim: str = "time",
@@ -383,9 +385,12 @@ def compute_zonal_stats(
     progress_file = FilePaths(output_dir=forcings_dir.parent).forcing_progress_file
     ex_var_name = list(gridded_data.data_vars)[0]
     example_time_chunks = get_index_chunks(gridded_data[ex_var_name])
-    all_steps = len(example_time_chunks) * len(gridded_data.data_vars)
+
+    data_vars = gridded_data.data_vars
+
+    all_steps = len(example_time_chunks) * len(data_vars)
     logger.info(
-        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(gridded_data.data_vars)}"
+        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(data_vars)}"
     )
     steps_completed = 0
     with open(progress_file, "w") as f:
@@ -405,10 +410,11 @@ def compute_zonal_stats(
 
     timer = time.perf_counter()
     variable_task = progress.add_task(
-        "[cyan]Processing variables...", total=len(gridded_data.data_vars), elapsed=0
+        "[cyan]Processing variables...", total=len(data_vars), elapsed=0
     )
     progress.start()
-    for data_var_name in list(gridded_data.data_vars):
+
+    for data_var_name in list(data_vars):
         data_var_name: str
         progress.update(variable_task, advance=1)
         progress.update(variable_task, description=f"Processing {data_var_name}")
@@ -524,6 +530,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     # time is stored as unix timestamps, units have to be set
     # add the catchment ids as a 1d data var
     final_ds["ids"] = final_ds["catchment"].astype(str)
+
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -575,5 +582,7 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
     gdf = gdf.to_crs(dataset.crs)
-    dataset = dataset.isel(y=slice(None, None, -1)) # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
+    dataset = dataset.isel(
+        y=slice(None, None, -1)
+    )  # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
     compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
