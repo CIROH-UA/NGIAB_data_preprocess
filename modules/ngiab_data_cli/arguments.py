@@ -92,13 +92,17 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--start_date",
         "--start",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT)
+        if len(s) == 10
+        else datetime.strptime(s, DATE_FORMAT2),
         help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
         "--end_date",
         "--end",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT)
+        if len(s) == 10
+        else datetime.strptime(s, DATE_FORMAT2),
         help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(

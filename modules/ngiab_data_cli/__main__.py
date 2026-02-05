@@ -12,7 +12,11 @@ with rich.status.Status("loading") as status:
     from pathlib import Path
 
     import geopandas as gpd
-    from data_processing.create_realization import create_lstm_realization, create_realization, create_dhbv2_realization
+    from data_processing.create_realization import (
+        create_dhbv2_realization,
+        create_lstm_realization,
+        create_realization,
+    )
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr

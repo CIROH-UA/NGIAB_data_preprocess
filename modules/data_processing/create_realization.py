@@ -369,7 +369,11 @@ def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: dateti
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
     make_ngen_realization_json(
-        paths.config_dir, FilePaths.template_dhbv2_realization_config, start_time, end_time, output_interval=3600
+        paths.config_dir,
+        FilePaths.template_dhbv2_realization_config,
+        start_time,
+        end_time,
+        output_interval=3600,
     )
     make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     # create some partitions for parallelization
