@@ -31,8 +31,6 @@ T_sand: {T_sand}
 T_silt: {T_silt}
 Porosity: {Porosity}
 uparea: {uparea}
-catchsize: {catchsize}
-lengthkm: {lengthkm}
 
 model_dir: /ngen/ngen/extern/dhbv2/ngen_resources/data/dhbv_2/model/dhbv_2
 stepwise: True  # True: stepwise inference, False: Single forward simulation on all data in one go
@@ -44,3 +42,7 @@ verbose: 1  # 0: no output, 1: print output
 time_step: 1 day
 start_time: {start_time}
 end_time: {end_time}
+
+# PET calculation method: 'penman_monteith' (default) or 'hargreaves'
+pet_method: 'hargreaves'
+latitude: {latitude}

@@ -18,7 +18,7 @@
                 "init_config": "./config/cat_config/dhbv2/{{id}}.yml",
                 "allow_exceed_end_time": true,
                 "main_output_variable": "land_surface_water__runoff_volume_flux",
-                "fixed_time_step": false,
+                "fixed_time_step": true,
                 "uses_forcing_file": false,
                 "variables_names_map" : {
                   "atmosphere_water__liquid_equivalent_precipitation_rate":"precip_rate",
@@ -29,7 +29,7 @@
                   "land_surface_air__pressure":"PRES_surface",
                   "land_surface_wind__x_component_of_velocity":"UGRD_10maboveground",
                   "land_surface_wind__y_component_of_velocity":"VGRD_10maboveground",
-                  "land_surface_water__runoff_volume_flux":"streamflow_cms"
+                  "land_surface_water__runoff_volume_flux":"streamflow"
 
                 }
 
@@ -47,7 +47,7 @@
   "time": {
     "start_time": "2000-01-01 00:00:00",
     "end_time": "2005-12-30 23:00:00",
-    "output_interval": 86400
+    "output_interval": 3600
   },
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"

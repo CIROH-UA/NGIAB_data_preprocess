@@ -44,3 +44,7 @@ verbose: 1  # 0: no output, 1: print output
 time_step: 1 hour
 start_time: {start_time}
 end_time: {end_time}
+
+# PET calculation method: 'penman_monteith' (default) or 'hargreaves'
+pet_method: 'penman_monteith'
+latitude: {latitude}

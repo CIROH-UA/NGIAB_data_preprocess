@@ -14,11 +14,13 @@ import psutil
 import requests
 import s3fs
 import xarray as xr
+import geopandas as gpd
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import (
     get_cat_to_nhd_feature_id,
     get_table_crs_short,
+    get_lats
 )
 from data_sources.source_validation import download_dhbv_attributes
 from pyproj import Transformer
@@ -184,6 +186,9 @@ def make_dhbv2_config(
     divide_conf_df = get_model_attributes(hydrofabric)
     divide_ids = divide_conf_df["divide_id"].to_list()
 
+    hf_gdf = gpd.read_file(hydrofabric, layer="divides")
+    latitudes = get_lats(hf_gdf)
+
     download_dhbv_attributes()
     dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
     atts_df = dhbv_atts.loc[dhbv_atts["divide_id"].isin(divide_ids)]
@@ -199,6 +204,7 @@ def make_dhbv2_config(
     for _, row in atts_df.iterrows():
         divide = row["divide_id"]
         divide_conf_df_row = divide_conf_df.loc[divide_conf_df["divide_id"] == divide]
+        latitude = latitudes.get(divide, 0)
 
         with open(cat_config_dir / f"{divide}.yml", "w") as file:
             file.write(
@@ -206,6 +212,7 @@ def make_dhbv2_config(
                     **row,
                     catchsize=divide_conf_df_row["areasqkm"].values[0],
                     lengthkm=divide_conf_df_row["lengthkm"].values[0],
+                    latitude=latitude,
                     start_time=start_time,
                     end_time=end_time,
                 )
@@ -310,7 +317,6 @@ def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: dateti
             FilePaths.template_dhbv2_daily_realization_config,
             start_time,
             end_time,
-            output_interval=86400,
         )
         make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time,
             template_path = FilePaths.template_dhbv2_daily_config)
