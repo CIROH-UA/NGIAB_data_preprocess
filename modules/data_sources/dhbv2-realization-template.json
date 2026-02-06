@@ -29,7 +29,7 @@
                   "land_surface_air__pressure":"PRES_surface",
                   "land_surface_wind__x_component_of_velocity":"UGRD_10maboveground",
                   "land_surface_wind__y_component_of_velocity":"VGRD_10maboveground",
-                  "land_surface_water__runoff_volume_flux":"streamflow"
+                  "land_surface_water__runoff_volume_flux":"streamflow_cms"
 
                 }
 
