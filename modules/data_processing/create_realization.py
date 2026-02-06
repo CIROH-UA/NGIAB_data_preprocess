@@ -215,6 +215,7 @@ def make_dhbv2_config(
                     latitude=latitude,
                     start_time=start_time,
                     end_time=end_time,
+                    start_date=start_time.strftime("%Y/%m/%d")
                 )
             )
 

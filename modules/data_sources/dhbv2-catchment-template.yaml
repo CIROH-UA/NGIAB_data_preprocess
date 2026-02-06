@@ -45,6 +45,9 @@ time_step: 1 hour
 start_time: {start_time}
 end_time: {end_time}
 
+start_date: {start_date}
+start_hour: 0
+
 # PET calculation method: 'penman_monteith' (default) or 'hargreaves'
 pet_method: 'penman_monteith'
 latitude: {latitude}
