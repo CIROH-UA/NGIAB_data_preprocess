@@ -299,32 +299,30 @@ def create_lstm_realization(
     paths.setup_run_folders()
 
 
-def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: datetime,
+                             daily: bool = False):
     paths = FilePaths(cat_id)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
-    make_ngen_realization_json(
-        paths.config_dir,
-        FilePaths.template_dhbv2_realization_config,
-        start_time,
-        end_time,
-    )
-    make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
-    paths.setup_run_folders()
+    if daily:
+        make_ngen_realization_json(
+            paths.config_dir,
+            FilePaths.template_dhbv2_daily_realization_config,
+            start_time,
+            end_time,
+            output_interval=86400,
+        )
+        make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time,
+            template_path = FilePaths.template_dhbv2_daily_config)
+    else:
+        make_ngen_realization_json(
+            paths.config_dir,
+            FilePaths.template_dhbv2_realization_config,
+            start_time,
+            end_time,
+        )
+        make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
 
-def create_dhbv2_daily_realization(cat_id: str, start_time: datetime, end_time: datetime):
-    paths = FilePaths(cat_id)
-    configure_troute(cat_id, paths.config_dir, start_time, end_time)
-
-    make_ngen_realization_json(
-        paths.config_dir,
-        FilePaths.template_dhbv2_daily_realization_config,
-        start_time,
-        end_time,
-        output_interval=86400,
-    )
-    make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time,
-                      template_path = FilePaths.template_dhbv2_daily_config)
     paths.setup_run_folders()
 
 def create_realization(

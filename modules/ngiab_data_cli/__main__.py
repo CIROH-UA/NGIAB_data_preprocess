@@ -16,7 +16,6 @@ with rich.status.Status("loading") as status:
         create_dhbv2_realization,
         create_lstm_realization,
         create_realization,
-        create_dhbv2_daily_realization
     )
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
@@ -222,17 +221,12 @@ def main() -> None:
                     end_time=args.end_date,
                     use_rust=args.lstm_rust,
                 )
-            if args.dhbv2:
+            if args.dhbv2 or args.dhbv2_daily:
                 create_dhbv2_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
-                )
-            elif args.dhbv2_daily:
-                create_dhbv2_daily_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
+                    daily=args.dhbv2_daily,
                 )
             else:
                 create_realization(
