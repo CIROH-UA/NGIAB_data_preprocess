@@ -41,6 +41,5 @@
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
   },
-  "remotes_enabled": false,
   "output_root": "./outputs/ngen"
 }

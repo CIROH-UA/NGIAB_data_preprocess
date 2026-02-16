@@ -29,6 +29,7 @@ class FilePaths:
     template_cfe_config = template_cat_dir / "cfe.ini"
     template_lstm_config = template_cat_dir / "lstm.yml"
     template_dhbv2_config = template_cat_dir / "dhbv2.yaml"
+    template_summa_config = template_cat_dir / "summa.input"
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
@@ -36,6 +37,9 @@ class FilePaths:
     template_lstm_realization_config = template_realization_dir / "lstm-py.json"
     template_lstm_rust_realization_config = template_realization_dir / "lstm-rs.json"
     template_dhbv2_realization_config = template_realization_dir / "dhbv2.json"
+    template_summa_realization_config = template_realization_dir / "summa.json"
+
+    summa_file_dir = data_sources / "config" / "SUMMA"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
@@ -90,6 +94,14 @@ class FilePaths:
         return self.subset_dir / "forcings"
 
     @property
+    def forcings_file(self) -> Path:
+        return self.forcings_dir / "forcings.nc"
+
+    @property
+    def summa_model_config(self) -> Path:
+        return self.config_dir / "model_config" / "SUMMA"
+
+    @property
     def metadata_dir(self) -> Path:
         meta_dir = self.subset_dir / "metadata"
         meta_dir.mkdir(parents=True, exist_ok=True)
@@ -116,12 +128,13 @@ class FilePaths:
         with open(self.metadata_dir / "cli_commands_history.txt", "a") as f:
             f.write(f"{current_time}| {command_string}\n")
 
-    def setup_run_folders(self) -> None:
+    def setup_run_folders(self, extra_folders: list[str] = []) -> None:
         folders = [
             "outputs",
             "outputs/ngen",
             "outputs/troute",
             "metadata",
         ]
+        folders.extend(extra_folders)
         for folder in folders:
             Path(self.subset_dir / folder).mkdir(parents=True, exist_ok=True)

@@ -4,51 +4,52 @@
       {
         "name": "bmi_multi",
         "params": {
-          "model_type_name": "dhbv2",
+          "model_type_name": "bmi_multi_summa",
           "forcing_file": "",
           "init_config": "",
           "allow_exceed_end_time": true,
           "main_output_variable": "land_surface_water__runoff_volume_flux",
           "modules": [
             {
-              "name": "bmi_python",
+              "name": "bmi_fortran",
               "params": {
-                "python_type": "dhbv2.mts_bmi.MtsDeltaModelBmi",
-                "model_type_name": "DeltaModelBmi",
-                "init_config": "./config/cat_config/dhbv2/{{id}}.yml",
+                "model_type_name": "bmi_fortran_summa",
+                "library_file": "/dmod/shared_libs/libsummabmi.so",
+                "forcing_file": "",
+                "init_config": "./config/cat_config/SUMMA/{{id}}.input",
                 "allow_exceed_end_time": true,
                 "main_output_variable": "land_surface_water__runoff_volume_flux",
-                "fixed_time_step": false,
-                "uses_forcing_file": false,
                 "variables_names_map": {
-                  "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
+                  "atmosphere_water__precipitation_mass_flux": "precip_rate",
                   "land_surface_air__temperature": "TMP_2maboveground",
                   "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
-                  "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
-                  "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
-                  "land_surface_air__pressure": "PRES_surface",
                   "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
                   "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
-                  "land_surface_water__runoff_volume_flux": "streamflow_cms"
-                }
+                  "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+                  "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+                  "land_surface_air__pressure": "PRES_surface"
+                },
+                "uses_forcing_file": false
               }
             }
-          ]
+          ],
+          "uses_forcing_file": false
         }
       }
     ],
     "forcing": {
       "path": "./forcings/forcings.nc",
-      "provider": "NetCDF"
+      "provider": "NetCDF",
+      "enable_cache": false
     }
   },
   "time": {
-    "start_time": "2000-01-01 00:00:00",
-    "end_time": "2005-12-30 23:00:00",
+    "start_time": "2015-12-01 0:00:00",
+    "end_time": "2015-12-30 23:00:00",
     "output_interval": 3600
   },
+  "output_root": "./outputs/ngen/",
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
-  },
-  "output_root": "./outputs/ngen"
+  }
 }
