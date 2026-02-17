@@ -128,7 +128,12 @@ def parse_arguments() -> argparse.Namespace:
     models.add_argument(
         "--dhbv2",
         action="store_true",
-        help="enable dHBV2 model realization and forcings",
+        help="enable hourly dHBV2 model realization and forcings",
+    )
+    models.add_argument(
+        "--dhbv2_daily",
+        action="store_true",
+        help="enable daily dHBV2 model realization and forcings",
     )
     models.add_argument(
         "--summa",

@@ -218,11 +218,12 @@ def main() -> None:
                     end_time=args.end_date,
                     use_rust=args.lstm_rust,
                 )
-            elif args.dhbv2:
+            elif args.dhbv2 or args.dhbv2_daily:
                 create_dhbv2_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
+                    daily=args.dhbv2_daily,
                 )
             elif args.summa:
                 create_summa_realization(

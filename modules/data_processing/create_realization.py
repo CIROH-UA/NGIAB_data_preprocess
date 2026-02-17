@@ -17,10 +17,7 @@ import s3fs
 import xarray as xr
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import FilePaths
-from data_processing.gpkg_utils import (
-    get_cat_to_nhd_feature_id,
-    get_table_crs_short,
-)
+from data_processing.gpkg_utils import get_cat_to_nhd_feature_id, get_table_crs_short
 from data_sources.source_validation import download_dhbv_attributes
 from pyproj import Transformer
 from tqdm.rich import tqdm
@@ -140,8 +137,6 @@ def make_lstm_config(
     output_dir: Path,
     template_path: Path = FilePaths.template_lstm_config,
 ):
-    # test if modspatialite is available
-
     divide_conf_df = get_model_attributes(hydrofabric)
 
     cat_config_dir = output_dir / "cat_config" / "lstm"
@@ -153,7 +148,9 @@ def make_lstm_config(
     # flip 0 and 90 degree values
     divide_conf_df["flipped_mean_slope"] = abs(divide_conf_df["mean.slope"] - 90)
     # Convert degrees to meters per kmmeter
-    divide_conf_df["mean_slope_mpkm"] = np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
+    divide_conf_df["mean_slope_mpkm"] = (
+        np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
+    )
 
     with open(template_path, "r") as file:
         template = file.read()
@@ -181,34 +178,29 @@ def make_dhbv2_config(
     template_path: Path = FilePaths.template_dhbv2_config,
 ):
     divide_conf_df = get_model_attributes(hydrofabric)
-    divide_ids = divide_conf_df["divide_id"].to_list()
-
     download_dhbv_attributes()
     dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
-    atts_df = dhbv_atts.loc[dhbv_atts["divide_id"].isin(divide_ids)]
+    atts_df = dhbv_atts.loc[dhbv_atts["divide_id"].isin(divide_conf_df["divide_id"])]
 
     cat_config_dir = output_dir / "cat_config" / "dhbv2"
     if cat_config_dir.exists():
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(template_path, "r") as file:
-        template = file.read()
+    template = template_path.read_text()
+    merged = atts_df.merge(
+        divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude"]], on="divide_id"
+    )
 
-    for _, row in atts_df.iterrows():
-        divide = row["divide_id"]
-        divide_conf_df_row = divide_conf_df.loc[divide_conf_df["divide_id"] == divide]
-
-        with open(cat_config_dir / f"{divide}.yml", "w") as file:
-            file.write(
-                template.format(
-                    **row,
-                    catchsize=divide_conf_df_row["areasqkm"].values[0],
-                    lengthkm=divide_conf_df_row["lengthkm"].values[0],
-                    start_time=start_time,
-                    end_time=end_time,
-                )
+    for _, row in merged.iterrows():
+        (cat_config_dir / f"{row['divide_id']}.yml").write_text(
+            template.format(
+                **row,
+                start_time=start_time,
+                end_time=end_time,
+                start_date=start_time.strftime("%Y/%m/%d"),
             )
+        )
 
 
 def make_summa_config(hru_ids: list[int], output_dir: Path):
@@ -223,7 +215,9 @@ def make_summa_config(hru_ids: list[int], output_dir: Path):
             file.write(template.format(divide_index=i + 1))
 
 
-def configure_troute(cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime) -> None:
+def configure_troute(
+    cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
+) -> None:
     with open(FilePaths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
@@ -234,7 +228,9 @@ def configure_troute(cat_id: str, config_dir: Path, start_time: datetime, end_ti
         ncats = ncats_df["COUNT(id)"][0]
 
     est_bytes_required = nts * ncats * 45  # extremely rough calculation based on about 3 tests :)
-    local_ram_available = 0.8 * psutil.virtual_memory().available  # buffer to not accidentally explode machine
+    local_ram_available = (
+        0.8 * psutil.virtual_memory().available
+    )  # buffer to not accidentally explode machine
 
     if est_bytes_required > local_ram_available:
         max_loop_size = nts // (est_bytes_required // local_ram_available)
@@ -269,19 +265,22 @@ def make_ngen_realization_json(
     template_path: Path,
     start_time: datetime,
     end_time: datetime,
+    output_interval: int = 3600,
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
 
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-    realization["time"]["output_interval"] = 3600
+    realization["time"]["output_interval"] = output_interval
 
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
 
 
-def create_lstm_realization(cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False):
+def create_lstm_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False
+):
     paths = FilePaths(cat_id)
     realization_path = paths.config_dir / "realization.json"
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
@@ -303,17 +302,35 @@ def create_lstm_realization(cat_id: str, start_time: datetime, end_time: datetim
     paths.setup_run_folders()
 
 
-def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_dhbv2_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, daily: bool = False
+):
     paths = FilePaths(cat_id)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
-    make_ngen_realization_json(
-        paths.config_dir,
-        FilePaths.template_dhbv2_realization_config,
-        start_time,
-        end_time,
-    )
-    make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
+    if daily:
+        make_ngen_realization_json(
+            paths.config_dir,
+            FilePaths.template_dhbv2_daily_realization_config,
+            start_time,
+            end_time,
+        )
+        make_dhbv2_config(
+            paths.geopackage_path,
+            paths.config_dir,
+            start_time,
+            end_time,
+            template_path=FilePaths.template_dhbv2_daily_config,
+        )
+    else:
+        make_ngen_realization_json(
+            paths.config_dir,
+            FilePaths.template_dhbv2_realization_config,
+            start_time,
+            end_time,
+        )
+        make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
+
     paths.setup_run_folders()
 
 
@@ -321,7 +338,9 @@ def get_hru_order(forcing_path: Path) -> list[int]:
     # the SUMMA hru (hydrologic response unit) is like a nextgen hydrofabric catchment
     # to correctly format the input data we need the order of these ids to be consistent
     if not forcing_path.exists():
-        raise FileNotFoundError(f"Unable to create SUMMA configuration without forcing file {forcing_path}")
+        raise FileNotFoundError(
+            f"Unable to create SUMMA configuration without forcing file {forcing_path}"
+        )
     forcings = xr.open_dataset(forcing_path)
     return [int(s.split("-")[-1]) for s in forcings.ids.values]
 
@@ -552,8 +571,12 @@ def create_summa_realization(cat_id: str, start_time: datetime, end_time: dateti
 
     max_timesteps = int((end_time - start_time).total_seconds() / 3600)
     hru_ids = get_hru_order(paths.forcings_file)
-    make_summa_attributes(hru_ids, FilePaths.conus_hydrofabric).to_netcdf(paths.summa_model_config / "attributes.nc")
-    make_summa_trialParams(hru_ids, max_timesteps).to_netcdf(paths.summa_model_config / "trialParams.nc")
+    make_summa_attributes(hru_ids, FilePaths.conus_hydrofabric).to_netcdf(
+        paths.summa_model_config / "attributes.nc"
+    )
+    make_summa_trialParams(hru_ids, max_timesteps).to_netcdf(
+        paths.summa_model_config / "trialParams.nc"
+    )
     ds, encoding = make_summa_coldState(hru_ids)
     ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
     make_summa_config(hru_ids, paths.config_dir)
