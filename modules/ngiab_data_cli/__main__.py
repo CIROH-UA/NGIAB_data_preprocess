@@ -108,7 +108,7 @@ def set_dependent_flags(args, paths: FilePaths):
 
     # realization and forcings require subset to have been run at least once
     if args.realization or args.forcings:
-        if not paths.subset_dir.exists() and not args.subset:
+        if not paths.config_dir.exists() and not args.subset:
             logging.warning("Subset required for forcings and realization generation, enabling subset.")
             args.subset = True
 
@@ -122,7 +122,7 @@ def set_dependent_flags(args, paths: FilePaths):
 
 def validate_run_directory(args, paths: FilePaths):
     # checks the folder that is going to be run, enables steps that are needed to populate the folder
-    if not paths.subset_dir.exists():
+    if not paths.config_dir.exists():
         logging.info("Subset folder does not exist, enabling subset, forcings, and realization.")
         args.subset = True
         args.forcings = True
