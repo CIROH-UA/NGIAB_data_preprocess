@@ -33,7 +33,7 @@ class FilePaths:
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
-    template_cfe_nowpm_realization_config = template_realization_dir / "cfe-nowpm-.json"
+    template_cfe_nowpm_realization_config = template_realization_dir / "cfe-nom.json"
     template_lstm_realization_config = template_realization_dir / "lstm-py.json"
     template_lstm_rust_realization_config = template_realization_dir / "lstm-rs.json"
     template_dhbv2_realization_config = template_realization_dir / "dhbv2.json"
