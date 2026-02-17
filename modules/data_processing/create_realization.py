@@ -5,6 +5,7 @@ import os
 import shutil
 import sqlite3
 from datetime import datetime
+from itertools import chain
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -152,9 +153,7 @@ def make_lstm_config(
     # flip 0 and 90 degree values
     divide_conf_df["flipped_mean_slope"] = abs(divide_conf_df["mean.slope"] - 90)
     # Convert degrees to meters per kmmeter
-    divide_conf_df["mean_slope_mpkm"] = (
-        np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
-    )
+    divide_conf_df["mean_slope_mpkm"] = np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
 
     with open(template_path, "r") as file:
         template = file.read()
@@ -212,9 +211,19 @@ def make_dhbv2_config(
             )
 
 
-def configure_troute(
-    cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
-) -> None:
+def make_summa_config(hru_ids: list[int], output_dir: Path):
+    with open(FilePaths.template_summa_config, "r") as file:
+        template = file.read()
+    cat_config_dir = output_dir / "cat_config" / "SUMMA"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+    for i, id in enumerate(hru_ids):
+        divide = f"cat-{id}"
+        with open(cat_config_dir / f"{divide}.input", "w") as file:
+            # + 1 because fortran's first index is 1 not 0
+            file.write(template.format(divide_index=i + 1))
+
+
+def configure_troute(cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime) -> None:
     with open(FilePaths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
@@ -225,9 +234,7 @@ def configure_troute(
         ncats = ncats_df["COUNT(id)"][0]
 
     est_bytes_required = nts * ncats * 45  # extremely rough calculation based on about 3 tests :)
-    local_ram_available = (
-        0.8 * psutil.virtual_memory().available
-    )  # buffer to not accidentally explode machine
+    local_ram_available = 0.8 * psutil.virtual_memory().available  # buffer to not accidentally explode machine
 
     if est_bytes_required > local_ram_available:
         max_loop_size = nts // (est_bytes_required // local_ram_available)
@@ -274,9 +281,7 @@ def make_ngen_realization_json(
         json.dump(realization, file, indent=4)
 
 
-def create_lstm_realization(
-    cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False
-):
+def create_lstm_realization(cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False):
     paths = FilePaths(cat_id)
     realization_path = paths.config_dir / "realization.json"
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
@@ -310,6 +315,249 @@ def create_dhbv2_realization(cat_id: str, start_time: datetime, end_time: dateti
     )
     make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
     paths.setup_run_folders()
+
+
+def get_hru_order(forcing_path: Path) -> list[int]:
+    # the SUMMA hru (hydrologic response unit) is like a nextgen hydrofabric catchment
+    # to correctly format the input data we need the order of these ids to be consistent
+    if not forcing_path.exists():
+        raise FileNotFoundError(f"Unable to create SUMMA configuration without forcing file {forcing_path}")
+    forcings = xr.open_dataset(forcing_path)
+    return [int(s.split("-")[-1]) for s in forcings.ids.values]
+
+
+def make_summa_attributes(hru_ids, hydrofabric):
+    cat_ids = [f"cat-{id}" for id in hru_ids]
+    divide_conf_df = get_model_attributes(hydrofabric)
+    divide_conf_df = divide_conf_df.set_index("divide_id")
+
+    # Validate all IDs exist
+    for hid in cat_ids:
+        if hid not in divide_conf_df.index:
+            raise ValueError(f"HRU ID {hid} is not present in hydrofabric model attributes")
+
+    # Subset and preserve order
+    df = divide_conf_df.loc[cat_ids]
+
+    n_hru = len(hru_ids)
+    hru_id_array = np.array(hru_ids, dtype=np.int32)
+
+    # Convert area from sq km to sq m
+    hru_area = df["areasqkm"].values * 1e6
+
+    # Convert elevation from cm to m
+    elevation = df["mean.elevation"].values / 100.0
+
+    # Convert mean.slope (degrees, 90=flat 0=vertical) to tan_slope (m/m)
+    flipped = np.abs(df["mean.slope"].values - 90)
+    tan_slope = np.tan(np.radians(flipped))
+
+    ds = xr.Dataset(
+        {
+            "hruId": xr.DataArray(
+                data=hru_id_array,
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
+            ),
+            "gruId": xr.DataArray(
+                data=hru_id_array.copy(),
+                dims=["gru"],
+                attrs={"units": "-", "long_name": "Index of grouped response unit (GRU)"},
+            ),
+            "hru2gruId": xr.DataArray(
+                data=hru_id_array.copy(),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of GRU to which the HRU belongs"},
+            ),
+            "downHRUindex": xr.DataArray(
+                data=np.full(n_hru, 0, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of downslope HRU (0 = basin outlet)"},
+            ),
+            "longitude": xr.DataArray(
+                data=df["longitude"].values.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "Decimal degree east", "long_name": "Longitude of HRUs centroid"},
+            ),
+            "latitude": xr.DataArray(
+                data=df["latitude"].values.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "Decimal degree north", "long_name": "Latitude of HRUs centroid"},
+            ),
+            "elevation": xr.DataArray(
+                data=elevation.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "m", "long_name": "Mean HRU elevation"},
+            ),
+            "HRUarea": xr.DataArray(
+                data=hru_area.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "m^2", "long_name": "Area of HRU"},
+            ),
+            "tan_slope": xr.DataArray(
+                data=tan_slope.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "m m-1", "long_name": "Average tangent slope of HRU"},
+            ),
+            "contourLength": xr.DataArray(
+                data=np.full(n_hru, 100.0, dtype=np.float64),
+                dims=["hru"],
+                attrs={"units": "m", "long_name": "Contour length of HRU"},
+            ),
+            "slopeTypeIndex": xr.DataArray(
+                data=np.full(n_hru, 1, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index defining slope"},
+            ),
+            "soilTypeIndex": xr.DataArray(
+                data=df["mode.ISLTYP"].values.astype(np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index defining soil type"},
+            ),
+            "vegTypeIndex": xr.DataArray(
+                data=df["mode.IVGTYP"].values.astype(np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index defining vegetation type"},
+            ),
+            "mHeight": xr.DataArray(
+                data=np.full(n_hru, 1.5, dtype=np.float64),
+                dims=["hru"],
+                attrs={"units": "m", "long_name": "Measurement height above bare ground"},
+            ),
+        },
+        attrs={
+            "Author": "Created by ngiab preprocessor SUMMA workflow script",
+            "History": f"Created {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+        },
+    )
+
+    return ds
+
+
+def make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:
+    ds = xr.Dataset(
+        {
+            "hruId": xr.DataArray(
+                data=np.array(hru_ids, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
+            ),
+            "maxstep": xr.DataArray(
+                data=np.full(len(hru_ids), timesteps * 3600, dtype=np.float64),
+                dims=["hru"],
+            ),
+        },
+        attrs={
+            "Author": "Created by ngiab preprocessor SUMMA workflow script",
+            "History": f"Created {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            "Purpose": "Create a trial parameter .nc file for initial SUMMA runs",
+        },
+    )
+    return ds
+
+
+def make_summa_coldState(hru_ids):
+    n_hru = len(hru_ids)
+    n_midToto = 3
+    n_ifcToto = 4
+
+    def scalar_var(fill_val, dtype=np.float64):
+        return xr.DataArray(
+            data=np.full((1, n_hru), fill_val, dtype=dtype),
+            dims=["scalarv", "hru"],
+        )
+
+    def layer_var(fill_val, dim_name, dim_size):
+        return xr.DataArray(
+            data=np.full((dim_size, n_hru), fill_val, dtype=np.float64),
+            dims=[dim_name, "hru"],
+        )
+
+    iLayerHeight_data = np.broadcast_to(
+        np.array([0.0, 0.2, 0.5, 1.0])[:, np.newaxis],
+        (n_ifcToto, n_hru),
+    ).copy()
+
+    mLayerDepth_data = np.broadcast_to(
+        np.array([0.2, 0.3, 0.5])[:, np.newaxis],
+        (n_midToto, n_hru),
+    ).copy()
+
+    ds = xr.Dataset(
+        {
+            "hruId": xr.DataArray(
+                data=np.array(hru_ids, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
+            ),
+            "dt_init": scalar_var(3600.0),
+            "nSoil": scalar_var(3, dtype=np.int32),
+            "nSnow": scalar_var(0, dtype=np.int32),
+            "scalarCanopyIce": scalar_var(0.0),
+            "scalarCanopyLiq": scalar_var(0.0),
+            "scalarSnowDepth": scalar_var(0.0),
+            "scalarSWE": scalar_var(0.0),
+            "scalarSfcMeltPond": scalar_var(0.0),
+            "scalarAquiferStorage": scalar_var(2.5),
+            "scalarSnowAlbedo": scalar_var(0.0),
+            "scalarCanairTemp": scalar_var(283.16),
+            "scalarCanopyTemp": scalar_var(283.16),
+            "mLayerTemp": layer_var(283.16, "midToto", n_midToto),
+            "mLayerVolFracIce": layer_var(0.0, "midToto", n_midToto),
+            "mLayerVolFracLiq": layer_var(0.2, "midToto", n_midToto),
+            "mLayerMatricHead": layer_var(-1.0, "midToto", n_midToto),
+            "iLayerHeight": xr.DataArray(data=iLayerHeight_data, dims=["ifcToto", "hru"]),
+            "mLayerDepth": xr.DataArray(data=mLayerDepth_data, dims=["midToto", "hru"]),
+        },
+        attrs={
+            "Author": "Created by SUMMA workflow scripts",
+            "History": f"Created {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            "Purpose": "Create a cold state .nc file for initial SUMMA runs",
+        },
+    )
+
+    # Add midSoil dimension (SUMMA expects it even though no variable uses it)
+    ds = ds.assign_coords(midSoil=np.arange(n_midToto))
+
+    # Build encoding to suppress _FillValue on all variables
+    encoding = {var: {"_FillValue": None} for var in ds.data_vars}
+
+    return ds, encoding
+
+
+def create_summa_realization(cat_id: str, start_time: datetime, end_time: datetime):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_summa_realization_config,
+        start_time,
+        end_time,
+    )
+    paths.summa_model_config.mkdir(parents=True, exist_ok=True)
+
+    files = chain(
+        FilePaths.summa_file_dir.glob("*.txt"),
+        FilePaths.summa_file_dir.glob("*.TBL"),
+        FilePaths.summa_file_dir.glob("*.md"),
+    )
+    for file in files:
+        if file.name == "fileManager.txt":
+            with open(file, "r") as f:
+                template = f.read()
+            with open(paths.summa_model_config / file.name, "w") as f:
+                f.write(template.format(start_time=start_time, end_time=end_time))
+        else:
+            shutil.copy(file, paths.summa_model_config)
+
+    max_timesteps = int((end_time - start_time).total_seconds() / 3600)
+    hru_ids = get_hru_order(paths.forcings_file)
+    make_summa_attributes(hru_ids, FilePaths.conus_hydrofabric).to_netcdf(paths.summa_model_config / "attributes.nc")
+    make_summa_trialParams(hru_ids, max_timesteps).to_netcdf(paths.summa_model_config / "trialParams.nc")
+    ds, encoding = make_summa_coldState(hru_ids)
+    ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
+    make_summa_config(hru_ids, paths.config_dir)
+    paths.setup_run_folders(["outputs/summa"])
 
 
 def create_realization(

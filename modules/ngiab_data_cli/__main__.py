@@ -7,6 +7,7 @@ with rich.status.Status("loading") as status:
     import argparse
     import logging
     import subprocess
+    import sys
     import time
     from multiprocessing import cpu_count
     from pathlib import Path
@@ -16,6 +17,7 @@ with rich.status.Status("loading") as status:
         create_dhbv2_realization,
         create_lstm_realization,
         create_realization,
+        create_summa_realization,
     )
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
@@ -107,9 +109,7 @@ def set_dependent_flags(args, paths: FilePaths):
     # realization and forcings require subset to have been run at least once
     if args.realization or args.forcings:
         if not paths.subset_dir.exists() and not args.subset:
-            logging.warning(
-                "Subset required for forcings and realization generation, enabling subset."
-            )
+            logging.warning("Subset required for forcings and realization generation, enabling subset.")
             args.subset = True
 
     if (args.forcings or args.realization) and not (args.start_date and args.end_date):
@@ -149,9 +149,7 @@ def main() -> None:
         if args.output_root:
             with open(FilePaths.config_file, "w") as config_file:
                 config_file.write(str(Path(args.output_root).expanduser().absolute()))
-            logging.info(
-                f"Changed default directory where outputs are stored to {args.output_root}"
-            )
+            logging.info(f"Changed default directory where outputs are stored to {args.output_root}")
 
         feature_to_subset, output_folder = validate_input(args)
 
@@ -162,6 +160,7 @@ def main() -> None:
             return
 
         paths = FilePaths(output_folder)
+        paths.append_cli_command(sys.argv)
         args = set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
             logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
@@ -197,9 +196,7 @@ def main() -> None:
             elif args.source == "nwm":
                 data = load_v3_retrospective_zarr()
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
-            cached_data = save_and_clip_dataset(
-                data, gdf, args.start_date, args.end_date, paths.cached_nc_file
-            )
+            cached_data = save_and_clip_dataset(data, gdf, args.start_date, args.end_date, paths.cached_nc_file)
 
             create_forcings(
                 cached_data,
@@ -221,8 +218,14 @@ def main() -> None:
                     end_time=args.end_date,
                     use_rust=args.lstm_rust,
                 )
-            if args.dhbv2:
+            elif args.dhbv2:
                 create_dhbv2_realization(
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                )
+            elif args.summa:
+                create_summa_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
