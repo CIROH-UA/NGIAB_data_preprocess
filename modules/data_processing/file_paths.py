@@ -29,7 +29,7 @@ class FilePaths:
     template_cfe_config = template_cat_dir / "cfe.ini"
     template_lstm_config = template_cat_dir / "lstm.yml"
     template_dhbv2_config = template_cat_dir / "dhbv2.yaml"
-    template_dhbv2_daily_config = data_sources / "dhbv2-daily.yaml"
+    template_dhbv2_daily_config = template_cat_dir / "dhbv2-daily.yaml"
     template_summa_config = template_cat_dir / "summa.input"
 
     # Realizations
@@ -38,7 +38,7 @@ class FilePaths:
     template_lstm_realization_config = template_realization_dir / "lstm-py.json"
     template_lstm_rust_realization_config = template_realization_dir / "lstm-rs.json"
     template_dhbv2_realization_config = template_realization_dir / "dhbv2.json"
-    template_dhbv2_daily_realization_config = data_sources / "dhbv2-daily.json"
+    template_dhbv2_daily_realization_config = template_realization_dir / "dhbv2-daily.json"
     template_summa_realization_config = template_realization_dir / "summa.json"
 
     summa_file_dir = data_sources / "config" / "SUMMA"

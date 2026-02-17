@@ -3,9 +3,7 @@ import sqlite3
 import struct
 from pathlib import Path
 from typing import Dict, List, Tuple
-import warnings
 
-import geopandas as gpd
 import pyproj
 from data_processing.file_paths import FilePaths
 from shapely.geometry import Point
@@ -148,20 +146,6 @@ def blob_to_centre_point(blob: bytes) -> Point | None:
 
     return Point(x, y)
 
-def get_lats(gdf: gpd.GeoDataFrame) -> dict:
-    '''
-    return latitudes for each catchment
-    '''
-    cats = gdf['divide_id']
-
-    # convert to a geographic crs so we get actual degrees for lat/lon
-    gdf_geog = gdf.to_crs(4326)
-    with warnings.catch_warnings(): # it will complain about it being a geographic CRS, this is to shut it up
-        warnings.simplefilter("ignore")
-        lats = gdf_geog.centroid.y
-
-    cat_lat = dict(zip(cats, lats))
-    return cat_lat
 
 def convert_to_5070(shapely_geometry: Point) -> Point:
     # convert to web mercator
