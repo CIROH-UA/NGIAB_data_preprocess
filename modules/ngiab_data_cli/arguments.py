@@ -92,17 +92,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--start_date",
         "--start",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT)
-        if len(s) == 10
-        else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
         help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
         "--end_date",
         "--end",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT)
-        if len(s) == 10
-        else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
         help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
@@ -117,28 +113,32 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable debug logging",
     )
-    lstm_group = parser.add_mutually_exclusive_group(required=False)
-    lstm_group.add_argument(
+    models = parser.add_mutually_exclusive_group(required=False)
+
+    models.add_argument(
         "--lstm",
         action="store_true",
         help="enable LSTM model realization and forcings",
     )
-    lstm_group.add_argument(
+    models.add_argument(
         "--lstm_rust",
         action="store_true",
         help="enable experimental high speed Rust bindings of LSTM model realization and forcings",
     )
-
-    dhbv2_group = parser.add_mutually_exclusive_group(required=False)
-    dhbv2_group.add_argument(
+    models.add_argument(
         "--dhbv2",
         action="store_true",
         help="enable hourly dHBV2 model realization and forcings",
     )
-    dhbv2_group.add_argument(
+    models.add_argument(
         "--dhbv2_daily",
         action="store_true",
         help="enable daily dHBV2 model realization and forcings",
+    )
+    models.add_argument(
+        "--summa",
+        action="store_true",
+        help="enable SUMMA model realization and forcings",
     )
 
     parser.add_argument(
@@ -146,18 +146,10 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="use NWM retrospective output groundwater level for CFE initial gw state",
     )
-    parser.add_argument(
-        "--run", action="store_true", help="Automatically run Next Gen against the output folder"
-    )
-    parser.add_argument(
-        "--validate", action="store_true", help="Run every missing step required to run ngiab"
-    )
-    parser.add_argument(
-        "--eval", action="store_true", help="Evaluate perforance of the model after running"
-    )
-    parser.add_argument(
-        "--vis", "--visualise", action="store_true", help="Visualize the model output"
-    )
+    parser.add_argument("--run", action="store_true", help="Automatically run Next Gen against the output folder")
+    parser.add_argument("--validate", action="store_true", help="Run every missing step required to run ngiab")
+    parser.add_argument("--eval", action="store_true", help="Evaluate perforance of the model after running")
+    parser.add_argument("--vis", "--visualise", action="store_true", help="Visualize the model output")
     parser.add_argument(
         "--source",
         type=str,

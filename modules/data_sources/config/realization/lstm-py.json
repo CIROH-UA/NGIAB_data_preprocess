@@ -12,16 +12,15 @@
           "main_output_variable": "land_surface_water__runoff_depth",
           "modules": [
             {
-              "name": "bmi_c",
+              "name": "bmi_python",
               "params": {
-                "name": "bmi_c",
-                "model_type_name": "bmi_rust",
+                "name": "bmi_python",
+                "python_type": "lstm.bmi_lstm.bmi_LSTM",
+                "model_type_name": "bmi_lstm",
                 "init_config": "./config/cat_config/lstm/{{id}}.yml",
                 "allow_exceed_end_time": true,
                 "main_output_variable": "land_surface_water__runoff_depth",
-                "uses_forcing_file": false,
-                "registration_function": "register_bmi_lstm",
-                "library_file": "/dmod/shared_libs/librust_lstm_1025.so"
+                "uses_forcing_file": false
               }
             }
           ]
@@ -42,6 +41,5 @@
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
   },
-  "remotes_enabled": false,
   "output_root": "./outputs/ngen"
 }

@@ -16,27 +16,32 @@ class FilePaths:
     output_dir = None
     data_sources = Path(__file__).parent.parent / "data_sources"
     map_app_static = Path(__file__).parent.parent / "map_app" / "static"
-    tiles_tms = map_app_static / "tiles" / "tms"
-    tiles_vpu = map_app_static / "tiles" / "vpu"
-    template_gpkg = data_sources / "template.gpkg"
     template_sql = data_sources / "template.sql"
     triggers_sql = data_sources / "triggers.sql"
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
     dhbv_attributes = hydrofabric_dir / "dhbv_attrs.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
-    template_nc = data_sources / "forcing_template.nc"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
-    template_cfe_nowpm_realization_config = data_sources / "cfe-nowpm-realization-template.json"
-    template_lstm_realization_config = data_sources / "lstm-realization-template.json"
-    template_lstm_rust_realization_config = data_sources / "lstm-rust-realization-template.json"
-    template_noahowp_config = data_sources / "noah-owp-modular-init.namelist.input"
-    template_cfe_config = data_sources / "cfe-template.ini"
-    template_lstm_config = data_sources / "lstm-catchment-template.yml"
-    template_dhbv2_realization_config = data_sources / "dhbv2-realization-template.json"
-    template_dhbv2_daily_realization_config = data_sources / "dhbv2-daily-realization-template.json"
-    template_dhbv2_config = data_sources / "dhbv2-catchment-template.yaml"
-    template_dhbv2_daily_config = data_sources / "dhbv2-daily-catchment-template.yaml"
+    # Cat configs
+    template_cat_dir = data_sources / "config" / "catchment"
+    template_noahowp_config = template_cat_dir / "noah-owp-modular-init.namelist.input"
+    template_cfe_config = template_cat_dir / "cfe.ini"
+    template_lstm_config = template_cat_dir / "lstm.yml"
+    template_dhbv2_config = template_cat_dir / "dhbv2.yaml"
+    template_dhbv2_daily_config = data_sources / "dhbv2-daily.yaml"
+    template_summa_config = template_cat_dir / "summa.input"
+
+    # Realizations
+    template_realization_dir = data_sources / "config" / "realization"
+    template_cfe_nowpm_realization_config = template_realization_dir / "cfe-nom.json"
+    template_lstm_realization_config = template_realization_dir / "lstm-py.json"
+    template_lstm_rust_realization_config = template_realization_dir / "lstm-rs.json"
+    template_dhbv2_realization_config = template_realization_dir / "dhbv2.json"
+    template_dhbv2_daily_realization_config = data_sources / "dhbv2-daily.json"
+    template_summa_realization_config = template_realization_dir / "summa.json"
+
+    summa_file_dir = data_sources / "config" / "SUMMA"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
@@ -91,6 +96,14 @@ class FilePaths:
         return self.subset_dir / "forcings"
 
     @property
+    def forcings_file(self) -> Path:
+        return self.forcings_dir / "forcings.nc"
+
+    @property
+    def summa_model_config(self) -> Path:
+        return self.config_dir / "model_config" / "SUMMA"
+
+    @property
     def metadata_dir(self) -> Path:
         meta_dir = self.subset_dir / "metadata"
         meta_dir.mkdir(parents=True, exist_ok=True)
@@ -117,12 +130,13 @@ class FilePaths:
         with open(self.metadata_dir / "cli_commands_history.txt", "a") as f:
             f.write(f"{current_time}| {command_string}\n")
 
-    def setup_run_folders(self) -> None:
+    def setup_run_folders(self, extra_folders: list[str] = []) -> None:
         folders = [
             "outputs",
             "outputs/ngen",
             "outputs/troute",
             "metadata",
         ]
+        folders.extend(extra_folders)
         for folder in folders:
             Path(self.subset_dir / folder).mkdir(parents=True, exist_ok=True)
