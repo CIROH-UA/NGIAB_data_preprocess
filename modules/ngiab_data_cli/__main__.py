@@ -7,6 +7,7 @@ with rich.status.Status("loading") as status:
     import argparse
     import logging
     import subprocess
+    import sys
     import time
     from multiprocessing import cpu_count
     from pathlib import Path
@@ -136,9 +137,6 @@ def validate_run_directory(args, paths: FilePaths):
         logging.info("Realization folder does not exist, enabling realization.")
         args.realization = True
     return args
-
-
-import sys
 
 
 def main() -> None:

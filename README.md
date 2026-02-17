@@ -191,6 +191,7 @@ Installed with uv: `uv run cli`
 ## Arguments
 
 - `-h`, `--help`: Show the help message and exit.
+- `--output_root`: Path to new default directory where outputs in the future will be stored.
 - `-i INPUT_FEATURE`, `--input_feature INPUT_FEATURE`: ID of feature to subset. Providing a prefix will automatically convert to catid, e.g., cat-5173 or gage-01646500 or wb-1234.
 - `--vpu VPU_ID` : The id of the vpu to subset e.g 01. 10 = 10L + 10U and 03 = 03N + 03S + 03W. `--help` will display all the options.
 - `-l`, `--latlon`: Use latitude and longitude instead of catid. Expects comma-separated values via the CLI, e.g., `python -m ngiab_data_cli -i 54.33,-69.4 -l -s`.
@@ -201,11 +202,14 @@ Installed with uv: `uv run cli`
 - `-r`, `--realization`: Create a realization for the given feature.
 - `--lstm`: Configures the data for the [python lstm](https://github.com/ciroh-ua/lstm/).
 - `--lstm_rust`: Configures the data for the [rust lstm](https://github.com/ciroh-ua/rust-lstm-1025/).
+- `--dhbv2`: Configures the data for the dHBV2 model.
+- `--summa`: Configures the data for the SUMMA model.
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
-- `--source` : The datasource you want to use, either `nwm` for retrospective v3 or `aorc`. Default is `nwm`
+- `--source` : The datasource you want to use, either `nwm` for retrospective v3 or `aorc`. Default is `nwm`.
 - `-D`, `--debug`: Enable debug logging.
+- `--nwm_gw`: Use NWM retrospective output groundwater level for CFE initial groundwater state.
 - `--run`: Automatically run [NGIAB's docker distribution](https://github.com/CIROH-UA/NGIAB-CloudInfra) against the output folder.
 - `--validate`: Run every missing step required to run NGIAB.
 - `-a`, `--all`: Run all operations. Equivalent to `-sfr` and `--run`.
@@ -264,13 +268,16 @@ This tool currently offers three realizations.
 
 ## NOAH + CFE (Default)
 
-[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/cfe-nowpm-realization-template.json) is intended to be roughly comparable to earlier versions of the National Water Model.
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/cfe-nom.json) is intended to be roughly comparable to earlier versions of the National Water Model.
 - [NOAH-OWP-Modular](https://github.com/NOAA-OWP/NOAH-OWP-Modular): A refactoring of Noah-MP, a land-surface model. Used to model groundwater properties.
 - [Conceptual Functional Equivalent (CFE)](https://github.com/NOAA-OWP/CFE): A simplified conceptual approximation of versions 1.2, 2.0, and 2.1 of the National Water Model. Used to model precipitation and evaporation.
 - [SLoTH](https://github.com/NOAA-OWP/SLoTH): A module used to feed through unchanged values. In this default configuration, it simply forces certain soil moisture and ice fraction properties to zero.
 
 ## LSTM (Python)
-[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/lstm-realization-template.json) will run the [python lstm](https://github.com/ciroh-ua/lstm/). It's designed to work with ngiab using [these example weights](https://github.com/CIROH-UA/lstm/tree/example_weights/trained_neuralhydrology_models) generously contributed by [jmframe/lstm](https://github.com/jmframe/lstm)
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/lstm-py.json) will run the [python lstm](https://github.com/ciroh-ua/lstm/). It's designed to work with ngiab using [these example weights](https://github.com/CIROH-UA/lstm/tree/example_weights/trained_neuralhydrology_models) generously contributed by [jmframe/lstm](https://github.com/jmframe/lstm)
 
 ## LSTM (Rust)
-[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/lstm-rust-realization-template.json) will run the [rust port](https://github.com/CIROH-UA/rust-lstm-1025/tree/main) of the python lstm above. It's an experimental drop in replacement that should produce identical results with a ~2-5x speedup depending on your setup.
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/lstm-rs.json) will run the [rust port](https://github.com/CIROH-UA/rust-lstm-1025/tree/main) of the python lstm above. It's an experimental drop in replacement that should produce identical results with a ~2-5x speedup depending on your setup.
+
+## SUMMA
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/summa.json) will run the [SUMMA](https://github.com/CIROH-UA/ngen/tree/ngiab/extern/summa) model (version linked is what's currently in nextgen in a box).
