@@ -31,7 +31,12 @@ This repository contains tools for preparing data to run a [NextGen](https://git
    - [Usage notes](#usage-notes)
    - [Examples](#examples)
 7. [Realization information](#realization-information)
-   - [NOAH + CFE](#noah--cfe)
+   - [NOAH + CFE](#noah--cfe-default)
+   - [LSTM (Python)](#lstm-python)
+   - [LSTM (Rust)](#lstm-rust)
+   - [dHBV2.0 (hourly)](#dhbv20-hourly-mts)
+   - [dHBV2.0 (daily)](#dhbv20-daily)
+   - [SUMMA](#summa)
 
 ## What does this tool do?
 
@@ -263,6 +268,12 @@ Installed with uv: `uv run cli`
    uvx ngiab-prep -i 01646500 -g -f --start 2022-01-01 --end 2022-02-28
    ```
 
+8. Prepare everything for an NGIAB LSTM run at a given gage:
+   ```bash
+   uvx ngiab-prep -i gage-10154200 -sfr --start 2022-01-01 --end 2022-02-28 --lstm
+   #         you can replace --lstm with any other model, like --lstm_rust, --dhbv2, --dhbv2_daily, --summa
+   ```
+
 # Realization information
 
 This tool currently offers three realizations.
@@ -279,6 +290,12 @@ This tool currently offers three realizations.
 
 ## LSTM (Rust)
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/lstm-rs.json) will run the [rust port](https://github.com/CIROH-UA/rust-lstm-1025/tree/main) of the python lstm above. It's an experimental drop in replacement that should produce identical results with a ~2-5x speedup depending on your setup.
+
+## dHBV2.0 (Hourly MTS)
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2.json) will run the [multi-timescale dHBV2.0 model](https://github.com/mhpi/dhbv2/tree/39379fd435747a3f765d1a2201d613f9f0087448). Weights and model attributes developed by Penn State's MHPI group.
+
+## dHBV2.0 (Daily)
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2-daily.json) will run the [daily dHBV2.0 model](https://github.com/mhpi/dhbv2/tree/39379fd435747a3f765d1a2201d613f9f0087448). Weights and model attributes developed by Penn State's MHPI group.
 
 ## SUMMA
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/summa.json) will run the [SUMMA](https://github.com/CIROH-UA/ngen/tree/ngiab/extern/summa) model (version linked is what's currently in nextgen in a box).
