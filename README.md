@@ -41,7 +41,7 @@ This repository contains tools for preparing data to run a [NextGen](https://git
 ## What does this tool do?
 
 This tool prepares data to run a NextGen-based simulation by creating a run package that can be used with NGIAB.
-It uses geometry and model attributes from the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) more information on [all data sources here](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html).
+It uses geometry and model attributes from the [v2.2 hydrofabric](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/conus/conus_nextgen.gpkg) and model attributes contributed by Penn State's MHPI group. More information on [all data sources here](https://lynker-spatial.s3-us-west-2.amazonaws.com/hydrofabric/v2.2/hfv2.2-data_model.html).
 The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospective-3-0-pds.s3.amazonaws.com/index.html#CONUS/zarr/forcing/) data or the [AORC 1km gridded data](https://noaa-nws-aorc-v1-1-1km.s3.amazonaws.com/index.html) depending on user input
 
 1. **Subsets** (delineates) everything upstream of your point of interest (catchment, gage, flowpath etc) from the hydrofabric. This subset is output as a geopackage (.gpkg).
