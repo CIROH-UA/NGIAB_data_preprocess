@@ -23,6 +23,9 @@ with rich.status.Status("loading") as status:
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
     from data_processing.file_paths import FilePaths
+    from shapely.geometry import Polygon
+    from shapely.ops import transform
+    import pyproj
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
@@ -35,7 +38,7 @@ with rich.status.Status("loading") as status:
 def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     """Validate input arguments."""
 
-    feature_name = None
+    feature_names = []
     output_folder = None
 
     if args.vpu:
@@ -43,40 +46,54 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             args.output_name = f"vpu-{args.vpu}"
             validate_output_dir()
         return args.vpu, args.output_name
+    
+    if args.bounds:
+        if args.gage:
+            # Mainly to avoid confusing error message when falling through into args.input_feature block
+            raise ValueError("Cannot use both --bounds and --gage options at the same time.")
+        args.input_feature = get_cat_id_from_lat_lon_bounds(args.bounds, args.bounds_operation)
+        logging.info(f"Retrieved {len(args.input_feature)} catchments")
 
     if args.input_feature:
-        input_feature = args.input_feature.replace("_", "-")
-
-        if args.gage and not input_feature.startswith("gage-"):
-            input_feature = "gage-" + input_feature
-
-        # look at the prefix for autodetection, if -g or -l is used then there is no prefix
-        if len(input_feature.split("-")) > 1:
-            prefix = input_feature.split("-")[0]
-            if prefix.lower() == "gage":
-                args.gage = True
-            elif prefix.lower() == "wb":
-                logging.warning("Waterbody IDs are no longer supported!")
-                logging.warning(f"Automatically converting {input_feature} to catid")
-                time.sleep(2)
-
-        # always add or replace the prefix with cat if it is not a lat lon or gage
-        if not args.latlon and not args.gage:
-            input_feature = "cat-" + input_feature.split("-")[-1]
-
         if args.latlon and args.gage:
             raise ValueError("Cannot use both --latlon and --gage options at the same time.")
+        
+        if len(args.input_feature) == 1 and Path(args.input_feature[0]).is_file():
+            with open(args.input_feature[0], "r") as f:
+                args.input_feature = [line.strip() for line in f if line.strip()]
+            logging.debug(f"Read {len(args.input_feature)} features from {args.input_feature}")
 
-        if args.latlon:
-            validate_hydrofabric()
-            feature_name = get_cat_id_from_lat_lon(input_feature)
-            logging.info(f"Found {feature_name} from {input_feature}")
-        elif args.gage:
-            validate_hydrofabric()
-            feature_name = get_cat_from_gage_id(input_feature)
-            logging.info(f"Found {feature_name} from {input_feature}")
-        else:
-            feature_name = input_feature
+        for input_feature in args.input_feature:
+            input_feature = input_feature.replace("_", "-")
+
+            is_gage = False
+            if args.gage and not input_feature.startswith("gage-"):
+                input_feature = "gage-" + input_feature
+
+            # look at the prefix for autodetection, if -g or -l is used then there is no prefix
+            if len(input_feature.split("-")) > 1:
+                prefix = input_feature.split("-")[0]
+                if prefix.lower() == "gage":
+                    is_gage = True
+                elif prefix.lower() == "wb":
+                    logging.warning("Waterbody IDs are no longer supported!")
+                    logging.warning(f"Automatically converting {input_feature} to catid")
+                    time.sleep(2)
+
+            # always add or replace the prefix with cat if it is not a lat lon or gage
+            if not args.latlon and not is_gage:
+                input_feature = "cat-" + input_feature.split("-")[-1]
+
+            if args.latlon:
+                validate_hydrofabric()
+                feature_names.append(get_cat_id_from_lat_lon(input_feature))
+                logging.info(f"Found {feature_names[-1]} from {input_feature}")
+            elif args.gage:
+                validate_hydrofabric()
+                feature_names.append(get_cat_from_gage_id(input_feature))
+                logging.info(f"Found {feature_names[-1]} from {input_feature}")
+            else:
+                feature_names.append(input_feature)
 
         if args.output_name:
             output_folder = args.output_name
@@ -85,10 +102,11 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             output_folder = input_feature
             validate_output_dir()
         else:
-            output_folder = feature_name
+            #TODO: Require output_name if len(input_feature) > 1 ?
+            output_folder = feature_names[-1]
             validate_output_dir()
 
-    return feature_name, output_folder
+    return feature_names, output_folder
 
 
 def get_cat_id_from_lat_lon(input_feature: str) -> str:
@@ -99,6 +117,38 @@ def get_cat_id_from_lat_lon(input_feature: str) -> str:
     else:
         raise ValueError("Lat Lon input must be comma separated e.g. -l 54.33,-69.4")
 
+def get_cat_id_from_lat_lon_bounds(bounds: tuple[str], op: str = "intersects") -> list[str]:
+    """Read catchment IDs based on a lat,lon bounding box."""
+    try:
+        ((ymin,xmin),(ymax,xmax)) = (bounds[0].split(','), bounds[1].split(','))
+        xmin = float(xmin)
+        xmax = float(xmax)
+        ymin = float(ymin)
+        ymax = float(ymax)
+        (ymin,ymax) = (min(ymin,ymax),max(ymin,ymax))
+        (xmin,xmax) = (min(xmin,xmax),max(xmin,xmax))
+    except Exception as e:
+        raise ValueError("Error parsing bounding box. Should be of the form \"lat.min,lon.min lat.max,lon.max\"")
+    #TODO: Subdivide the box edges so that the 5070 version will have curved edges?
+    polygon = Polygon([(xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax),(xmin,ymin)])
+    #TODO: Adapt gpkg_utils.convert_to_5070 to accept polygon and use that?
+    project = pyproj.Transformer.from_crs(pyproj.CRS('EPSG:4326'),pyproj.CRS('EPSG:5070'), always_xy=True).transform
+    polygon = transform(project, polygon)
+    with rich.status.Status("finding catchments matching polygon") as status:
+        return get_cat_ids_from_polygon(polygon, op)
+
+def get_cat_ids_from_polygon(polygon: Polygon, op: str = "intersects"):
+    """Extract catchment IDs based on the provided polygon, returning 
+    catchments that either intersect the polygon or are enclosed by it
+    completely, depending on the `op` argument."""
+    hydrofabric_gdf = gpd.read_file(FilePaths.conus_hydrofabric, layer="divides")
+    if op == "intersects":
+        selected_catchments = hydrofabric_gdf[hydrofabric_gdf.intersects(polygon)]
+    elif op == "within":
+        selected_catchments = hydrofabric_gdf[hydrofabric_gdf.within(polygon)]
+    else:
+        raise ValueError(f"Unsupported bounds operation: {op}")
+    return selected_catchments["divide_id"].tolist()
 
 def set_dependent_flags(args, paths: FilePaths):
     # if validate is set, run everything that is missing
@@ -151,10 +201,10 @@ def main() -> None:
                 config_file.write(str(Path(args.output_root).expanduser().absolute()))
             logging.info(f"Changed default directory where outputs are stored to {args.output_root}")
 
-        feature_to_subset, output_folder = validate_input(args)
+        features_to_subset, output_folder = validate_input(args)
 
-        if (feature_to_subset, output_folder) == (
-            None,
+        if (features_to_subset, output_folder) == (
+            [],
             None,
         ):  # in case someone just passes an argument to change default output dir
             return
@@ -162,14 +212,15 @@ def main() -> None:
         paths = FilePaths(output_folder)
         paths.append_cli_command(sys.argv)
         args = set_dependent_flags(args, paths)  # --validate
-        if feature_to_subset:
-            logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
+        if features_to_subset:
+            logging.info(f"Processing {len(features_to_subset)} features in {paths.output_dir}")
             if not args.vpu:
-                upstream_count = len(get_upstream_cats(feature_to_subset))
+                upstream_count = len(get_upstream_cats(features_to_subset))
                 logging.info(f"Upstream catchments: {upstream_count}")
                 if upstream_count == 0:
                     # if there are no upstreams, exit
-                    logging.error("No upstream catchments found.")
+                    #TODO: This bails if *all* had no hits... fail if *any* have none?
+                    logging.error(f"No upstream catchments found for {features_to_subset}.")
                     return
 
         if args.subset:
@@ -183,7 +234,7 @@ def main() -> None:
                 if args.gage or args.subset_type == "catchment":
                     include_outlet = False
                 subset(
-                    feature_to_subset,
+                    features_to_subset,
                     output_gpkg_path=paths.geopackage_path,
                     include_outlet=include_outlet,
                 )
