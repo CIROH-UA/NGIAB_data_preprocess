@@ -168,7 +168,8 @@ To install and run the tool, follow these steps:
 
 ## Running the map interface app
 
-Running the `map_app` tool will open the app in a new browser tab.
+Running the `map_app` tool will open the app in a new browser tab. **Note:** If you are using WSL, the app will not immediately open; however, you can still paste the localhost link in your browser to view the app.
+
 
 Install-free: `uvx --from ngiab-data-preprocess map_app`
 Installed with uv: `uv run map_app`
