@@ -9,6 +9,8 @@ class FilePaths:
     workflow.
     """
 
+    hf_bucket = "https://communityhydrofabric.s3.us-east-1.amazonaws.com/"
+    resource_key = "hydrofabrics/community/resources/"
     config_file = Path("~/.ngiab/preprocessor").expanduser()
     hydrofabric_dir = Path("~/.ngiab/hydrofabric/v2.2").expanduser()
     hydrofabric_download_log = Path("~/.ngiab/hydrofabric/v2.2/download_log.json").expanduser()
@@ -19,7 +21,7 @@ class FilePaths:
     template_sql = data_sources / "template.sql"
     triggers_sql = data_sources / "triggers.sql"
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
-    dhbv_attributes = hydrofabric_dir / "dhbv_attrs.parquet"
+    dhbv_attributes = hf_bucket + resource_key + "dhbv_attrs_sorted.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
