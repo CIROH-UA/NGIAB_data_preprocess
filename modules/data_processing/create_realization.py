@@ -687,6 +687,29 @@ def create_summa_realization(cat_id: str, start_time: datetime, end_time: dateti
     make_summa_config(hru_ids, paths.config_dir)
     paths.setup_run_folders(["outputs/summa"])
 
+def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datetime):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_snow17_realization_config,
+        start_time,
+        end_time,
+    )
+    make_snow17_config(paths.config_dir, get_model_attributes(paths.geopackage_path), start_time, end_time)
+    paths.setup_run_folders()
+
+def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datetime):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_sac_realization_config,
+        start_time,
+        end_time,
+    )
+    make_sacsma_config(paths.config_dir, get_model_attributes(paths.geopackage_path), start_time, end_time)
+    paths.setup_run_folders()
 
 def create_realization(
     cat_id: str,
