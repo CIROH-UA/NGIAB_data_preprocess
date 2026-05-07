@@ -110,6 +110,62 @@ def make_noahowp_config(
                 )
             )
 
+def make_snow17_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+    start_datetime = start_time.strftime("%Y%m%d%H")
+    end_datetime = end_time.strftime("%Y%m%d%H")
+    with open(FilePaths.template_snow17_config, "r") as config_file:
+        config_template = config_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "SNOW17"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in divide_conf_df.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+            file.write(
+                config_template.format(
+                    divide_id=row['divide_id'],
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                )
+            )
+
+    with open(FilePaths.template_snow17_params, "r") as params_file:
+        params_template = params_file.read()
+
+    for _, row in divide_conf_df.iterrows():
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+            file.write(
+                params_template.format(
+                    divide_id=row['divide_id'],
+                    areasqkm=row['areasqkm'],
+                    latitude=row['latitude'],
+                    elevation=row['mean.elevation'],
+                    scf=row['scf'],
+                    mfmax=row['mfmax'],
+                    mfmin=row['mfmin'],
+                    uadj=row['uadj'],
+                    si=row['si'],
+                    pxtemp=row['pxtemp'],
+                    nmf=row['nmf'],
+                    tipm=row['tipm'],
+                    mbase=row['mbase'],
+                    plwhc=row['plwhc'],
+                    daygm=row['daygm'],
+                    adc1=row['adc1'],
+                    adc2=row['adc2'],
+                    adc3=row['adc3'],
+                    adc4=row['adc4'],
+                    adc5=row['adc5'],
+                    adc6=row['adc6'],
+                    adc7=row['adc7'],
+                    adc8=row['adc8'],
+                    adc9=row['adc9'],
+                    adc10=row['adc10'],
+                    adc11=row['adc11'],
+                )
+            )
 
 def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:

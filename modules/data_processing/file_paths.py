@@ -31,6 +31,8 @@ class FilePaths:
     template_dhbv2_config = template_cat_dir / "dhbv2.yaml"
     template_dhbv2_daily_config = template_cat_dir / "dhbv2-daily.yaml"
     template_summa_config = template_cat_dir / "summa.input"
+    template_snow17_config = template_cat_dir / "snow17-init.namelist.input"
+    template_snow17_params = template_cat_dir / "snow17-params.txt"
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"

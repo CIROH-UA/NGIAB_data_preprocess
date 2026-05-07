@@ -6,12 +6,12 @@ main_id             = "{divide_id}"     ! basin label or gage id
 n_hrus              = 1            ! number of sub-areas in model
 forcing_root        = "extern/snow17/test_cases/hf_catchment/input/forcing/forcing.snow17bmi."
 output_root         = "data/output/output.snow17bmi."
-snow17_param_file   = "snow17_params-{divide_id}.txt"
+snow17_param_file   = "/ngen/ngen/data/config/cat_config/SNOW17/params-{divide_id}.txt"
 output_hrus         = 1            ! output HRU results? (1=yes; 0=no)
 
 ! -- run period information
-start_datehr        = 2015120101   ! start date time, backward looking (check)
-end_datehr          = 2015123023   ! end date time
+start_datehr        = {start_datetime}   ! start date time, backward looking (check)
+end_datehr          = {end_datetime}   ! end date time
 model_timestep      = 3600        ! in seconds (86400 seconds = 1 day)
 
 ! -- state start/write flags and files
