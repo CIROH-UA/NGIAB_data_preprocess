@@ -6,12 +6,12 @@ main_id               = "{divide_id}"     ! basin label or gage id
 n_hrus                = 1           ! number of sub-areas in model
 forcing_root          = "./data/bmi/forcing/cat-27.csv"
 output_root           = ""
-sac_param_file        = "sac_params-{divide_id}.txt"
+sac_param_file        = "/ngen/ngen/data/config/cat_config/SAC-SMA/params-{divide_id}.txt"
 output_hrus           = 0           ! output HRU results? (1=yes; 0=no)
 
 ! -- run period information
-start_datehr          = 2015120112  ! start date time, backward looking (check)
-end_datehr            = 2015123012  ! end date time
+start_datehr          = {start_datetime}  ! start date time, backward looking (check)
+end_datehr            = {end_datetime}  ! end date time
 model_timestep        = 3600       ! in seconds (86400 seconds = 1 day)
 
 ! -- state start/write flags and files

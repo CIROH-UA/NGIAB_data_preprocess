@@ -167,6 +167,55 @@ def make_snow17_config(
                 )
             )
 
+def make_sacsma_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+    start_datetime = start_time.strftime("%Y%m%d%H")
+    end_datetime = end_time.strftime("%Y%m%d%H")
+    with open(FilePaths.template_sac_config, "r") as config_file:
+        config_template = config_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "SAC-SMA"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in divide_conf_df.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+            file.write(
+                config_template.format(
+                    divide_id=row['divide_id'],
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                )
+            )
+
+    with open(FilePaths.template_sac_params, "r") as params_file:
+        params_template = params_file.read()
+
+    for _, row in divide_conf_df.iterrows():
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+            file.write(
+                params_template.format(
+                    divide_id=row['divide_id'],
+                    areasqkm=row['areasqkm'],
+                    uztwm=row['uztwm'],
+                    uzfwm=row['uzfwm'],
+                    lztwm=row['lztwm'],
+                    lzfpm=row['lzfpm'],
+                    lzfsm=row['lzfsm'],
+                    adimp=row['adimp'],
+                    uzk=row['uzk'],
+                    lzpk=row['lzpk'],
+                    lzsk=row['lzsk'],
+                    zperc=row['zperc'],
+                    rexp=row['rexp'],
+                    pctim=row['pctim'],
+                    pfree=row['pfree'],
+                    riva=row['riva'],
+                    side=row['side'],
+                    rserv=row['rserv'],
+                )
+            )
+
 def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
         conf_df = pandas.read_sql_query(

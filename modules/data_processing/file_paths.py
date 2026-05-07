@@ -33,6 +33,8 @@ class FilePaths:
     template_summa_config = template_cat_dir / "summa.input"
     template_snow17_config = template_cat_dir / "snow17-init.namelist.input"
     template_snow17_params = template_cat_dir / "snow17-params.txt"
+    template_sac_config = template_cat_dir / "sac-init.namelist.input"
+    template_sac_params = template_cat_dir / "sac-params.txt"
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
@@ -42,6 +44,8 @@ class FilePaths:
     template_dhbv2_realization_config = template_realization_dir / "dhbv2.json"
     template_dhbv2_daily_realization_config = template_realization_dir / "dhbv2-daily.json"
     template_summa_realization_config = template_realization_dir / "summa.json"
+    template_snow17_realization_config = template_realization_dir / "snow17-nom-cfe.json"
+    template_sac_realization_config = template_realization_dir / "sacsma-nom.json"
 
     summa_file_dir = data_sources / "config" / "SUMMA"
 
