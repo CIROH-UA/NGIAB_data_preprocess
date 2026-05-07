@@ -20,6 +20,8 @@ class FilePaths:
     triggers_sql = data_sources / "triggers.sql"
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
     dhbv_attributes = hydrofabric_dir / "dhbv_attrs.parquet"
+    snow17_attributes = hydrofabric_dir / "snow17_attributes.parquet"
+    sacsma_attributes = hydrofabric_dir / "sacsma_attributes.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"

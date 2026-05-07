@@ -18,7 +18,7 @@ import xarray as xr
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import get_cat_to_nhd_feature_id, get_table_crs_short
-from data_sources.source_validation import download_dhbv_attributes
+from data_sources.source_validation import download_dhbv_attributes, download_snow17_attributes, download_sacsma_attributes
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -113,6 +113,13 @@ def make_noahowp_config(
 def make_snow17_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
+
+    download_snow17_attributes()
+    snow17_atts = pandas.read_parquet(FilePaths.snow17_attributes)
+    atts_df = snow17_atts.loc[snow17_atts["divide_id"].isin(divide_conf_df["divide_id"])]
+
+    merged = atts_df.merge(divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]], on="divide_id")
+
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
     with open(FilePaths.template_snow17_config, "r") as config_file:
@@ -121,7 +128,7 @@ def make_snow17_config(
     cat_config_dir = base_dir / "cat_config" / "SNOW17"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    for _, row in divide_conf_df.iterrows():
+    for _, row in merged.iterrows():
         with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 config_template.format(
@@ -134,7 +141,7 @@ def make_snow17_config(
     with open(FilePaths.template_snow17_params, "r") as params_file:
         params_template = params_file.read()
 
-    for _, row in divide_conf_df.iterrows():
+    for _, row in merged.iterrows():
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
             file.write(
                 params_template.format(
@@ -170,6 +177,12 @@ def make_snow17_config(
 def make_sacsma_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
+
+    download_sacsma_attributes()
+    sacsma_atts = pandas.read_parquet(FilePaths.sacsma_attributes)
+    atts_df = sacsma_atts.loc[sacsma_atts["divide_id"].isin(divide_conf_df["divide_id"])]
+    merged = atts_df.merge(divide_conf_df[["divide_id", "areasqkm"]], on="divide_id")
+
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
     with open(FilePaths.template_sac_config, "r") as config_file:
@@ -178,7 +191,7 @@ def make_sacsma_config(
     cat_config_dir = base_dir / "cat_config" / "SAC-SMA"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    for _, row in divide_conf_df.iterrows():
+    for _, row in merged.iterrows():
         with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 config_template.format(
@@ -191,7 +204,7 @@ def make_sacsma_config(
     with open(FilePaths.template_sac_params, "r") as params_file:
         params_template = params_file.read()
 
-    for _, row in divide_conf_df.iterrows():
+    for _, row in merged.iterrows():
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
             file.write(
                 params_template.format(
