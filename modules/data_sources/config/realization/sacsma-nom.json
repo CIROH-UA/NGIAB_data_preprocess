@@ -40,7 +40,7 @@
                                 "model_type_name": "bmi_fortran_sac",
                                 "library_file": "/dmod/shared_libs/libsacbmi.so",
                                 "forcing_file": "",
-                                "init_config": "./config/cat_config/SAC-SMA/sac-init-{{id}}.namelist.input",
+                                "init_config": "./config/cat_config/SAC-SMA/{{id}}.input",
                                 "allow_exceed_end_time": true,
                                 "main_output_variable": "tci",
                                 "variables_names_map": {

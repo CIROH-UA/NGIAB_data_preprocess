@@ -37,7 +37,7 @@
                                 "model_type_name": "SNOW17",
                                 "library_file": "/dmod/shared_libs/libsnow17bmi.so",
                                 "forcing_file": "",
-                                "init_config": "./config/cat_config/SNOW17/{{id}}input",
+                                "init_config": "./config/cat_config/SNOW17/{{id}}.input",
                                 "allow_exceed_end_time": true,
                                 "main_output_variable": "raim",
                                 "variables_names_map": {

@@ -700,20 +700,65 @@ def create_summa_realization(cat_id: str, start_time: datetime, end_time: dateti
     make_summa_config(hru_ids, paths.config_dir)
     paths.setup_run_folders(["outputs/summa"])
 
-def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datetime,
+    use_nwm_gw: bool = False, gage_id: Optional[str] = None):
     paths = FilePaths(cat_id)
+
+    if gage_id is not None:
+        # try and download s3:communityhydrofabric/hydrofabrics/community/gage_parameters/gage_id
+        # if it doesn't exist, use the default
+        url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            new_template = requests.get(url).json()
+            template_path = paths.config_dir / "downloaded_params.json"
+            with open(template_path, "w") as f:
+                json.dump(new_template, f)
+            logger.info(f"downloaded calibrated parameters for {gage_id}")
+        else:
+            logger.warning(f"could not download parameters for {gage_id}, using default template")
+
+    conf_df = get_model_attributes(paths.geopackage_path)
+    if use_nwm_gw:
+        gw_levels = get_approximate_gw_storage(paths, start_time)
+    else:
+        gw_levels = dict()
+
+    make_cfe_config(conf_df, paths, gw_levels)
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_snow17_config(paths.config_dir, get_model_attributes(paths.geopackage_path), start_time, end_time)
+
     make_ngen_realization_json(
         paths.config_dir,
         FilePaths.template_snow17_realization_config,
         start_time,
         end_time,
     )
-    make_snow17_config(paths.config_dir, get_model_attributes(paths.geopackage_path), start_time, end_time)
     paths.setup_run_folders()
 
-def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datetime,
+    gage_id: Optional[str] = None):
+
     paths = FilePaths(cat_id)
+    if gage_id is not None:
+        # try and download s3:communityhydrofabric/hydrofabrics/community/gage_parameters/gage_id
+        # if it doesn't exist, use the default
+        url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            new_template = requests.get(url).json()
+            template_path = paths.config_dir / "downloaded_params.json"
+            with open(template_path, "w") as f:
+                json.dump(new_template, f)
+            logger.info(f"downloaded calibrated parameters for {gage_id}")
+        else:
+            logger.warning(f"could not download parameters for {gage_id}, using default template")
+
+    conf_df = get_model_attributes(paths.geopackage_path)
+
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+    make_sacsma_config(paths.config_dir, get_model_attributes(paths.geopackage_path), start_time, end_time)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(
         paths.config_dir,
@@ -721,7 +766,6 @@ def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datet
         start_time,
         end_time,
     )
-    make_sacsma_config(paths.config_dir, get_model_attributes(paths.geopackage_path), start_time, end_time)
     paths.setup_run_folders()
 
 def create_realization(
