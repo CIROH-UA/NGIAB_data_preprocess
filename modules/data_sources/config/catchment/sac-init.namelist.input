@@ -1,0 +1,27 @@
+&SAC_CONTROL
+! === run control file for sacbmi v. 1.x ===
+
+! -- basin config and path information
+main_id               = "{divide_id}"     ! basin label or gage id
+n_hrus                = 1           ! number of sub-areas in model
+forcing_root          = "./data/bmi/forcing/cat-27.csv"
+output_root           = ""
+sac_param_file        = "sac_params-{divide_id}.txt"
+output_hrus           = 0           ! output HRU results? (1=yes; 0=no)
+
+! -- run period information
+start_datehr          = 2015120112  ! start date time, backward looking (check)
+end_datehr            = 2015123012  ! end date time
+model_timestep        = 3600       ! in seconds (86400 seconds = 1 day)
+
+! -- state start/write flags and files
+warm_start_run        = 0  ! is this run started from a start file? (no=0 yes=1)
+write_states          = 0  ! write teh restart/state files for 'warm_start' runs (no=0 yes=1)
+
+! -- filenames only needed if warm_start_run = 1
+sac_state_in_root = "../state/sac_states." ! input state filename root
+
+! -- filenames only needed if write_states = 1
+sac_state_out_root = "../state/sac_states." ! output states filename root
+/
+

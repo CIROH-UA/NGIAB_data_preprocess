@@ -1,0 +1,74 @@
+{
+    "global": {
+        "formulations": [
+            {
+                "name": "bmi_multi",
+                "params": {
+                    "name": "bmi_multi",
+                    "model_type_name": "bmi_multi",
+                    "main_output_variable": "tci",
+                    "forcing_file": "",
+                    "init_config": "",
+                    "allow_exceed_end_time": true,
+                    "modules": [
+                        {
+                            "name": "bmi_fortran",
+                            "params": {
+                                "name": "bmi_fortran",
+                                "model_type_name": "NoahOWP",
+                                "library_file": "/dmod/shared_libs/libsurfacebmi.so",
+                                "forcing_file": "",
+                                "init_config": "./config/cat_config/NOAH-OWP-M/{{id}}.input",
+                                "allow_exceed_end_time": true,
+                                "main_output_variable": "QINSUR",
+                                "variables_names_map": {
+                                    "PRCPNONC": "precip_rate",
+                                    "Q2": "SPFH_2maboveground",
+                                    "SFCTMP": "TMP_2maboveground",
+                                    "UU": "UGRD_10maboveground",
+                                    "VV": "VGRD_10maboveground",
+                                    "LWDN": "DLWRF_surface",
+                                    "SOLDN": "DSWRF_surface",
+                                    "SFCPRS": "PRES_surface"
+                                },
+                                "uses_forcing_file": false
+                            }
+                        },
+                        {
+                            "name": "bmi_fortran",
+                            "params": {
+                                "model_type_name": "bmi_fortran_sac",
+                                "library_file": "/dmod/shared_libs/libsacbmi.so",
+                                "forcing_file": "",
+                                "init_config": "./config/cat_config/SAC-SMA/sac-init-{{id}}.namelist.input",
+                                "allow_exceed_end_time": true,
+                                "main_output_variable": "tci",
+                                "variables_names_map": {
+                                    "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
+                                    "tair": "land_surface_air__temperature",
+                                    "pet": "EVAPOTRANS"
+                                },
+                                "uses_forcing_file": false
+                            }
+                        }
+                    ],
+                    "uses_forcing_file": false
+                }
+            }
+        ],
+        "forcing": {
+            "path": "./forcings/forcings.nc",
+            "provider": "NetCDF",
+            "enable_cache": false
+        }
+    },
+    "time": {
+        "start_time": "2015-12-01 00:00:00",
+        "end_time": "2015-12-30 23:00:00",
+        "output_interval": 3600
+    },
+    "routing": {
+        "t_route_config_file_with_path": "./config/troute.yaml"
+    },
+    "output_root": "./outputs/ngen"
+}
