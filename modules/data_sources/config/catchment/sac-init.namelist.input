@@ -16,7 +16,7 @@ model_timestep        = 3600       ! in seconds (86400 seconds = 1 day)
 
 ! -- state start/write flags and files
 warm_start_run        = 0  ! is this run started from a start file? (no=0 yes=1)
-write_states          = 0  ! write teh restart/state files for 'warm_start' runs (no=0 yes=1)
+write_states          = 0  ! write the restart/state files for 'warm_start' runs (no=0 yes=1)
 
 ! -- filenames only needed if warm_start_run = 1
 sac_state_in_root = "../state/sac_states." ! input state filename root

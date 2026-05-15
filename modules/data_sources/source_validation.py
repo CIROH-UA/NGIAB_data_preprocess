@@ -163,7 +163,7 @@ def download_snow17_attributes():
     s3_key = "hydrofabrics/community/resources/snow17_attributes_sorted.parquet"
     attributes_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
 
-    status, headers = get_headers(attributes_url)
+    _, headers = get_headers(attributes_url)
     download_log = FilePaths.snow17_attributes.with_suffix(".log")
     if download_log.exists():
         with open(download_log, "r") as f:
@@ -186,7 +186,7 @@ def download_sacsma_attributes():
     s3_key = "hydrofabrics/community/resources/sacsma_attributes_sorted.parquet"
     attributes_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
 
-    status, headers = get_headers(attributes_url)
+    _, headers = get_headers(attributes_url)
     download_log = FilePaths.sacsma_attributes.with_suffix(".log")
     if download_log.exists():
         with open(download_log, "r") as f:
