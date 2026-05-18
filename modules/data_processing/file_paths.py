@@ -20,6 +20,8 @@ class FilePaths:
     triggers_sql = data_sources / "triggers.sql"
     conus_hydrofabric = hydrofabric_dir / "conus_nextgen.gpkg"
     dhbv_attributes = hydrofabric_dir / "dhbv_attrs.parquet"
+    snow17_attributes = hydrofabric_dir / "snow17_attributes.parquet"
+    sacsma_attributes = hydrofabric_dir / "sacsma_attributes.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
@@ -31,6 +33,10 @@ class FilePaths:
     template_dhbv2_config = template_cat_dir / "dhbv2.yaml"
     template_dhbv2_daily_config = template_cat_dir / "dhbv2-daily.yaml"
     template_summa_config = template_cat_dir / "summa.input"
+    template_snow17_config = template_cat_dir / "snow17-init.namelist.input"
+    template_snow17_params = template_cat_dir / "snow17-params.txt"
+    template_sac_config = template_cat_dir / "sac-init.namelist.input"
+    template_sac_params = template_cat_dir / "sac-params.txt"
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
@@ -40,6 +46,8 @@ class FilePaths:
     template_dhbv2_realization_config = template_realization_dir / "dhbv2.json"
     template_dhbv2_daily_realization_config = template_realization_dir / "dhbv2-daily.json"
     template_summa_realization_config = template_realization_dir / "summa.json"
+    template_snow17_realization_config = template_realization_dir / "snow17-nom-cfe.json"
+    template_sac_realization_config = template_realization_dir / "sacsma-nom.json"
 
     summa_file_dir = data_sources / "config" / "SUMMA"
 

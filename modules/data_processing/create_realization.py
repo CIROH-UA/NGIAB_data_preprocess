@@ -18,7 +18,7 @@ import xarray as xr
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import get_cat_to_nhd_feature_id, get_table_crs_short
-from data_sources.source_validation import download_dhbv_attributes
+from data_sources.source_validation import download_dhbv_attributes, download_snow17_attributes, download_sacsma_attributes
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -110,6 +110,124 @@ def make_noahowp_config(
                 )
             )
 
+def make_snow17_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+
+    download_snow17_attributes()
+    snow17_atts = pandas.read_parquet(FilePaths.snow17_attributes)
+    atts_df = snow17_atts.loc[snow17_atts["divide_id"].isin(divide_conf_df["divide_id"])]
+
+    merged = atts_df.merge(divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]], on="divide_id")
+
+    start_datetime = start_time.strftime("%Y%m%d%H")
+    end_datetime = end_time.strftime("%Y%m%d%H")
+    with open(FilePaths.template_snow17_config, "r") as config_file:
+        config_template = config_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "SNOW17"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+            file.write(
+                config_template.format(
+                    divide_id=row['divide_id'],
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                )
+            )
+
+    with open(FilePaths.template_snow17_params, "r") as params_file:
+        params_template = params_file.read()
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+            file.write(
+                params_template.format(
+                    divide_id=row['divide_id'],
+                    areasqkm=row['areasqkm'],
+                    latitude=row['latitude'],
+                    elevation=row['mean.elevation'],
+                    scf=row['scf'],
+                    mfmax=row['mfmax'],
+                    mfmin=row['mfmin'],
+                    uadj=row['uadj'],
+                    si=row['si'],
+                    pxtemp=row['pxtemp'],
+                    nmf=row['nmf'],
+                    tipm=row['tipm'],
+                    mbase=row['mbase'],
+                    plwhc=row['plwhc'],
+                    daygm=row['daygm'],
+                    adc1=row['adc1'],
+                    adc2=row['adc2'],
+                    adc3=row['adc3'],
+                    adc4=row['adc4'],
+                    adc5=row['adc5'],
+                    adc6=row['adc6'],
+                    adc7=row['adc7'],
+                    adc8=row['adc8'],
+                    adc9=row['adc9'],
+                    adc10=row['adc10'],
+                    adc11=row['adc11'],
+                )
+            )
+
+def make_sacsma_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+
+    download_sacsma_attributes()
+    sacsma_atts = pandas.read_parquet(FilePaths.sacsma_attributes)
+    atts_df = sacsma_atts.loc[sacsma_atts["divide_id"].isin(divide_conf_df["divide_id"])]
+    merged = atts_df.merge(divide_conf_df[["divide_id", "areasqkm"]], on="divide_id")
+
+    start_datetime = start_time.strftime("%Y%m%d%H")
+    end_datetime = end_time.strftime("%Y%m%d%H")
+    with open(FilePaths.template_sac_config, "r") as config_file:
+        config_template = config_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "SAC-SMA"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+            file.write(
+                config_template.format(
+                    divide_id=row['divide_id'],
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                )
+            )
+
+    with open(FilePaths.template_sac_params, "r") as params_file:
+        params_template = params_file.read()
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+            file.write(
+                params_template.format(
+                    divide_id=row['divide_id'],
+                    areasqkm=row['areasqkm'],
+                    uztwm=row['uztwm'],
+                    uzfwm=row['uzfwm'],
+                    lztwm=row['lztwm'],
+                    lzfpm=row['lzfpm'],
+                    lzfsm=row['lzfsm'],
+                    adimp=row['adimp'],
+                    uzk=row['uzk'],
+                    lzpk=row['lzpk'],
+                    lzsk=row['lzsk'],
+                    zperc=row['zperc'],
+                    rexp=row['rexp'],
+                    pctim=row['pctim'],
+                    pfree=row['pfree'],
+                    riva=row['riva'],
+                    side=row['side'],
+                    rserv=row['rserv'],
+                )
+            )
 
 def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
@@ -582,6 +700,46 @@ def create_summa_realization(cat_id: str, start_time: datetime, end_time: dateti
     make_summa_config(hru_ids, paths.config_dir)
     paths.setup_run_folders(["outputs/summa"])
 
+def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datetime,
+    use_nwm_gw: bool = False, gage_id: Optional[str] = None):
+    paths = FilePaths(cat_id)
+
+    conf_df = get_model_attributes(paths.geopackage_path)
+    if use_nwm_gw:
+        gw_levels = get_approximate_gw_storage(paths, start_time)
+    else:
+        gw_levels = dict()
+
+    make_cfe_config(conf_df, paths, gw_levels)
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_snow17_config(paths.config_dir, conf_df, start_time, end_time)
+
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_snow17_realization_config,
+        start_time,
+        end_time,
+    )
+    paths.setup_run_folders()
+
+def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datetime,
+    gage_id: Optional[str] = None):
+
+    paths = FilePaths(cat_id)
+
+    conf_df = get_model_attributes(paths.geopackage_path)
+
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+    make_sacsma_config(paths.config_dir, conf_df, start_time, end_time)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_sac_realization_config,
+        start_time,
+        end_time,
+    )
+    paths.setup_run_folders()
 
 def create_realization(
     cat_id: str,
