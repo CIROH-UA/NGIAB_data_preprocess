@@ -317,6 +317,7 @@ def make_dhbv2_config(
                 start_time=start_time,
                 end_time=end_time,
                 start_date=start_time.strftime("%Y/%m/%d"),
+                start_time_str=start_time.strftime("%Y/%m/%d %H")
             )
         )
 
