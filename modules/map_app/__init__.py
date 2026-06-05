@@ -6,6 +6,9 @@ from data_sources.source_validation import validate_all
 
 LOG_PATH = Path.home() / ".ngiab" / "app.log"
 
+if not LOG_PATH.parent.exists():
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
 with open(LOG_PATH, "w") as f:
     f.write("")
     f.write("Starting Application!\n")
