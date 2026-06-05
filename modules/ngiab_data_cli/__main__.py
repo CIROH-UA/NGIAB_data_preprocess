@@ -18,6 +18,8 @@ with rich.status.Status("loading") as status:
         create_lstm_realization,
         create_realization,
         create_summa_realization,
+        create_snow17_realization,
+        create_sacsma_realization,
     )
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
@@ -230,6 +232,21 @@ def main() -> None:
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
+                )
+            elif args.snow17:
+                create_snow17_realization(
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                    use_nwm_gw=args.nwm_gw,
+                    gage_id=gage_id,
+                )
+            elif args.sacsma:
+                create_sacsma_realization(
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                    gage_id=gage_id,
                 )
             else:
                 create_realization(

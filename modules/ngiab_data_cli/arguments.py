@@ -140,6 +140,16 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable SUMMA model realization and forcings",
     )
+    models.add_argument(
+        "--snow17",
+        action="store_true",
+        help="enable SNOW-17 model realization and forcings",
+    )
+    models.add_argument(
+        "--sacsma",
+        action="store_true",
+        help="enable SAC-SMA model realization and forcings",
+    )
 
     parser.add_argument(
         "--nwm_gw",
