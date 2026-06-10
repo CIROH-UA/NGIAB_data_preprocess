@@ -16,3 +16,5 @@ uv.lock
 /build
 *.pmtiles
 *style.json
+test_output/
+.DS_Store
