@@ -161,6 +161,11 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="use NWM retrospective output groundwater level for CFE initial gw state",
     )
+    parser.add_argument(
+        "--routing",
+        action="store_true",
+        help="Whether to include routing in the realization. (This only applies if multiple models are specified.) If not specified, only the runoff component of the models will be executed. If specified, the routing component of the models will also be executed, which requires additional models to be included as specified in the warnings below.",
+    )
     parser.add_argument("--run", action="store_true", help="Automatically run Next Gen against the output folder")
     parser.add_argument("--validate", action="store_true", help="Run every missing step required to run ngiab")
     parser.add_argument("--eval", action="store_true", help="Evaluate perforance of the model after running")

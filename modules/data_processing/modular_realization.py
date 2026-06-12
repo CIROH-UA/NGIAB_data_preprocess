@@ -1,5 +1,4 @@
 #import json
-import copy
 from rich.prompt import Prompt
 
 # all_variable_names_maps = {
@@ -52,38 +51,53 @@ from rich.prompt import Prompt
 #     "sloth_pet": "(1,double,m s-1,node)",
 # }
 
-# accepted_models = [
-#     "cfe",
-#     "casam",
-#     "sft",
-#     "smp",
-#     "topmodel",
-#     "nom",
-#     "pet",
-#     "snow17",
-#     "sacsma",
-#     "lstm",
-#     "lstm_rust",
-#     "dhbv2",
-#     "dhbv2_daily",
-#     "summa",
-#     "sloth",
-# ]
+accepted_models = [
+    "cfe",
+    "casam",
+    "sft",
+    "smp",
+    "topmodel",
+    "nom",
+    "pet",
+    "snow17",
+    "sacsma",
+    "lstm",
+    "lstm_rust",
+    "dhbv2",
+    "dhbv2_daily",
+    "summa",
+    "sloth",
+]
 
-# models = ["stuff"]
-# if len(models) == 0:
-#     raise ValueError("No models specified")
-# ROUTING = True
-# main_model = models[-1]
+MODEL_DEPENDENCY_RULES = (
+    ("cfe", lambda models: "sloth" not in models, "CFE requires SLoTH"),
+    ("casam", lambda models: "sloth" not in models, "CASAM requires SLoTH"),
+    ("sft", lambda models: "sloth" not in models, "SFT requires SLoTH"),
+    (
+        "smp",
+        lambda models: "sloth" not in models
+        and ("casam" not in models or "cfe" not in models or "topmodel" not in models),
+        "SMP requires SLoTH or CASAM, CFE, and TOPMODEL",
+    ),
+    (
+        "topmodel",
+        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
+        "TOPMODEL requires SLoTH, NOM, or PET",
+    ),
+    (
+        "sac-sma",
+        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
+        "SAC-SMA requires SLoTH, NOM, or PET",
+    ),
+)
 
-# Logic section
-# Check for model dependencies and set warning string if any are missing
-
-def validate_models(models: list[str]):
-    """Check that the specified models are valid and that any dependencies are met. If there are any issues, print a warning message and ask the user if they want to proceed anyway.
+def validate_models(models: list[str], routing: bool):
+    """Check that the specified models are valid and that any dependencies are met. If there are any
+    issues, print a warning message and ask the user if they want to proceed anyway.
 
     Args:
         models (list[str]): List of models to use, in the order they will be executed
+        routing (bool): Whether routing is enabled
 
     Raises:
         ValueError: _models is empty
@@ -99,32 +113,18 @@ def validate_models(models: list[str]):
             f"Invalid models specified: {invalid_models}. Accepted models are: {accepted_models}"
         )
 
+    main_model = models[-1]
+
+    # checks model dependencies
     warnings = []
-    if main_model == "cfe":
-        if "sloth" not in models:
-            warnings.append("CFE requires SLoTH")
-    elif main_model == "casam":
-        if "sloth" not in models:
-            warnings.append("CASAM requires SLoTH")
-    elif main_model == "sft":
-        if "sloth" not in models:
-            warnings.append("SFT requires SLoTH")
-    elif main_model == "smp":
-        if "sloth" not in models and (
-            "casam" not in models or "cfe" not in models or "topmodel" not in models
-        ):
-            warnings.append("SMP requires SLoTH or CASAM, CFE, and TOPMODEL")
-    elif main_model == "topmodel":
-        if "sloth" not in models and "pet" not in models and "nom" not in models:
-            warnings.append("TOPMODEL requires SLoTH, NOM, or PET")
-    elif main_model == "sac-sma":
-        if "sloth" not in models and "pet" not in models and "nom" not in models:
-            warnings.append("SAC-SMA requires SLoTH, NOM, or PET")
-    else:
-        pass
+    warnings.extend(
+        message
+        for model_name, predicate, message in MODEL_DEPENDENCY_RULES
+        if model_name == main_model and predicate(models)
+    )
 
     # Check that a rainfall-runoff model is used when routing is on
-    if ROUTING and not any(
+    if routing and not any(
         model in models
         for model in [
             "cfe",
@@ -151,11 +151,8 @@ def validate_models(models: list[str]):
         )
         if response == "n":
             raise ValueError("Model configuration invalid: " + warning_message)
-        else:
-            print("Proceeding with data preprocessing despite warnings: " + warning_message)
+        print("Proceeding with data preprocessing despite warnings: " + warning_message)
 
-# Subset using existing code
-# Get forcings using existing code
 # Build configs using existing code
 # Build realization
 

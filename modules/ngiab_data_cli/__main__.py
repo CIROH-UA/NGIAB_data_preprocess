@@ -28,7 +28,7 @@ with rich.status.Status("loading") as status:
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
-    from data_processing.modular_realization import validate_models
+    from data_processing.modular_realization import validate_models, create_modular_realization
     from data_processing.subset import subset, subset_vpu
     from data_sources.source_validation import validate_hydrofabric, validate_output_dir
     from ngiab_data_cli.arguments import parse_arguments
@@ -83,7 +83,11 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
 
         if args.models:
             args.models = [model.strip().lower() for model in args.models.split(",")]
-            validate_models(args.models)
+            if args.routing:
+                routing = True
+            else:
+                routing = False
+            validate_models(args.models, routing=routing)
 
         if args.output_name:
             output_folder = args.output_name
@@ -252,6 +256,16 @@ def main() -> None:
                     start_time=args.start_date,
                     end_time=args.end_date,
                     gage_id=gage_id,
+                )
+            elif args.models:
+                create_modular_realization(
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                    use_nwm_gw=args.nwm_gw,
+                    gage_id=gage_id,
+                    models=args.models,
+                    routing=args.routing,
                 )
             else:
                 create_realization(
