@@ -150,6 +150,11 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable SAC-SMA model realization and forcings",
     )
+    models.add_argument(
+        "--models",
+        type=list[str],
+        help="List of models to use, e.g. --models sloth,nom,cfe. This option enables modularized realization generation. The NextGen execution of the coupled models occurs in the order they are listed, so in this example, SLoTH would be executed first, then NOM, then CFE. Accepted models are sloth, nom, pet, cfe, casam, topmodel, snow17, sacsma, sft, smp, lstm, lstm_rust, dhbv2, dhbv2_daily, and summa",
+    )
 
     parser.add_argument(
         "--nwm_gw",
