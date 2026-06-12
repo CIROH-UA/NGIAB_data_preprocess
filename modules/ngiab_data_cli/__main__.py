@@ -262,9 +262,9 @@ def main() -> None:
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
-                    use_nwm_gw=args.nwm_gw,
-                    gage_id=gage_id,
                     models=args.models,
+                    gage_id=gage_id,
+                    use_nwm_gw=args.nwm_gw,
                     routing=args.routing,
                 )
             else:

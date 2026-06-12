@@ -49,6 +49,21 @@ class FilePaths:
     template_snow17_realization_config = template_realization_dir / "snow17-nom-cfe.json"
     template_sac_realization_config = template_realization_dir / "sacsma-nom.json"
 
+    # Modular realization components
+    modular_realization_dir = data_sources / "config" / "modular_realization"
+    modular_template = modular_realization_dir / "multi-template.json"
+    cfe_modular_config = modular_realization_dir / "cfe.json"
+    nom_modular_config = modular_realization_dir / "nom.json"
+    # pet_modular_config = modular_realization_dir / "pet.json"
+    sloth_modular_config = modular_realization_dir / "sloth.json"
+    # casam_modular_config = modular_realization_dir / "casam.json"
+    # topmodel_modular_config = modular_realization_dir / "topmodel.json"
+    # snow17_modular_config = modular_realization_dir / "snow17.json"
+    # sacsma_modular_config = modular_realization_dir / "sac-sma.json"
+    # sft_modular_config = modular_realization_dir / "sft.json"
+    # smp_modular_config = modular_realization_dir / "smp.json"
+    routing_modular_config = modular_realization_dir / "routing.json"
+
     summa_file_dir = data_sources / "config" / "SUMMA"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
