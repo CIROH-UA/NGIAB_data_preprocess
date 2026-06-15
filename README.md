@@ -210,7 +210,9 @@ Installed with uv: `uv run cli`
 - `--lstm_rust`: Configures the data for the [rust lstm](https://github.com/ciroh-ua/rust-lstm-1025/).
 - `--dhbv2`: Configures the data for the hourly [dHBV2](https://github.com/mhpi/dhbv2).
 - `--dhbv2_daily`: Configures the data for the daily [dHBV2](https://github.com/mhpi/dhbv2).
-- `--summa`: Configures the data for the SUMMA model.
+- `--summa`: Configures the data for the [SUMMA](https://github.com/CH-Earth/summa) model.
+- `--snow17`: Configures the data for the [SNOW17](https://github.com/NOAA-OWP/snow17) model.
+- `--sacsma`: Configures the data for the [SAC-SMA](https://github.com/NOAA-OWP/sac-sma) model.
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
