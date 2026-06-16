@@ -1,6 +1,8 @@
 import json
 import copy
+from pathlib import Path
 from rich.prompt import Prompt
+from datetime import datetime
 
 from data_processing.file_paths import FilePaths
 
@@ -105,6 +107,168 @@ model_paths = {
     "sloth": FilePaths.sloth_modular_config,
 }
 
+MAIN_OUTPUT_VARIABLES = {
+    "cfe": "Q_OUT",
+    "pet": "water_potential_evaporation_flux",
+    "sft": "num_cells",
+    "smp": "soil_storage",
+    "topmodel": "Qout",
+    "nom": "EVAPOTRANS",
+    "snow17": "raim",
+    "sac-sma": "tci",
+}
+
+MODEL_VARIABLE_OVERRIDES = {
+    "cfe": [
+        (
+            "nom",
+            {
+                "atmosphere_water__liquid_equivalent_precipitation_rate": "QINSUR",
+                "water_potential_evaporation_flux": "EVAPOTRANS",
+            },
+        ),
+        (
+            "pet",
+            {"water_potential_evaporation_flux": "water_potential_evaporation_flux"},
+        ),
+        (
+            "sft",
+            {
+                "ice_fraction_schaake": "ice_fraction_schaake",
+                "ice_fraction_xinanjiang": "ice_fraction_xinanjiang",
+            },
+        ),
+        (
+            "smp",
+            {"soil_moisture_profile": "soil_moisture_profile"},
+        ),
+    ],
+    "casam": [
+        (
+            "nom",
+            {"potential_evapotranspiration_rate": "EVAPOTRANS"},
+        ),
+        (
+            "pet",
+            {"potential_evapotranspiration_rate": "water_potential_evaporation_flux"},
+        ),
+        (
+            "sft",
+            {"soil_temperature_profile": "soil_temperature_profile"},
+        ),
+    ],
+    "sft": [
+        ("nom", {"ground_temperature": "TGS"}),
+        ("smp", {"soil_moisture_profile": "soil_moisture_profile"}),
+    ],
+    "smp": [
+        (
+            "casam",
+            {
+                "num_wetting_fronts": "soil_num_wetting_fronts",
+                "soil_moisture_wetting_fronts": "soil_moisture_wetting_fronts",
+                "soil_depth_wetting_fronts": "soil_depth_wetting_fronts",
+                "soil_storage": "soil_storage",
+            },
+        ),
+        (
+            "cfe",
+            {
+                "soil_storage": "SOIL_STORAGE",
+                "soil_storage_change": "SOIL_STORAGE_CHANGE",
+            },
+        ),
+        (
+            "topmodel",
+            {
+                "Qb_topmodel": "land_surface_water__baseflow_volume_flux",
+                "Qv_topmodel": "soil_water_root-zone_unsat-zone_top__recharge_volume_flux",
+                "global_deficit": "soil_water__domain_volume_deficit",
+            },
+        ),
+    ],
+    "topmodel": [
+        (
+            "nom",
+            {
+                "atmosphere_water__liquid_equivalent_precipitation_rate": "QINSUR",
+                "water_potential_evaporation_flux": "EVAPOTRANS",
+            },
+        ),
+        (
+            "pet",
+            {"water_potential_evaporation_flux": "water_potential_evaporation_flux"},
+        ),
+    ],
+    "sac-sma": [
+        ("nom", {"pet": "EVAPOTRANS"}),
+        ("pet", {"pet": "water_potential_evaporation_flux"}),
+    ],
+}
+
+
+def _main_output_variable(main_model: str, routing: bool) -> str | None:
+    if main_model == "casam":
+        return "surface_runoff" if routing else "total_discharge"
+    return MAIN_OUTPUT_VARIABLES.get(main_model)
+
+
+def _filtered_variable_names(models: list[str]) -> dict[str, dict[str, str]]:
+    return {
+        model: copy.deepcopy(all_variable_names_maps[model])
+        for model in models
+        if model in all_variable_names_maps
+    }
+
+
+def _apply_model_overrides(
+    model: str,
+    target_variable_names: dict[str, dict[str, str]],
+    seen_models: list[str],
+) -> None:
+    for dependency, overrides in MODEL_VARIABLE_OVERRIDES.get(model, []):
+        if dependency in seen_models:
+            target_variable_names[model].update(overrides)
+
+
+def _load_json_realization(path: Path | str) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _build_sloth_model_params(
+    target_variable_names: dict[str, dict[str, str]]
+) -> dict[str, float]:
+    params: dict[str, float] = {}
+    for model_vars in target_variable_names.values():
+        for varname in model_vars.values():
+            if varname in all_sloth_model_params:
+                params[varname + all_sloth_model_params[varname]] = 0.0
+    return params
+
+
+def _append_model_realization(
+    model: str,
+    target_variable_names: dict[str, dict[str, str]],
+    modules: list[dict],
+) -> None:
+    if model == "cfe":
+        realization = _load_json_realization(model_paths["cfe"])
+        realization["params"]["variable_names_map"] = target_variable_names["cfe"]
+        modules.append(realization)
+    elif model == "nom":
+        modules.append(_load_json_realization(model_paths["nom"]))
+
+
+def _insert_sloth_module(
+    models: list[str], target_variable_names: dict[str, dict[str, str]], modules: list[dict]
+) -> None:
+    params = _build_sloth_model_params(target_variable_names)
+    sloth_position = models.index("sloth")
+    sloth_realization = _load_json_realization(model_paths["sloth"])
+    sloth_realization["params"]["model_params"] = params
+    modules.insert(sloth_position, sloth_realization)
+
 
 def validate_models(models: list[str], routing: bool):
     """Check that the specified models are valid and that any dependencies are met. If there are any
@@ -115,8 +279,8 @@ def validate_models(models: list[str], routing: bool):
         routing (bool): Whether routing is enabled
 
     Raises:
-        ValueError: _models is empty
-        ValueError: _models contains invalid model names
+        ValueError: models is empty
+        ValueError: models contains invalid model names
         ValueError: Model dependencies are not met and user chooses not to proceed
     """
     if len(models) == 0:
@@ -172,162 +336,56 @@ def validate_models(models: list[str], routing: bool):
 # Build configs using existing code
 # Build realization
 
-
-def create_modular_realization(
+def create_modular_configs(
     output_folder: str,
-    start_time: str,
-    end_time: str,
     models: list[str],
     gage_id: str | None = None,
     use_nwm_gw: bool = False,
+):
+    pass
+
+def create_modular_realization(
+    output_folder: str,
+    start_time: datetime,
+    end_time: datetime,
+    models: list[str],
     routing: bool = False,
 ):
+    """Creates a realization file based on the specified models.
 
-    realization_json = FilePaths.modular_template
-    main_model = models[-1]
+    Args:
+        output_folder (str): Name of the output folder, usually the cat-id
+        start_time (str): Start time of simulation in YYYY-MM-DD HH:MM:SS
+        end_time (str): End time of simulation in YYYY-MM-DD HH:MM:SS
+        models (list[str]): List of models to be coupled together
+        routing (bool, optional): True if t-route is coupled. Defaults to False.
+    """
 
-    # Main output variable
-    if main_model == "cfe":
-        main_output_variable = "Q_OUT"
-    elif main_model == "casam":
-        if routing:
-            main_output_variable = "surface_runoff"
-        else:
-            main_output_variable = "total_discharge"
-    elif main_model == "pet":
-        main_output_variable = "water_potential_evaporation_flux"
-    elif main_model == "sft":
-        main_output_variable = "num_cells"
-    elif main_model == "smp":
-        main_output_variable = "soil_storage"
-    elif main_model == "topmodel":
-        main_output_variable = "Qout"
-    elif main_model == "nom":
-        main_output_variable = "EVAPOTRANS"
-    elif main_model == "snow17":
-        main_output_variable = "raim"
-    elif main_model == "sac-sma":
-        main_output_variable = "tci"
-    else:
-        main_output_variable = None
-
-    # build module configs and get variable names for each model based on configuration
-    target_variable_names = copy.deepcopy(all_variable_names_maps)
-    for model in target_variable_names:
-        if model not in models:
-            target_variable_names.pop(model)
-
-    seen_models = []
-    modules = []
+    paths = FilePaths(output_folder)
+    main_output_variable = _main_output_variable(models[-1], routing)
+    target_variable_names = _filtered_variable_names(models)
+    modules: list[dict] = []
+    seen_models: list[str] = []
 
     for model in models:
-        if model == "cfe":
-            if "nom" in seen_models:
-                target_variable_names[model][
-                    "atmosphere_water__liquid_equivalent_precipitation_rate"
-                ] = "QINSUR"
-                target_variable_names[model]["water_potential_evaporation_flux"] = "EVAPOTRANS"
-            if "pet" in seen_models:
-                target_variable_names[model][
-                    "water_potential_evaporation_flux"
-                ] = "water_potential_evaporation_flux"
-            if "sft" in seen_models:
-                target_variable_names[model]["ice_fraction_schaake"] = "ice_fraction_schaake"
-                target_variable_names[model]["ice_fraction_xinanjiang"] = "ice_fraction_xinanjiang"
-            if "smp" in seen_models:
-                target_variable_names[model]["soil_moisture_profile"] = "soil_moisture_profile"
-
-            with open(model_paths["cfe"], "r", encoding="utf-8") as f:
-                cfe_realization = json.load(f)
-                cfe_realization["params"]["variable_names_map"] = target_variable_names["cfe"]
-                modules.append(cfe_realization)
-        elif model == "casam":
-            if "nom" in seen_models:
-                target_variable_names[model]["potential_evapotranspiration_rate"] = "EVAPOTRANS"
-            if "pet" in seen_models:
-                target_variable_names[model][
-                    "potential_evapotranspiration_rate"
-                ] = "water_potential_evaporation_flux"
-            if "sft" in seen_models:
-                target_variable_names[model][
-                    "soil_temperature_profile"
-                ] = "soil_temperature_profile"
-        elif model == "sft":
-            if "nom" in seen_models:
-                target_variable_names[model]["ground_temperature"] = "TGS"
-            if "smp" in seen_models:
-                target_variable_names[model]["soil_moisture_profile"] = "soil_moisture_profile"
-        elif model == "smp":
-            if "casam" in seen_models:
-                target_variable_names[model]["num_wetting_fronts"] = "soil_num_wetting_fronts"
-                target_variable_names[model][
-                    "soil_moisture_wetting_fronts"
-                ] = "soil_moisture_wetting_fronts"
-                target_variable_names[model][
-                    "soil_depth_wetting_fronts"
-                ] = "soil_depth_wetting_fronts"
-                target_variable_names[model]["soil_storage"] = "soil_storage"
-            if "cfe" in seen_models:
-                target_variable_names[model]["soil_storage"] = "SOIL_STORAGE"
-                target_variable_names[model]["soil_storage_change"] = "SOIL_STORAGE_CHANGE"
-            if "topmodel" in seen_models:
-                target_variable_names[model][
-                    "Qb_topmodel"
-                ] = "land_surface_water__baseflow_volume_flux"
-                target_variable_names[model][
-                    "Qv_topmodel"
-                ] = "soil_water_root-zone_unsat-zone_top__recharge_volume_flux"
-                target_variable_names[model]["global_deficit"] = "soil_water__domain_volume_deficit"
-        elif model == "topmodel":
-            if "nom" in seen_models:
-                target_variable_names[model][
-                    "atmosphere_water__liquid_equivalent_precipitation_rate"
-                ] = "QINSUR"
-                target_variable_names[model]["water_potential_evaporation_flux"] = "EVAPOTRANS"
-            if "pet" in seen_models:
-                target_variable_names[model][
-                    "water_potential_evaporation_flux"
-                ] = "water_potential_evaporation_flux"
-        elif model == "sac-sma":
-            if "nom" in seen_models:
-                target_variable_names[model]["pet"] = "EVAPOTRANS"
-            if "pet" in seen_models:
-                target_variable_names[model]["pet"] = "water_potential_evaporation_flux"
-        elif model == "nom":
-            with open(model_paths["nom"], "r", encoding="utf-8") as f:
-                nom_realization = json.load(f)
-                modules.append(nom_realization)
-        else:
-            pass
-
+        if model in target_variable_names:
+            _apply_model_overrides(model, target_variable_names, seen_models)
+        _append_model_realization(model, target_variable_names, modules)
         seen_models.append(model)
 
     if "sloth" in models:
-        sloth_model_params = {}
-        for model in target_variable_names:
-            for var in target_variable_names[model]:
-                varname = target_variable_names[model][var]
-                if varname in all_sloth_model_params:
-                    sloth_param_name = varname + all_sloth_model_params[varname]
-                    sloth_model_params[sloth_param_name] = 0.0
-        sloth_position = models.index("sloth")
-        with open(model_paths["sloth"], "r", encoding="utf-8") as f:
-            sloth_realization = json.load(f)
-            sloth_realization["params"]["model_params"] = sloth_model_params
-            modules.insert(sloth_position, sloth_realization)
+        _insert_sloth_module(models, target_variable_names, modules)
 
-    # Populate realization template
-    with open(realization_json, "r", encoding="utf-8") as f:
-        realization = json.load(f)
-
-    realization["global"]["formulations"][0]["params"][
-        "main_output_variable"
-    ] = main_output_variable
-
+    realization = _load_json_realization(FilePaths.modular_template)
+    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
+        main_output_variable
+    )
     realization["global"]["formulations"][0]["params"]["modules"] = modules
-
     realization["time"]["start_time"] = start_time
     realization["time"]["end_time"] = end_time
 
     if routing:
         realization["routing"] = {"t_route_config_file_with_path": "./config/troute.yaml"}
+
+    with open(paths.config_dir / "realization.json", "w", encoding="utf-8") as f:
+        json.dump(realization, f, indent=4)
