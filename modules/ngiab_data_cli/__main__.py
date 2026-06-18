@@ -21,7 +21,7 @@ with rich.status.Status("loading") as status:
         create_snow17_realization,
         create_sacsma_realization,
     )
-    from data_processing.dask_utils import shutdown_cluster
+    from data_processing.dask_utils import set_n_workers, shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
     from data_processing.file_paths import FilePaths
@@ -147,6 +147,9 @@ def main() -> None:
         args = parse_arguments()
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
+
+        if args.dask_workers:
+            set_n_workers(args.dask_workers)
 
         if args.output_root:
             with open(FilePaths.config_file, "w") as config_file:

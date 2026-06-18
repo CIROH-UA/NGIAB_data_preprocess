@@ -180,6 +180,12 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Run all operations: subset, forcings, realization, and run Next Gen",
     )
+    parser.add_argument(
+        "--dask-workers",
+        type=int,
+        default=None,
+        help="Number of Dask workers for forcings/data processing (default: auto)",
+    )
 
     args = parser.parse_args()
 
