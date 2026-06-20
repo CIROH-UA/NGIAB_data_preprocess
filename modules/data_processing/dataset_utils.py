@@ -4,11 +4,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional, Tuple, Union
 
+import dask
 import geopandas as gpd
 import numpy as np
 import xarray as xr
-from dask.distributed import Client, Future, progress
-from data_processing.dask_utils import no_cluster, temp_cluster
+from dask.diagnostics import ProgressBar
+from data_processing.dask_utils import no_cluster
 
 logger = logging.getLogger(__name__)
 
@@ -182,16 +183,22 @@ def bbox_contains(outer, inner) -> bool:
     )
 
 
-@temp_cluster
+@no_cluster
 def save_dataset(
     ds_to_save: xr.Dataset,
     target_path: Path,
     engine: Literal["netcdf4", "scipy"] = "netcdf4",
 ):
     """
-    Helper function to compute and save an xarray.Dataset (specifically, the raw
-    forcing data) to a NetCDF file.
-    Uses a temporary file and rename for atomicity.
+    Compute and save an xarray.Dataset (the raw forcing data) to a NetCDF file.
+
+    The write runs in a single process using dask's threaded scheduler: chunk
+    reads still run in parallel (the GIL is released during I/O), but every NetCDF
+    write goes through one process where the HDF5 lock serializes them. Writing a
+    single NetCDF file from multiple distributed worker processes corrupts it
+    ("NetCDF: HDF error"), while a single distributed worker stalls on its memory
+    limit -- the threaded scheduler avoids both. A temp file + rename keeps the
+    final cache atomic.
     """
     if not target_path.parent.exists():
         target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -200,16 +207,10 @@ def save_dataset(
     if temp_file_path.exists():
         os.remove(temp_file_path)
 
-    client = Client.current()
-    future: Future = client.compute(
-        ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False)
-    )  # type: ignore
-    logger.debug(
-        f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
-    )
-    logger.info("For more detailed progress, see the Dask dashboard http://localhost:8787/status")
-    progress(future)
-    future.result()
+    logger.info(f"Writing raw gridded cache to {target_path} ...")
+    with dask.config.set(scheduler="threads"), ProgressBar():
+        ds_to_save.to_netcdf(temp_file_path, engine=engine)
+
     os.rename(str(temp_file_path), str(target_path))
     logger.info(f"Successfully saved data to: {target_path}")
 
