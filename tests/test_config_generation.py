@@ -56,8 +56,9 @@ def _normalize(text: str, output_dir: Path) -> str:
     return text
 
 
-def _generate_config(cat_id: str) -> dict:
+def _generate_config(cat_id: str, tmp_root: Path, monkeypatch) -> dict:
     """Run the default builder offline and return {relative_path: normalized_text}."""
+    monkeypatch.setattr(FilePaths, "get_working_dir", classmethod(lambda cls: Path(tmp_root)))
 
     paths = FilePaths(cat_id)
     paths.config_dir.mkdir(parents=True, exist_ok=True)
@@ -71,7 +72,8 @@ def _generate_config(cat_id: str) -> dict:
         if f.is_file() and f.suffix != ".gpkg":
             rel = str(f.relative_to(paths.config_dir))
             produced[rel] = _normalize(
-                f.read_text(errors="replace"), paths.output_dir  # type: ignore
+                f.read_text(errors="replace"),
+                paths.output_dir,  # type: ignore
             )
     return produced
 
@@ -91,11 +93,11 @@ def require_fixture():
 
 
 @pytest.mark.parametrize("cat_id", list(GEOPACKAGE_FIXTURES))
-def test_config_generation_matches_golden(cat_id, require):
+def test_config_generation_matches_golden(cat_id, tmp_path, monkeypatch, require):
     """Checks generated configs against golden files."""
 
     require(cat_id)
-    produced = _generate_config(cat_id)
+    produced = _generate_config(cat_id, tmp_path, monkeypatch)
     golden_file = GOLDEN_CONFIG_DIR / f"{cat_id}.json"
 
     if os.environ.get("UPDATE_GOLDEN"):
@@ -112,9 +114,9 @@ def test_config_generation_matches_golden(cat_id, require):
     # 1) the set of generated files must match
     missing = sorted(set(golden) - set(produced))
     extra = sorted(set(produced) - set(golden))
-    assert (
-        not missing and not extra
-    ), f"config file set changed for {cat_id}.\n  missing: {missing}\n  extra: {extra}"
+    assert not missing and not extra, (
+        f"config file set changed for {cat_id}.\n  missing: {missing}\n  extra: {extra}"
+    )
 
     # 2) each file's (normalized) content must match
     changed = [p for p in sorted(golden) if produced[p] != golden[p]]
@@ -137,19 +139,19 @@ def test_config_generation_matches_golden(cat_id, require):
 
 
 @pytest.mark.parametrize("cat_id", list(GEOPACKAGE_FIXTURES))
-def test_config_generation_produces_expected_artifacts(cat_id, require):
+def test_config_generation_produces_expected_artifacts(cat_id, tmp_path, monkeypatch, require):
     """Structural guard, independent of the golden: the core artifacts exist."""
     require(cat_id)
-    produced = _generate_config(cat_id)
+    produced = _generate_config(cat_id, tmp_path, monkeypatch)
     keys = list(produced)
     assert "realization.json" in keys
     assert "troute.yaml" in keys
-    assert any(
-        k.startswith("cat_config/CFE/") and k.endswith(".ini") for k in keys
-    ), "no CFE configs"
-    assert any(
-        k.startswith("cat_config/NOAH-OWP-M/") and k.endswith(".input") for k in keys
-    ), "no NOAH configs"
+    assert any(k.startswith("cat_config/CFE/") and k.endswith(".ini") for k in keys), (
+        "no CFE configs"
+    )
+    assert any(k.startswith("cat_config/NOAH-OWP-M/") and k.endswith(".input") for k in keys), (
+        "no NOAH configs"
+    )
 
 
 if __name__ == "__main__":

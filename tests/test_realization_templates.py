@@ -31,7 +31,7 @@ MODELS = {
     "lstm-py": "template_lstm_realization_config",  # create_lstm_realization(use_rust=False)
     "lstm-rs": "template_lstm_rust_realization_config",  # create_lstm_realization(use_rust=True)
     "dhbv2": "template_dhbv2_realization_config",  # create_dhbv2_realization(daily=False)
-    "dhbv2-daily": "template_dhbv2_daily_realization_config", # create_dhbv2_realization(daily=True)
+    "dhbv2-daily": "template_dhbv2_daily_realization_config",  # create_dhbv2_realization(daily=True)
     "summa": "template_summa_realization_config",  # create_summa_realization
     "snow17-nom-cfe": "template_snow17_realization_config",  # create_snow17_realization
     "sacsma-nom": "template_sac_realization_config",  # create_sacsma_realization

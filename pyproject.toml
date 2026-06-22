@@ -19,7 +19,6 @@ filterwarnings = [
 ]
 markers = [
     "integration: end-to-end tests that hit live data sources (S3); non-hermetic",
-    "geopackage: tests that require full CONUS geopackage download",
 ]
 [project]
 name = "ngiab_data_preprocess"
