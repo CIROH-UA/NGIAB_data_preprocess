@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff (changed files only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need history to diff this PR against its base branch
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Lint & format-check the Python files this PR changed
+        run: |
+          base='${{ github.event.pull_request.base.sha }}'
+          head='${{ github.event.pull_request.head.sha }}'
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$base"..."$head" -- '*.py')
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No Python files changed -- nothing to lint."
+            exit 0
+          fi
+          printf 'Linting %s changed file(s):\n' "${#files[@]}"
+          printf '  %s\n' "${files[@]}"
+          # Keep this ruff version in sync with your pre-commit hook.
+          uvx ruff@0.11.9 check -- "${files[@]}"
+          uvx ruff@0.11.9 format --check -- "${files[@]}"
+
+  test:
+    name: pytest (unit · hermetic)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # setuptools-scm derives the version from git history/tags
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install project + dev group
+        run: uv sync
+
+      - name: Run unit tests (hermetic; excludes integration)
+        run: uv run pytest -m "not integration"
+
+  integration:
+    name: pytest (integration · live S3)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15 # bound it in case S3 stalls (the test caps itself at 600s)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install project + dev group
+        run: uv sync
+
+      - name: Run end-to-end integration tests (hit live AORC/NWM data)
+        run: uv run pytest -m integration

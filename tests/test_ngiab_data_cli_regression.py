@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 CONFIG_PATH = FilePaths.config_file
 
+pytestmark = pytest.mark.integration
 
 def run_cli(input_id, start_date, end_date, output_name, source="aorc"):
     """Run the CLI and return output paths."""
