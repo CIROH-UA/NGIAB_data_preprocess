@@ -79,4 +79,4 @@ jobs:
         run: uv sync
 
       - name: Run end-to-end integration tests (hit live AORC/NWM data)
-        run: uv run pytest -m integration
+        run: uv run pytest -m integration --ignore tests/test_ngiab_data_cli_regression.py

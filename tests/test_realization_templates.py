@@ -27,11 +27,11 @@ GOLDEN_DIR = Path(__file__).parent / "golden" / "realization"
 # model id (and golden filename stem) -> the FilePaths template attribute used by
 # the corresponding create_*_realization builder.
 MODELS = {
-    "cfe-nom": "template_cfe_nowpm_realization_config",  # create_realization (default NOAH-OWP + CFE)
+    "cfe-nom": "template_cfe_nowpm_realization_config",  # create_realization (default NOAH-OWP/CFE)
     "lstm-py": "template_lstm_realization_config",  # create_lstm_realization(use_rust=False)
     "lstm-rs": "template_lstm_rust_realization_config",  # create_lstm_realization(use_rust=True)
     "dhbv2": "template_dhbv2_realization_config",  # create_dhbv2_realization(daily=False)
-    "dhbv2-daily": "template_dhbv2_daily_realization_config",  # create_dhbv2_realization(daily=True)
+    "dhbv2-daily": "template_dhbv2_daily_realization_config", # create_dhbv2_realization(daily=True)
     "summa": "template_summa_realization_config",  # create_summa_realization
     "snow17-nom-cfe": "template_snow17_realization_config",  # create_snow17_realization
     "sacsma-nom": "template_sac_realization_config",  # create_sacsma_realization
@@ -53,6 +53,7 @@ def _pretty(obj):
 
 @pytest.mark.parametrize("model_id", list(MODELS))
 def test_realization_matches_golden(model_id, tmp_path):
+    """Check that generated realization files match golden files."""
     produced = _build_realization(MODELS[model_id], tmp_path)
     golden_file = GOLDEN_DIR / f"{model_id}.json"
 
@@ -100,5 +101,6 @@ def test_time_block_is_stamped_correctly(tmp_path):
 
 
 def test_default_output_interval_is_hourly(tmp_path):
+    """Check that output_interval is 3600s."""
     produced = _build_realization(MODELS["cfe-nom"], tmp_path)  # uses the default
     assert produced["time"]["output_interval"] == 3600
