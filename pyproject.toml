@@ -53,7 +53,7 @@ dependencies = [
     "boto3",
     "numcodecs<0.16.0",
     "scipy>=1.15.3",
-    "pyarrow",
+    "duckdb>=1.5.2",
 ]
 
 [project.optional-dependencies]

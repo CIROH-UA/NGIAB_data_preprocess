@@ -9,6 +9,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Dict, Optional
 
+import duckdb
 import numpy as np
 import pandas
 import psutil
@@ -18,7 +19,6 @@ import xarray as xr
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import get_cat_to_nhd_feature_id, get_table_crs_short
-from data_sources.source_validation import download_dhbv_attributes, download_snow17_attributes, download_sacsma_attributes
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -114,11 +114,15 @@ def make_snow17_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
 
-    download_snow17_attributes()
-    snow17_atts = pandas.read_parquet(FilePaths.snow17_attributes)
-    atts_df = snow17_atts.loc[snow17_atts["divide_id"].isin(divide_conf_df["divide_id"])]
+    snow17_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.snow17_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
 
-    merged = atts_df.merge(divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]], on="divide_id")
+    merged = snow17_atts.merge(
+        divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]],
+        on="divide_id"
+        )
 
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
@@ -178,10 +182,15 @@ def make_sacsma_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
 
-    download_sacsma_attributes()
-    sacsma_atts = pandas.read_parquet(FilePaths.sacsma_attributes)
-    atts_df = sacsma_atts.loc[sacsma_atts["divide_id"].isin(divide_conf_df["divide_id"])]
-    merged = atts_df.merge(divide_conf_df[["divide_id", "areasqkm"]], on="divide_id")
+    sacsma_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.sacsma_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
+
+    merged = sacsma_atts.merge(
+        divide_conf_df[["divide_id", "areasqkm"]],
+        on="divide_id"
+        )
 
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
@@ -296,17 +305,17 @@ def make_dhbv2_config(
     template_path: Path = FilePaths.template_dhbv2_config,
 ):
     divide_conf_df = get_model_attributes(hydrofabric)
-    download_dhbv_attributes()
-    dhbv_atts = pandas.read_parquet(FilePaths.dhbv_attributes)
-    atts_df = dhbv_atts.loc[dhbv_atts["divide_id"].isin(divide_conf_df["divide_id"])]
-
+    dhbv_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.dhbv_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
     cat_config_dir = output_dir / "cat_config" / "dhbv2"
     if cat_config_dir.exists():
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     template = template_path.read_text()
-    merged = atts_df.merge(
+    merged = dhbv_atts.merge(
         divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude"]], on="divide_id"
     )
 
