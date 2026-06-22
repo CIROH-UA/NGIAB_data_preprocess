@@ -19,6 +19,7 @@ Fixture geopackages:
 
 import difflib
 import json
+import math
 import os
 import re
 import shutil
@@ -54,6 +55,105 @@ def _normalize(text: str, output_dir: Path) -> str:
     text = text.replace(str(output_dir), "<OUTPUT_DIR>")
     text = re.sub(r"cpu_pool:\s*\d+", "cpu_pool: <CPU>", text)
     return text
+
+
+NUMERIC_RE = re.compile(r"(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?)")
+
+
+def _compare_number_tokens(a: str, b: str, rel_tol: float = 1e-6, abs_tol: float = 1e-9) -> bool:
+    try:
+        return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
+    except ValueError:
+        return False
+
+
+def _is_float_token(tok: str) -> bool:
+    """Whether a numeric token should get tolerant comparison.
+
+    Only real floats (those with a decimal point or exponent) drift across
+    platforms. Bare integers -- catchment IDs, ISLTYP/IVGTYP codes, nts, counts --
+    are compared exactly so a genuine off-by-one change isn't masked by tolerance.
+    """
+    return any(c in tok for c in ".eE")
+
+
+def _compare_line_tolerant(a: str, b: str) -> bool:
+    if a == b:
+        return True
+
+    a_parts = NUMERIC_RE.split(a)
+    b_parts = NUMERIC_RE.split(b)
+    if len(a_parts) != len(b_parts):
+        return False
+
+    for a_part, b_part in zip(a_parts, b_parts):
+        if a_part == b_part:
+            continue
+        # Tolerance applies ONLY when both tokens are floats. Differing text,
+        # or differing integers, must match exactly.
+        if (
+            NUMERIC_RE.fullmatch(a_part)
+            and NUMERIC_RE.fullmatch(b_part)
+            and _is_float_token(a_part)
+            and _is_float_token(b_part)
+        ):
+            if not _compare_number_tokens(a_part, b_part):
+                return False
+        else:
+            return False
+    return True
+
+
+def _compare_text_tolerant(a: str, b: str) -> bool:
+    if a == b:
+        return True
+
+    a_lines = a.splitlines()
+    b_lines = b.splitlines()
+    if len(a_lines) != len(b_lines):
+        return False
+
+    return all(_compare_line_tolerant(a_line, b_line) for a_line, b_line in zip(a_lines, b_lines))
+
+
+def _compare_json_tolerant(a, b) -> bool:
+    """Compare JSON-like structures with numeric tolerance for floats."""
+    if type(a) is not type(b):
+        return False
+
+    if isinstance(a, dict):
+        return a.keys() == b.keys() and all(
+            _compare_json_tolerant(a[k], b[k]) for k in a
+        )
+
+    if isinstance(a, list):
+        return len(a) == len(b) and all(
+            _compare_json_tolerant(av, bv) for av, bv in zip(a, b)
+        )
+
+    if isinstance(a, bool):
+        return a == b
+
+    if isinstance(a, (int, float)):
+        return (
+            a == b
+            if isinstance(a, int)
+            else math.isclose(float(a), float(b), rel_tol=1e-6, abs_tol=1e-9)
+        )
+
+    return a == b
+
+
+def _config_text_equivalent(golden_text: str, produced_text: str) -> bool:
+    if golden_text == produced_text:
+        return True
+
+    try:
+        golden_data = json.loads(golden_text)
+        produced_data = json.loads(produced_text)
+    except json.JSONDecodeError:
+        return _compare_text_tolerant(golden_text, produced_text)
+    return _compare_json_tolerant(golden_data, produced_data)
 
 
 def _generate_config(cat_id: str, tmp_root: Path, monkeypatch) -> dict:
@@ -118,8 +218,8 @@ def test_config_generation_matches_golden(cat_id, tmp_path, monkeypatch, require
         f"config file set changed for {cat_id}.\n  missing: {missing}\n  extra: {extra}"
     )
 
-    # 2) each file's (normalized) content must match
-    changed = [p for p in sorted(golden) if produced[p] != golden[p]]
+    # 2) each file's (normalized) content must match, with numeric tolerance.
+    changed = [p for p in sorted(golden) if not _config_text_equivalent(golden[p], produced[p])]
     if changed:
         first = changed[0]
         diff = "\n".join(
