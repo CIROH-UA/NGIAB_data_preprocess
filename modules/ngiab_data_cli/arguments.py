@@ -92,13 +92,21 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--start_date",
         "--start",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: (
+            datetime.strptime(s, DATE_FORMAT)
+            if len(s) == 10
+            else datetime.strptime(s, DATE_FORMAT2)
+        ),
         help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
         "--end_date",
         "--end",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT) if len(s) == 10 else datetime.strptime(s, DATE_FORMAT2),
+        type=lambda s: (
+            datetime.strptime(s, DATE_FORMAT)
+            if len(s) == 10
+            else datetime.strptime(s, DATE_FORMAT2)
+        ),
         help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
@@ -156,10 +164,18 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="use NWM retrospective output groundwater level for CFE initial gw state",
     )
-    parser.add_argument("--run", action="store_true", help="Automatically run Next Gen against the output folder")
-    parser.add_argument("--validate", action="store_true", help="Run every missing step required to run ngiab")
-    parser.add_argument("--eval", action="store_true", help="Evaluate perforance of the model after running")
-    parser.add_argument("--vis", "--visualise", action="store_true", help="Visualize the model output")
+    parser.add_argument(
+        "--run", action="store_true", help="Automatically run Next Gen against the output folder"
+    )
+    parser.add_argument(
+        "--validate", action="store_true", help="Run every missing step required to run ngiab"
+    )
+    parser.add_argument(
+        "--eval", action="store_true", help="Evaluate perforance of the model after running"
+    )
+    parser.add_argument(
+        "--vis", "--visualise", action="store_true", help="Visualize the model output"
+    )
     parser.add_argument(
         "--source",
         type=str,
@@ -179,6 +195,12 @@ def parse_arguments() -> argparse.Namespace:
         "--all",
         action="store_true",
         help="Run all operations: subset, forcings, realization, and run Next Gen",
+    )
+    parser.add_argument(
+        "--dask-workers",
+        type=int,
+        default=None,
+        help="Number of Dask workers for forcings/data processing (default: auto)",
     )
 
     args = parser.parse_args()

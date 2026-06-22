@@ -21,7 +21,7 @@ with rich.status.Status("loading") as status:
         create_snow17_realization,
         create_sacsma_realization,
     )
-    from data_processing.dask_utils import shutdown_cluster
+    from data_processing.dask_utils import set_n_workers, shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
     from data_processing.file_paths import FilePaths
@@ -111,7 +111,9 @@ def set_dependent_flags(args, paths: FilePaths):
     # realization and forcings require subset to have been run at least once
     if args.realization or args.forcings:
         if not paths.config_dir.exists() and not args.subset:
-            logging.warning("Subset required for forcings and realization generation, enabling subset.")
+            logging.warning(
+                "Subset required for forcings and realization generation, enabling subset."
+            )
             args.subset = True
 
     if (args.forcings or args.realization) and not (args.start_date and args.end_date):
@@ -148,10 +150,15 @@ def main() -> None:
         if args.debug:
             logging.getLogger("data_processing").setLevel(logging.DEBUG)
 
+        if args.dask_workers:
+            set_n_workers(args.dask_workers)
+
         if args.output_root:
             with open(FilePaths.config_file, "w") as config_file:
                 config_file.write(str(Path(args.output_root).expanduser().absolute()))
-            logging.info(f"Changed default directory where outputs are stored to {args.output_root}")
+            logging.info(
+                f"Changed default directory where outputs are stored to {args.output_root}"
+            )
 
         feature_to_subset, output_folder = validate_input(args)
 
@@ -198,7 +205,9 @@ def main() -> None:
             elif args.source == "nwm":
                 data = load_v3_retrospective_zarr()
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
-            cached_data = save_and_clip_dataset(data, gdf, args.start_date, args.end_date, paths.cached_nc_file)
+            cached_data = save_and_clip_dataset(
+                data, gdf, args.start_date, args.end_date, paths.cached_nc_file
+            )
 
             create_forcings(
                 cached_data,

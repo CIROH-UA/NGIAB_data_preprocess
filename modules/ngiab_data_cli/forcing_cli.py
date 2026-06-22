@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
-from data_processing.dask_utils import shutdown_cluster
+from data_processing.dask_utils import set_n_workers, shutdown_cluster
 from data_processing.dataset_utils import check_local_cache, clip_dataset_to_bounds, save_to_cache
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.forcings import compute_zonal_stats
@@ -64,6 +64,12 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable debug logging",
     )
+    parser.add_argument(
+        "--dask-workers",
+        type=int,
+        default=None,
+        help="Number of Dask workers for forcings/data processing (default: auto)",
+    )
 
     return parser.parse_args()
 
@@ -73,6 +79,9 @@ def main() -> None:
     setup_logging()
     validate_all()
     args = parse_arguments()
+
+    if args.dask_workers:
+        set_n_workers(args.dask_workers)
 
     gdf = gpd.read_file(args.input_file, layer="divides")
     logging.debug(f"gdf  bounds: {gdf.total_bounds}")
