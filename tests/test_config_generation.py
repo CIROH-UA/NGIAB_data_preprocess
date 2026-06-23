@@ -169,13 +169,13 @@ def _generate_config(cat_id: str, tmp_root: Path, monkeypatch) -> dict:
         paths.config_dir,
         START,
         END,
-        template_path=FilePaths.template_dhbv2_daily_config
+        template_path=FilePaths.template_dhbv2_daily_config,
     )
     configure_troute(cat_id, paths.config_dir, START, END)
 
     produced = {}
     for f in sorted(paths.config_dir.rglob("*")):
-        if f.is_file() and f.suffix != ".gpkg" and f != "realization.json":
+        if f.is_file() and f.suffix != ".gpkg" and f.name != "realization.json":
             rel = str(f.relative_to(paths.config_dir))
             produced[rel] = _normalize(
                 f.read_text(errors="replace"),
@@ -220,9 +220,9 @@ def test_config_generation_matches_golden(cat_id, tmp_path, monkeypatch, require
     # 1) the set of generated files must match
     missing = sorted(set(golden) - set(produced))
     extra = sorted(set(produced) - set(golden))
-    assert (
-        not missing and not extra
-    ), f"config file set changed for {cat_id}.\n  missing: {missing}\n  extra: {extra}"
+    assert not missing and not extra, (
+        f"config file set changed for {cat_id}.\n  missing: {missing}\n  extra: {extra}"
+    )
 
     # 2) each file's (normalized) content must match, with numeric tolerance.
     changed = [p for p in sorted(golden) if not _config_text_equivalent(golden[p], produced[p])]
@@ -251,33 +251,33 @@ def test_config_generation_produces_expected_artifacts(cat_id, tmp_path, monkeyp
     produced = _generate_config(cat_id, tmp_path, monkeypatch)
     keys = list(produced)
     assert "troute.yaml" in keys
-    assert any(
-        k.startswith("cat_config/CFE/") and k.endswith(".ini") for k in keys
-    ), "no CFE configs"
-    assert any(
-        k.startswith("cat_config/NOAH-OWP-M/") and k.endswith(".input") for k in keys
-    ), "no NOAH configs"
-    assert any(
-        k.startswith("cat_config/SAC-SMA/cat-") and k.endswith(".input") for k in keys
-    ), "no SAC-SMA configs"
-    assert any(
-        k.startswith("cat_config/SAC-SMA/params-") and k.endswith(".txt") for k in keys
-    ), "no SAC-SMA params"
-    assert any(
-        k.startswith("cat_config/SNOW17/cat-") and k.endswith(".input") for k in keys
-    ), "no SNOW17 configs"
-    assert any(
-        k.startswith("cat_config/SNOW17/params-") and k.endswith(".txt") for k in keys
-    ), "no SNOW17 params"
-    assert any(
-        k.startswith("cat_config/lstm/") and k.endswith(".yml") for k in keys
-    ), "no LSTM configs"
-    assert any(
-        k.startswith("cat_config/dhbv2/") and k.endswith(".yml") for k in keys
-    ), "no dHBV2 hourly configs"
-    assert any(
-        k.startswith("cat_config/dhbv2_daily/") and k.endswith(".yml") for k in keys
-    ), "no dHBV2 hourly configs"
+    assert any(k.startswith("cat_config/CFE/") and k.endswith(".ini") for k in keys), (
+        "no CFE configs"
+    )
+    assert any(k.startswith("cat_config/NOAH-OWP-M/") and k.endswith(".input") for k in keys), (
+        "no NOAH configs"
+    )
+    assert any(k.startswith("cat_config/SAC-SMA/cat-") and k.endswith(".input") for k in keys), (
+        "no SAC-SMA configs"
+    )
+    assert any(k.startswith("cat_config/SAC-SMA/params-") and k.endswith(".txt") for k in keys), (
+        "no SAC-SMA params"
+    )
+    assert any(k.startswith("cat_config/SNOW17/cat-") and k.endswith(".input") for k in keys), (
+        "no SNOW17 configs"
+    )
+    assert any(k.startswith("cat_config/SNOW17/params-") and k.endswith(".txt") for k in keys), (
+        "no SNOW17 params"
+    )
+    assert any(k.startswith("cat_config/lstm/") and k.endswith(".yml") for k in keys), (
+        "no LSTM configs"
+    )
+    assert any(k.startswith("cat_config/dhbv2/") and k.endswith(".yml") for k in keys), (
+        "no dHBV2 hourly configs"
+    )
+    assert any(k.startswith("cat_config/dhbv2_daily/") and k.endswith(".yml") for k in keys), (
+        "no dHBV2 daily configs"
+    )
 
 
 if __name__ == "__main__":
