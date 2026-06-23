@@ -28,6 +28,8 @@ from data_processing.create_realization import (
 )
 from data_processing.file_paths import FilePaths
 
+pytestmark = pytest.mark.integration
+
 GOLDEN_GPKG_DIR = Path(__file__).parent / "golden" / "geopackage"
 GOLDEN_CONFIG_DIR = Path(__file__).parent / "golden" / "config"
 
