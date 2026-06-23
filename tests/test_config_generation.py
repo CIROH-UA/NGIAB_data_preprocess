@@ -1,17 +1,5 @@
 """Config-generation regression tests.
 
-Runs the default ``create_realization`` (NOAH-OWP + CFE) against the two committed
-subset geopackages and snapshots every generated config file (per-catchment CFE
-``.ini`` and NOAH-OWP ``.input``, ``troute.yaml``, ``realization.json``) against a
-golden.
-
-Hermetic: the default builder reads catchment attributes straight from the
-geopackage (``divides`` + ``divide-attributes`` via SQL) and touches no network,
-so this runs in the fast unit tier. (snow17 / sacsma / dhbv2 are intentionally
-NOT covered here -- each calls ``download_*_attributes()`` and pulls extra parquet
-files from S3, which would make them integration tests. Add them once those
-attribute files are also committed as fixtures.)
-
 Fixture geopackages:
     tests/golden/geopackage/cat-1555522_subset.gpkg
     tests/golden/geopackage/gage-10109001_subset.gpkg
@@ -28,7 +16,16 @@ from pathlib import Path
 
 import pytest
 
-from data_processing.create_realization import create_realization
+from data_processing.create_realization import (
+    get_model_attributes,
+    make_cfe_config,
+    make_noahowp_config,
+    make_dhbv2_config,
+    make_lstm_config,
+    make_sacsma_config,
+    make_snow17_config,
+    configure_troute,
+)
 from data_processing.file_paths import FilePaths
 
 GOLDEN_GPKG_DIR = Path(__file__).parent / "golden" / "geopackage"
@@ -122,14 +119,10 @@ def _compare_json_tolerant(a, b) -> bool:
         return False
 
     if isinstance(a, dict):
-        return a.keys() == b.keys() and all(
-            _compare_json_tolerant(a[k], b[k]) for k in a
-        )
+        return a.keys() == b.keys() and all(_compare_json_tolerant(a[k], b[k]) for k in a)
 
     if isinstance(a, list):
-        return len(a) == len(b) and all(
-            _compare_json_tolerant(av, bv) for av, bv in zip(a, b)
-        )
+        return len(a) == len(b) and all(_compare_json_tolerant(av, bv) for av, bv in zip(a, b))
 
     if isinstance(a, bool):
         return a == b
@@ -157,19 +150,25 @@ def _config_text_equivalent(golden_text: str, produced_text: str) -> bool:
 
 
 def _generate_config(cat_id: str, tmp_root: Path, monkeypatch) -> dict:
-    """Run the default builder offline and return {relative_path: normalized_text}."""
+    """Run the default builder and return {relative_path: normalized_text}."""
     monkeypatch.setattr(FilePaths, "get_working_dir", classmethod(lambda cls: Path(tmp_root)))
 
     paths = FilePaths(cat_id)
     paths.config_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(GEOPACKAGE_FIXTURES[cat_id], paths.geopackage_path)
 
-    # Default model engine: NOAH-OWP + CFE. Offline (no gw download, no gage params).
-    create_realization(cat_id, START, END, use_nwm_gw=False, gage_id=None)
+    conf_df = get_model_attributes(paths.geopackage_path)
+    make_cfe_config(conf_df, paths, {})
+    make_noahowp_config(paths.config_dir, conf_df, START, END)
+    make_snow17_config(paths.config_dir, conf_df, START, END)
+    make_sacsma_config(paths.config_dir, conf_df, START, END)
+    make_lstm_config(paths.geopackage_path, paths.config_dir)
+    make_dhbv2_config(paths.geopackage_path, paths.config_dir, START, END)
+    configure_troute(cat_id, paths.config_dir, START, END)
 
     produced = {}
     for f in sorted(paths.config_dir.rglob("*")):
-        if f.is_file() and f.suffix != ".gpkg":
+        if f.is_file() and f.suffix != ".gpkg" and f != "realization.json":
             rel = str(f.relative_to(paths.config_dir))
             produced[rel] = _normalize(
                 f.read_text(errors="replace"),
@@ -244,13 +243,30 @@ def test_config_generation_produces_expected_artifacts(cat_id, tmp_path, monkeyp
     require(cat_id)
     produced = _generate_config(cat_id, tmp_path, monkeypatch)
     keys = list(produced)
-    assert "realization.json" in keys
     assert "troute.yaml" in keys
     assert any(k.startswith("cat_config/CFE/") and k.endswith(".ini") for k in keys), (
         "no CFE configs"
     )
     assert any(k.startswith("cat_config/NOAH-OWP-M/") and k.endswith(".input") for k in keys), (
         "no NOAH configs"
+    )
+    assert any(k.startswith("cat_config/SAC-SMA/cat-") and k.endswith(".input") for k in keys), (
+        "no SAC-SMA configs"
+    )
+    assert any(k.startswith("cat_config/SAC-SMA/params-") and k.endswith(".txt") for k in keys), (
+        "no SAC-SMA params"
+    )
+    assert any(k.startswith("cat_config/SNOW17/cat-") and k.endswith(".input") for k in keys), (
+        "no SNOW17 configs"
+    )
+    assert any(k.startswith("cat_config/SNOW17/params-") and k.endswith(".txt") for k in keys), (
+        "no SNOW17 params"
+    )
+    assert any(k.startswith("cat_config/lstm/") and k.endswith(".yml") for k in keys), (
+        "no LSTM configs"
+    )
+    assert any(k.startswith("cat_config/dhbv2/") and k.endswith(".yml") for k in keys), (
+        "no dHBV2 configs"
     )
 
 
