@@ -303,14 +303,19 @@ def make_dhbv2_config(
     start_time: datetime,
     end_time: datetime,
     template_path: Path = FilePaths.template_dhbv2_config,
+    output_suffix: str = "",
+    clear_dir: bool = True,
 ):
     divide_conf_df = get_model_attributes(hydrofabric)
     dhbv_atts = duckdb.sql(f"""
         SELECT * FROM '{FilePaths.dhbv_attributes}'
         WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
     """).df()
-    cat_config_dir = output_dir / "cat_config" / "dhbv2"
-    if cat_config_dir.exists():
+    if template_path == FilePaths.template_dhbv2_daily_config:
+        cat_config_dir = output_dir / "cat_config" / "dhbv2_daily"
+    else:
+        cat_config_dir = output_dir / "cat_config" / "dhbv2"
+    if cat_config_dir.exists() and clear_dir:
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
@@ -320,7 +325,7 @@ def make_dhbv2_config(
     )
 
     for _, row in merged.iterrows():
-        (cat_config_dir / f"{row['divide_id']}.yml").write_text(
+        (cat_config_dir / f"{row['divide_id']}{output_suffix}.yml").write_text(
             template.format(
                 **row,
                 start_time=start_time,
