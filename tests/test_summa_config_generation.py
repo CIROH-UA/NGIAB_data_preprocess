@@ -368,9 +368,14 @@ def _assert_dataset_matches_expected(ds: xr.Dataset, expected: dict, rtol=1e-9, 
             assert got_arr.shape == want_arr.shape, f"{name}: shape differs"
             # floats (pyproj lon/lat) get tolerance; ints (IDs, soil/veg type codes,
             # downHRUindex) stay exact so a real off-by-one isn't masked.
-            if np.issubdtype(want_arr.dtype, np.floating) or np.issubdtype(got_arr.dtype, np.floating):
+            if np.issubdtype(want_arr.dtype, np.floating) or np.issubdtype(
+                got_arr.dtype, np.floating
+            ):
                 np.testing.assert_allclose(
-                    got_arr, want_arr, rtol=rtol, atol=atol,
+                    got_arr,
+                    want_arr,
+                    rtol=rtol,
+                    atol=atol,
                     err_msg=f"{name}: values differ beyond tolerance",
                 )
             else:
