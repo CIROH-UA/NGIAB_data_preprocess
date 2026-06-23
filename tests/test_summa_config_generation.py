@@ -350,9 +350,31 @@ def _filter_dataset_dict(dataset_dict: dict) -> dict:
     return filtered
 
 
-def _assert_dataset_matches_expected(ds: xr.Dataset, expected: dict):
-    actual_dict = ds.to_dict(data=True)
-    assert _filter_dataset_dict(actual_dict) == _filter_dataset_dict(expected)
+def _assert_dataset_matches_expected(ds: xr.Dataset, expected: dict, rtol=1e-9, atol=1e-12):
+    actual = _filter_dataset_dict(ds.to_dict(data=True))
+    want = _filter_dataset_dict(expected)
+
+    # structure is exact
+    assert actual["dims"] == want["dims"], f"dims differ: {actual['dims']} != {want['dims']}"
+    assert set(actual["coords"]) == set(want["coords"]), "coord set differs"
+    assert set(actual["data_vars"]) == set(want["data_vars"]), "data_var set differs"
+
+    for section in ("coords", "data_vars"):
+        for name, want_var in want[section].items():
+            got = actual[section][name]
+            assert got["dims"] == want_var["dims"], f"{name}: dims differ"
+            got_arr = np.asarray(got["data"])
+            want_arr = np.asarray(want_var["data"])
+            assert got_arr.shape == want_arr.shape, f"{name}: shape differs"
+            # floats (pyproj lon/lat) get tolerance; ints (IDs, soil/veg type codes,
+            # downHRUindex) stay exact so a real off-by-one isn't masked.
+            if np.issubdtype(want_arr.dtype, np.floating) or np.issubdtype(got_arr.dtype, np.floating):
+                np.testing.assert_allclose(
+                    got_arr, want_arr, rtol=rtol, atol=atol,
+                    err_msg=f"{name}: values differ beyond tolerance",
+                )
+            else:
+                assert np.array_equal(got_arr, want_arr), f"{name}: {got_arr} != {want_arr}"
 
 
 def _generate_summa_config(cat_id: str, forcing_path: Path, tmp_root: Path, monkeypatch) -> dict:
