@@ -42,8 +42,8 @@
   snowsoil_temp_time_option         = 3
   soil_temp_boundary_option         = 2
   supercooled_water_option          = 1
-  stomatal_resistance_option        = 1
-  evap_srfc_resistance_option       = 4
+  stomatal_resistance_option        = 4
+  evap_srfc_resistance_option       = 5
   subsurface_option                 = 2 
 /
 
