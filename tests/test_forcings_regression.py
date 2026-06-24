@@ -26,7 +26,7 @@ pytestmark = pytest.mark.integration
 
 # input id -> committed subset geopackage used as the fixture
 GEOPACKAGE_FIXTURES = {
-    "gage-10109001": GOLDEN_GPKG_DIR / "gage-10109001_subset.gpkg",
+    "cat-2861416": GOLDEN_GPKG_DIR / "gage-10109001_subset.gpkg",
 }
 
 
