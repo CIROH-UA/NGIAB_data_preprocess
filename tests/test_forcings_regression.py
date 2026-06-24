@@ -119,7 +119,7 @@ def _isolated_working_dir(tmp_path_factory):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _setup_hydrofabric(tmp_path_factory):
+def _setup_hydrofabric():
     """Sets up a small hydrofabric in the usual location of the CONUS HF."""
     if HYDROFABRIC_PATH.exists():  # don't overwrite existing conus hf if testing locally
         return
