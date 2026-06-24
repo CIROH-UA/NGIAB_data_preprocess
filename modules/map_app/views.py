@@ -4,6 +4,10 @@ from datetime import datetime
 from pathlib import Path
 import os
 import threading
+import subprocess
+import sys
+
+
 
 import geopandas as gpd
 from data_processing.create_realization import create_realization
@@ -187,6 +191,115 @@ def get_realization():
 def get_catids_from_vpu():
     raise NotImplementedError
 
+@main.route("/gage_location", methods=["POST"])
+def gage_location():
+    data = json.loads(request.data.decode("utf-8"))
+    gage_id = str(data.get("gage_id", "")).strip().zfill(8)
+
+    if not gage_id:
+        return jsonify({"error": "Missing gage ID"}), 400
+
+    hydrofabric_path = Path.home() / ".ngiab" / "hydrofabric" / "v2.2" / "conus_nextgen.gpkg"
+
+    if not hydrofabric_path.exists():
+        return jsonify({"error": f"Hydrofabric not found at {hydrofabric_path}"}), 404
+
+    if "hydrolocations_gdf" not in intra_module_db:
+        gdf = gpd.read_file(hydrofabric_path, layer="hydrolocations")
+        if gdf.crs and gdf.crs.to_epsg() != 4326:
+            gdf = gdf.to_crs(4326)
+        intra_module_db["hydrolocations_gdf"] = gdf
+
+    gdf = intra_module_db["hydrolocations_gdf"]
+
+    match = None
+    for col in ["hl_link", "hl_uri", "id"]:
+        if col in gdf.columns:
+            extracted = gdf[col].astype(str).str.extract(r"(\d{8})", expand=False)
+            rows = gdf[extracted == gage_id]
+            if not rows.empty:
+                match = rows.iloc[0]
+                break
+
+    if match is None:
+        return jsonify({"error": f"Gage {gage_id} not found"}), 404
+
+    geom = match.geometry
+    point = geom if geom.geom_type == "Point" else geom.centroid
+
+    return jsonify({
+        "gage_id": gage_id,
+        "lon": point.x,
+        "lat": point.y,
+    }), 200
+
+@main.route("/run_cli", methods=["POST"])
+def run_cli():
+    data = json.loads(request.data.decode("utf-8"))
+
+    cmd = [sys.executable, "-m", "ngiab_data_cli"]
+
+    input_feature = data.get("input_feature")
+    if input_feature:
+        cmd += ["-i", input_feature]
+
+    if data.get("input_type") == "gage":
+        cmd.append("--gage")
+
+    cmd.append("-sfr")
+
+    cmd += ["--start", data["start_time"].split("T")[0]]
+    cmd += ["--end", data["end_time"].split("T")[0]]
+
+    output_root = data.get("output_root")
+    if output_root:
+        cmd += ["--output_root", os.path.expanduser(output_root)]
+    
+    source = data.get("source")
+    if source:
+        cmd += ["--source", source]
+
+    model = data.get("model")
+    if model:
+        cmd.append(f"--{model}")
+
+    if data.get("run_ngiab"):
+        cmd.append("--run")
+
+    logger.info("Running workflow command: %s", " ".join(cmd))
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception as exc:
+        logger.exception("Failed to start workflow")
+        return jsonify({
+            "status": "failed",
+            "error": str(exc),
+            "command": " ".join(cmd),
+        }), 500
+
+    if result.returncode != 0:
+        return jsonify({
+            "status": "failed",
+            "error": result.stderr or result.stdout,
+            "command": " ".join(cmd),
+        }), 500
+
+    input_type = data.get("input_type", "basin")
+    input_feature = data.get("input_feature", "")
+    base_output = Path(os.path.expanduser(output_root)) if output_root else Path.home() / ".ngiab"
+
+    return jsonify({
+        "status": "completed",
+        "command": " ".join(cmd),
+        "output": result.stdout,
+        "output_dir": str(base_output / f"{input_type}-{input_feature}"),
+    }), 200
 
 @main.route("/logs", methods=["GET"])
 def get_logs():
