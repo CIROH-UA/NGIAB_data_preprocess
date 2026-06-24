@@ -124,7 +124,7 @@ def _setup_hydrofabric(tmp_path_factory):
     if HYDROFABRIC_PATH.exists():  # don't overwrite existing conus hf if testing locally
         return
     HYDROFABRIC_PATH.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(GEOPACKAGE_FIXTURES["gage-10109001"], HYDROFABRIC_PATH)
+    shutil.copy(GEOPACKAGE_FIXTURES["cat-2861416"], HYDROFABRIC_PATH)
 
 
 # =============================================================================
