@@ -90,12 +90,6 @@ def run_forcings(input_id, start_date, end_date, output_name, source="aorc"):
     }
 
 
-# @pytest.fixture(scope="module", name="cat_1555522_output")
-# def cat_1555522_output_fixture():
-#     """Single catchment: cat-1555522, 1 day."""
-#     return run_forcings("cat-1555522", "2020-01-01", "2020-01-02", "cat-1555522")
-
-
 @pytest.fixture(scope="module", name="gage_10109001_output")
 def gage_10109001_output_fixture():
     """Multi-catchment gage: gage-10109001, 9 days."""
@@ -161,127 +155,35 @@ PHYSICAL_RANGES = {
     "precip_rate": (0, 0.2),
 }
 
-# CAT_1555522_REGRESSION = {
-#     "dims": {"catchment-id": 1, "time": 25},
-#     "catchment_ids": ["cat-1555522"],
-#     "stats": {
-#         "TMP_2maboveground": {"min": 270.04, "max": 287.06, "mean": 276.30},
-#         "PRES_surface": {"min": 96235.0, "max": 97941.0, "mean": 97159.5},
-#         "DSWRF_surface": {"min": 0.0, "max": 366.91, "mean": 85.40},
-#         "DLWRF_surface": {"min": 207.95, "max": 248.33, "mean": 222.67},
-#         "SPFH_2maboveground": {"min": 0.0024, "max": 0.00464, "mean": 0.00313},
-#     },
-#     "sample_values": {
-#         "TMP_2maboveground": [275.938, 274.598, 273.735, 272.985, 272.476],
-#         "PRES_surface": [97941.0, 97872.3, 97857.2, 97852.3, 97829.1],
-#     },
-#     "time_values": [1577836800, 1577840400, 1577844000, 1577847600, 1577851200],
-# }
 
-# GAGE_10109001_REGRESSION = {
-#     "dims": {"catchment-id": 88, "time": 217},
-#     "catchment_ids": [
-#         "cat-2861379",
-#         "cat-2861380",
-#         "cat-2861387",
-#         "cat-2861414",
-#         "cat-2861421",
-#         "cat-2861429",
-#         "cat-2861431",
-#         "cat-2861436",
-#         "cat-2861438",
-#         "cat-2861442",
-#     ],  # First 10 for spot check
-#     "stats": {
-#         "TMP_2maboveground": {"min": 266.08, "max": 293.25, "mean": 276.13},
-#         "PRES_surface": {"min": 72895.4, "max": 85003.4, "mean": 77537.8},
-#         "DSWRF_surface": {"min": 0.0, "max": 711.17, "mean": 179.39},
-#         "DLWRF_surface": {"min": 177.51, "max": 322.51, "mean": 222.13},
-#         "SPFH_2maboveground": {"min": 0.00122, "max": 0.00588, "mean": 0.00333},
-#         "APCP_surface": {"min": 0.0, "max": 4.696, "mean": 0.0233},
-#     },
-#     "sample_values": {
-#         "TMP_2maboveground": [274.370, 272.429, 270.498, 268.974, 269.294],
-#         "PRES_surface": [74866.3, 74861.7, 74884.5, 74898.7, 74877.5],
-#     },
-#     "time_values": [1569888000, 1569891600, 1569895200, 1569898800, 1569902400],
-# }
-
-
-# =============================================================================
-# cat-1555522 (single catchment)
-# =============================================================================
-
-
-# class TestCat1555522GriddedForcings:
-#     """Single catchment raw netCDF tests"""
-
-#     def test_netcdf_structure(self, cat_1555522_output):
-#         """Checks structure of raw netCDF"""
-#         nc = cat_1555522_output["raw_nc"]
-#         assert nc.exists()
-#         with xr.open_dataset(nc) as ds:
-#             assert "time" in ds.dims
-#             assert any(d in ds.dims for d in ("x", "lon"))
-#             assert any(d in ds.dims for d in ("y", "lat"))
-
-#     def test_netcdf_time_range(self, cat_1555522_output):
-#         """Checks time range of raw netCDF"""
-#         with xr.open_dataset(cat_1555522_output["raw_nc"]) as ds:
-#             assert ds.time.min().values >= np.datetime64(cat_1555522_output["start_date"])
-#             assert ds.time.max().values <= np.datetime64(cat_1555522_output["end_date"])
-
-
-# class TestCat1555522ProcessedForcings:
-#     """Single catchment processed forcings tests"""
-
-#     def test_structure(self, cat_1555522_output):
-#         """Checks structure of processed netCDF"""
-#         nc = cat_1555522_output["forcings_nc"]
-#         assert nc.exists()
-#         with xr.open_dataset(nc) as ds:
-#             assert ds.sizes["catchment-id"] == CAT_1555522_REGRESSION["dims"]["catchment-id"]
-#             assert ds.sizes["time"] == CAT_1555522_REGRESSION["dims"]["time"]
-#             for var in FORCING_VARS:
-#                 assert var in ds.data_vars or var in ds.coords
-
-#     def test_catchment_ids(self, cat_1555522_output):
-#         """Checks catchment IDs of processed netCDF"""
-#         gpkg_ids = set(gpd.read_file(cat_1555522_output["gpkg_path"], layer="divides")["divide_id"])
-#         with xr.open_dataset(cat_1555522_output["forcings_nc"]) as ds:
-#             nc_ids = set(ds["ids"].values)
-#         assert gpkg_ids == nc_ids
-
-#     def test_value_ranges(self, cat_1555522_output):
-#         """Checks for valid values in processed netCDF"""
-#         with xr.open_dataset(cat_1555522_output["forcings_nc"]) as ds:
-#             for var, (lo, hi) in PHYSICAL_RANGES.items():
-#                 if var in ds.data_vars:
-#                     data = ds[var].values
-#                     assert np.nanmin(data) >= lo, f"{var} below min"
-#                     assert np.nanmax(data) <= hi, f"{var} above max"
-
-#     def test_regression_stats(self, cat_1555522_output):
-#         """Checks min, max, and mean of values in processed netCDF"""
-#         with xr.open_dataset(cat_1555522_output["forcings_nc"]) as ds:
-#             for var, expected in CAT_1555522_REGRESSION["stats"].items():
-#                 data = ds[var].values
-#                 np.testing.assert_allclose(np.nanmin(data), expected["min"], rtol=0.01)
-#                 np.testing.assert_allclose(np.nanmax(data), expected["max"], rtol=0.01)
-#                 np.testing.assert_allclose(np.nanmean(data), expected["mean"], rtol=0.01)
-
-#     def test_regression_sample_values(self, cat_1555522_output):
-#         """Checks specific values in processed netCDF"""
-#         with xr.open_dataset(cat_1555522_output["forcings_nc"]) as ds:
-#             for var, expected in CAT_1555522_REGRESSION["sample_values"].items():
-#                 actual = ds[var].isel({"catchment-id": 0, "time": slice(0, 5)}).values
-#                 np.testing.assert_allclose(actual, expected, rtol=0.001)
-
-#     def test_regression_time_values(self, cat_1555522_output):
-#         """Checks times in processed netCDF"""
-#         with xr.open_dataset(cat_1555522_output["forcings_nc"]) as ds:
-#             actual = ds["Time"].isel({"catchment-id": 0, "time": slice(0, 5)}).values.tolist()
-#             assert actual == CAT_1555522_REGRESSION["time_values"]
+GAGE_10109001_REGRESSION = {
+    "dims": {"catchment-id": 88, "time": 217},
+    "catchment_ids": [
+        "cat-2861379",
+        "cat-2861380",
+        "cat-2861387",
+        "cat-2861414",
+        "cat-2861421",
+        "cat-2861429",
+        "cat-2861431",
+        "cat-2861436",
+        "cat-2861438",
+        "cat-2861442",
+    ],  # First 10 for spot check
+    "stats": {
+        "TMP_2maboveground": {"min": 266.08, "max": 293.25, "mean": 276.13},
+        "PRES_surface": {"min": 72895.4, "max": 85003.4, "mean": 77537.8},
+        "DSWRF_surface": {"min": 0.0, "max": 711.17, "mean": 179.39},
+        "DLWRF_surface": {"min": 177.51, "max": 322.51, "mean": 222.13},
+        "SPFH_2maboveground": {"min": 0.00122, "max": 0.00588, "mean": 0.00333},
+        "APCP_surface": {"min": 0.0, "max": 4.696, "mean": 0.0233},
+    },
+    "sample_values": {
+        "TMP_2maboveground": [274.370, 272.429, 270.498, 268.974, 269.294],
+        "PRES_surface": [74866.3, 74861.7, 74884.5, 74898.7, 74877.5],
+    },
+    "time_values": [1569888000, 1569891600, 1569895200, 1569898800, 1569902400],
+}
 
 
 # =============================================================================
