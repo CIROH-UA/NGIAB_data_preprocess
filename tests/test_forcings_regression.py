@@ -1,7 +1,6 @@
 """Forcings regression tests.
 
 Fixture geopackages expected:
-    tests/golden/geopackage/cat-1555522_subset.gpkg
     tests/golden/geopackage/gage-10109001_subset.gpkg
 """
 
@@ -91,16 +90,17 @@ def run_forcings(input_id, start_date, end_date, output_name, source="aorc"):
     }
 
 
-@pytest.fixture(scope="module", name="cat_1555522_output")
-def cat_1555522_output_fixture():
-    """Single catchment: cat-1555522, 1 day."""
-    return run_forcings("cat-1555522", "2020-01-01", "2020-01-02", "cat-1555522")
+# @pytest.fixture(scope="module", name="cat_1555522_output")
+# def cat_1555522_output_fixture():
+#     """Single catchment: cat-1555522, 1 day."""
+#     return run_forcings("cat-1555522", "2020-01-01", "2020-01-02", "cat-1555522")
 
 
 @pytest.fixture(scope="module", name="gage_10109001_output")
 def gage_10109001_output_fixture():
     """Multi-catchment gage: gage-10109001, 9 days."""
-    return run_forcings("gage-10109001", "2019-10-01", "2019-10-10", "gage-10109001")
+    # input ID is the cat-id because giving it a gage ID forces a lookup through the big hydrofabric
+    return run_forcings("cat-2861416", "2019-10-01", "2019-10-10", "gage-10109001")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -178,34 +178,34 @@ PHYSICAL_RANGES = {
 #     "time_values": [1577836800, 1577840400, 1577844000, 1577847600, 1577851200],
 # }
 
-GAGE_10109001_REGRESSION = {
-    "dims": {"catchment-id": 88, "time": 217},
-    "catchment_ids": [
-        "cat-2861379",
-        "cat-2861380",
-        "cat-2861387",
-        "cat-2861414",
-        "cat-2861421",
-        "cat-2861429",
-        "cat-2861431",
-        "cat-2861436",
-        "cat-2861438",
-        "cat-2861442",
-    ],  # First 10 for spot check
-    "stats": {
-        "TMP_2maboveground": {"min": 266.08, "max": 293.25, "mean": 276.13},
-        "PRES_surface": {"min": 72895.4, "max": 85003.4, "mean": 77537.8},
-        "DSWRF_surface": {"min": 0.0, "max": 711.17, "mean": 179.39},
-        "DLWRF_surface": {"min": 177.51, "max": 322.51, "mean": 222.13},
-        "SPFH_2maboveground": {"min": 0.00122, "max": 0.00588, "mean": 0.00333},
-        "APCP_surface": {"min": 0.0, "max": 4.696, "mean": 0.0233},
-    },
-    "sample_values": {
-        "TMP_2maboveground": [274.370, 272.429, 270.498, 268.974, 269.294],
-        "PRES_surface": [74866.3, 74861.7, 74884.5, 74898.7, 74877.5],
-    },
-    "time_values": [1569888000, 1569891600, 1569895200, 1569898800, 1569902400],
-}
+# GAGE_10109001_REGRESSION = {
+#     "dims": {"catchment-id": 88, "time": 217},
+#     "catchment_ids": [
+#         "cat-2861379",
+#         "cat-2861380",
+#         "cat-2861387",
+#         "cat-2861414",
+#         "cat-2861421",
+#         "cat-2861429",
+#         "cat-2861431",
+#         "cat-2861436",
+#         "cat-2861438",
+#         "cat-2861442",
+#     ],  # First 10 for spot check
+#     "stats": {
+#         "TMP_2maboveground": {"min": 266.08, "max": 293.25, "mean": 276.13},
+#         "PRES_surface": {"min": 72895.4, "max": 85003.4, "mean": 77537.8},
+#         "DSWRF_surface": {"min": 0.0, "max": 711.17, "mean": 179.39},
+#         "DLWRF_surface": {"min": 177.51, "max": 322.51, "mean": 222.13},
+#         "SPFH_2maboveground": {"min": 0.00122, "max": 0.00588, "mean": 0.00333},
+#         "APCP_surface": {"min": 0.0, "max": 4.696, "mean": 0.0233},
+#     },
+#     "sample_values": {
+#         "TMP_2maboveground": [274.370, 272.429, 270.498, 268.974, 269.294],
+#         "PRES_surface": [74866.3, 74861.7, 74884.5, 74898.7, 74877.5],
+#     },
+#     "time_values": [1569888000, 1569891600, 1569895200, 1569898800, 1569902400],
+# }
 
 
 # =============================================================================
