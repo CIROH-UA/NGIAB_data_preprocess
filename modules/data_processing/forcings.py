@@ -482,16 +482,6 @@ def compute_zonal_stats(
     time.sleep(1)  # wait for progress bar to update
     progress_file.unlink()
 
-def save_forcings_parquet(final_ds: xr.Dataset, forcings_dir: Path) -> None:
-    df = final_ds.to_dataframe().reset_index()
-    df = df.rename(columns={"catchment": "feature_id"})
-
-    ordered_cols = ["feature_id", "time"] + [
-        col for col in df.columns if col not in ["feature_id", "time"]
-    ]
-
-    df = df[ordered_cols]
-    df.to_parquet(forcings_dir / "forcings.parquet", index=False)
 
 @use_cluster
 def write_outputs(forcings_dir: Path, units: dict) -> None:
@@ -523,7 +513,6 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
 
     rename_dict = {}
 
-
     final_ds = final_ds.rename_vars(rename_dict)
     if "APCP_surface" in final_ds.data_vars:
         final_ds = add_precip_rate_to_dataset(final_ds)
@@ -533,9 +522,6 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     # this step halves the storage size of the forcings
     for var in final_ds.data_vars:
         final_ds[var] = final_ds[var].astype(np.float32)
-
-    save_forcings_parquet(final_ds, forcings_dir)
-
 
     # The format for the netcdf is to support a legacy format
     # which is why it's a little "unorthodox"
@@ -567,7 +553,6 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
 
     logger.info("Saving to disk")
     final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
-
     # close the datasets
     _ = [result.close() for result in results]
     final_ds.close()
