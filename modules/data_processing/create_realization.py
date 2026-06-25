@@ -340,7 +340,8 @@ def configure_troute(
     with open(FilePaths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
-    gpkg_file_path = f"{config_dir}/{cat_id}_subset.gpkg"
+    output_name = Path(cat_id).name
+    gpkg_file_path = config_dir / f"{output_name}_subset.gpkg"
     nts = (end_time - start_time).total_seconds() / time_step_size
     with sqlite3.connect(gpkg_file_path) as conn:
         ncats_df = pandas.read_sql_query("SELECT COUNT(id) FROM 'divides';", conn)
@@ -368,7 +369,7 @@ def configure_troute(
         time_step_size=time_step_size,
         # troute seems to be ok with setting this to your cpu_count
         cpu_pool=multiprocessing.cpu_count(),
-        geo_file_path=f"./config/{cat_id}_subset.gpkg",
+        geo_file_path=f"./config/{output_name}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=nts,
         max_loop_size=max_loop_size,

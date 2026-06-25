@@ -64,11 +64,18 @@ class FilePaths:
         if (not folder_name and not output_dir) or (folder_name and output_dir):
             raise ValueError("please pass either folder_name or output_dir")
         if folder_name:
-            self.folder_name = folder_name
-            self.output_dir = self.root_output_dir() / folder_name
+            folder_path = Path(folder_name).expanduser()
+
+            if folder_path.is_absolute() or folder_path.parent != Path("."):
+                self.output_dir = folder_path.resolve()
+                self.folder_name = folder_path.name
+            else:
+                self.folder_name = folder_name
+                self.output_dir = self.root_output_dir() / folder_name
+
         if output_dir:
-            self.output_dir = Path(output_dir)
-            self.folder_name = self.output_dir.stem
+            self.output_dir = Path(output_dir).expanduser().resolve()
+            self.folder_name = self.output_dir.name
 
     @classmethod
     def get_working_dir(cls) -> Path | None:
