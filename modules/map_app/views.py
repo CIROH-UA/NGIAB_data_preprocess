@@ -233,10 +233,12 @@ def gage_location():
         "lat": point.y,
     }), 200
 
+# Run the complete workflow by translating UI selections into the existing CLI command.
 @main.route("/run_cli", methods=["POST"])
 def run_cli():
     data = json.loads(request.data.decode("utf-8"))
 
+    # Build the CLI command from the complete workflow options selected in the map app UI.
     cmd = [sys.executable, "-m", "ngiab_data_cli"]
 
     input_feature = data.get("input_feature")
@@ -255,14 +257,17 @@ def run_cli():
     if output_root:
         cmd += ["--output_root", os.path.expanduser(output_root)]
     
+    # Pass the selected forcing dataset through to the CLI.
     source = data.get("source")
     if source:
         cmd += ["--source", source]
 
+    # Add the selected model flag when the user chooses a non-default realization.
     model = data.get("model")
     if model:
         cmd.append(f"--{model}")
 
+    # Optionally run NextGen/NGIAB after preprocessing completes.
     if data.get("run_ngiab"):
         cmd.append("--run")
 
@@ -294,6 +299,7 @@ def run_cli():
     input_feature = data.get("input_feature", "")
     base_output = Path(os.path.expanduser(output_root)) if output_root else Path.home() / ".ngiab"
 
+     # Return the generated command and output folder so the UI can display them to the user.
     return jsonify({
         "status": "completed",
         "command": " ".join(cmd),

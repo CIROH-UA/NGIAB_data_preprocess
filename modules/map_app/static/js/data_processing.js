@@ -1,3 +1,4 @@
+// Use the shared workflow identifier field for manual basin-based steps.
 function getSelectedIdentifier() {
     return document.getElementById("workflow-input").value.trim();
 }
@@ -16,6 +17,7 @@ async function subset() {
         body: JSON.stringify([cat_id]),
     })
     .then(async response => {
+        // 409 if that subset gpkg path already exists
         if (response.status == 409) {
             const filename = await response.text();
             if (!confirm('A geopackage already exists with that catchment name. Overwrite?')) {
@@ -26,15 +28,17 @@ async function subset() {
             }
         }
 
+        // check what kind of subset
         var subset_type = document.getElementById('radio-nexus').checked
             ? 'nexus'
             : 'catchment';
 
-        const startTime = performance.now();
+        const startTime = performance.now(); //Start the timer
 
         fetch('/subset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            // body: JSON.stringify([cat_id])
             body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type }),
         })
         .then(response => response.text())
@@ -200,6 +204,7 @@ async function realization() {
         });
 }
 
+// Collect workflow options from the UI and run the complete CLI workflow.
 async function runWorkflow() {
     const inputType = document.querySelector('input[name="input-type"]:checked').value;
     const inputFeature = document.getElementById("workflow-input").value.trim();
@@ -232,6 +237,7 @@ async function runWorkflow() {
 
     const workflowStartTime = Date.now();
 
+    // Show a running state while the backend processes the workflow.
     outputBox.innerHTML = `
         <div><strong>⏳ Workflow running...</strong></div>
 
@@ -250,6 +256,7 @@ async function runWorkflow() {
         </div>
     `;
 
+    // Keep an elapsed timer visible until the workflow request completes.
     const elapsedTimer = setInterval(() => {
         const elapsedSeconds = Math.floor((Date.now() - workflowStartTime) / 1000);
         const minutes = Math.floor(elapsedSeconds / 60);
@@ -262,6 +269,7 @@ async function runWorkflow() {
         }
     }, 1000);
 
+    // Send the selected input, forcing source, model, output directory, and run option to Flask.
     fetch("/run_cli", {
         method: "POST",
         headers: {
@@ -287,6 +295,8 @@ async function runWorkflow() {
 
         return data;
     })
+
+    // Display the output folder and generated command after the workflow completes.
     .then(data => {
         const outputPath =
             data.output_dir ||

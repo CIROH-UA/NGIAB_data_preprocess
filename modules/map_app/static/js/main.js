@@ -10,10 +10,12 @@ var colorDict = {
   clearFill: getComputedStyle(document.documentElement).getPropertyValue('--clear-fill')
 };
 
+// Return the currently selected workflow input type (basin or gage).
 function getWorkflowInputType() {
   return document.querySelector('input[name="input-type"]:checked').value;
 }
 
+// Update the workflow input placeholder and CLI preview when the input type changes.
 function updateWorkflowInputPlaceholder() {
   const inputType = getWorkflowInputType();
   const workflowInput = document.getElementById("workflow-input");
@@ -23,7 +25,7 @@ function updateWorkflowInputPlaceholder() {
 
   create_cli_command();
 }
-
+// Generate a CLI preview that reflects the current workflow configuration. 
 function create_cli_command() {
   const cliPrefix = document.getElementById("cli-prefix");
   cliPrefix.style.opacity = 1;
@@ -105,14 +107,15 @@ if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').match
 }
 
 var map = new maplibregl.Map({
-  container: "map",
-  style: style,
-  center: [-96, 40],
-  zoom: 4,
+  container: "map", // container id
+  style: style, // style URL
+  center: [-96, 40], //starting position [lng, lat]
+  zoom: 4, //starting zoom
 });
 
 let selectedGageMarker = null;
 
+// Zoom to the requested USGS gage and place a marker on the map.
 async function zoomToGage() {
   const gageId = document.getElementById("workflow-input").value.trim();
 
@@ -235,6 +238,8 @@ map.on("load", () => {
 function update_map(cat_id, e) {
   map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
   map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]]);
+  // get the position of the subset toggle
+  // false means subset by nexus, true means subset by catchment
 
   var nexus_catchment = document.getElementById('radio-catchment').checked;
   var subset_type = nexus_catchment ? 'catchment' : 'nexus';
@@ -279,10 +284,11 @@ function update_map(cat_id, e) {
 let lastClickedLngLat = null;
 let lastClickedCatId = null;
 
+// Keep the workflow input synchronized with map selections.
 map.on('click', 'catchments', (e) => {
   const cat_id = e.features[0].properties.divide_id;
   lastClickedCatId = cat_id;
-  lastClickedLngLat = e.lngLat;
+  lastClickedLngLat = e.lngLat; // Store the last clicked location
 
   document.querySelector('input[name="input-type"][value="basin"]').checked = true;
   updateWorkflowInputPlaceholder();
@@ -306,21 +312,28 @@ document.getElementById("radio-nexus").addEventListener('change', function() {
   }
 });
 
+// Create a popup, but don't add it to the map yet.
 const popup = new maplibregl.Popup({
   closeButton: false,
   closeOnClick: false
 });
 
 map.on('mouseenter', 'conus_gages', (e) => {
+  // Change the cursor style as a UI indicator.
   map.getCanvas().style.cursor = 'pointer';
 
   const coordinates = e.features[0].geometry.coordinates.slice();
   const description = e.features[0].properties.hl_uri + "<br> click to select gage";
 
+  // Ensure that if the map is zoomed out such that multiple
+  // copies of the feature are visible, the popup appears
+  // over the copy being pointed to.
   while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
     coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
   }
 
+  // Populate the popup and set its coordinates
+  // based on the feature found.
   popup.setLngLat(coordinates).setHTML(description).addTo(map);
 });
 
@@ -329,6 +342,7 @@ map.on("mouseleave", "conus_gages", () => {
   popup.remove();
 });
 
+// Populate the workflow using the selected gage from the map.
 map.on("click", "conus_gages", (e) => {
   const gageId = e.features[0].properties.hl_link;
 
@@ -344,7 +358,9 @@ map.on("click", "conus_gages", (e) => {
     .addTo(map);
 });
 
+// TOGGLE BUTTON LOGIC
 function initializeToggleSwitches() {
+  // Find all toggle switches
   const toggleSwitches = document.querySelectorAll(".toggle-switch");
 
   toggleSwitches.forEach((toggleSwitch) => {
@@ -368,9 +384,9 @@ document.addEventListener("DOMContentLoaded", initializeToggleSwitches);
 const toggleSwitchGages = document.querySelector("#gages__input");
 toggleSwitchGages.addEventListener("change", function () {
   if (toggleSwitchGages.checked) {
-    map.setFilter("conus_gages", null);
+    map.setFilter("conus_gages", null); //show gages
   } else {
-    map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]);
+    map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]); //hide gages
   }
 });
 

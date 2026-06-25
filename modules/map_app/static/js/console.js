@@ -1,3 +1,5 @@
+// Toggle the log console and adjust the bottom padding so the manual workflow 
+// remains visible when the console is expanded.
 document.getElementById('toggleConsole').addEventListener('click', function () {
     const consoleElement = document.getElementById('console');
     const bottomElement = document.getElementById('manual-workflow');
@@ -21,6 +23,7 @@ document.getElementById('toggleConsole').addEventListener('click', function () {
     }
 });
 
+// Periodically refresh the application logs displayed in the console.
 function fetchLogs() {
     fetch('/logs')
         .then(response => response.json())
@@ -33,4 +36,4 @@ function fetchLogs() {
         });
 }
 
-setInterval(fetchLogs, 1000);
+setInterval(fetchLogs, 1000);  // Fetch logs every second
