@@ -17,6 +17,9 @@ testpaths = ["tests"]
 filterwarnings = [
     'ignore::DeprecationWarning:geopandas._compat'
 ]
+markers = [
+    "integration: end-to-end tests that hit live data sources (S3); non-hermetic",
+]
 [project]
 name = "ngiab_data_preprocess"
 #version = "0.0.1"
