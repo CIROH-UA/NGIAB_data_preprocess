@@ -31,3 +31,9 @@ Contributing a model, model configuration, or other substantial, separately iden
 Because everything here is open source, maintenance can move: an owner who can no longer maintain a contribution may hand it off to another willing maintainer, the community may adopt it, or — if no one steps forward — it may be deprecated. The project does not guarantee to maintain contributed models on an owner's behalf.
 
 **Unmaintained contributions.** If a contributed model or configuration breaks (for instance, after a framework or hydrofabric update) and the responsible owner is unresponsive for 30 days after a good-faith attempt to reach them, the maintainers may deprecate it or remove it from NGIAB, with notice and preservation of the public record.
+
+## Software stack
+
+Most contributions will improve our subsetting/forcing/realization modules or our user interfaces. For our full software stack, see below.
+
+![software stack](./stack.drawio.svg)
