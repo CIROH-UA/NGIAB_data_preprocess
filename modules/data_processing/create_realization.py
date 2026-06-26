@@ -110,10 +110,10 @@ def make_noahowp_config(
                 )
             )
 
+
 def make_snow17_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-
     snow17_atts = duckdb.sql(f"""
         SELECT * FROM '{FilePaths.snow17_attributes}'
         WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
@@ -121,8 +121,8 @@ def make_snow17_config(
 
     merged = snow17_atts.merge(
         divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]],
-        on="divide_id"
-        )
+        on="divide_id",
+    )
 
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
@@ -136,7 +136,7 @@ def make_snow17_config(
         with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 config_template.format(
-                    divide_id=row['divide_id'],
+                    divide_id=row["divide_id"],
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
                 )
@@ -149,48 +149,45 @@ def make_snow17_config(
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
             file.write(
                 params_template.format(
-                    divide_id=row['divide_id'],
-                    areasqkm=row['areasqkm'],
-                    latitude=row['latitude'],
-                    elevation=row['mean.elevation'],
-                    scf=row['scf'],
-                    mfmax=row['mfmax'],
-                    mfmin=row['mfmin'],
-                    uadj=row['uadj'],
-                    si=row['si'],
-                    pxtemp=row['pxtemp'],
-                    nmf=row['nmf'],
-                    tipm=row['tipm'],
-                    mbase=row['mbase'],
-                    plwhc=row['plwhc'],
-                    daygm=row['daygm'],
-                    adc1=row['adc1'],
-                    adc2=row['adc2'],
-                    adc3=row['adc3'],
-                    adc4=row['adc4'],
-                    adc5=row['adc5'],
-                    adc6=row['adc6'],
-                    adc7=row['adc7'],
-                    adc8=row['adc8'],
-                    adc9=row['adc9'],
-                    adc10=row['adc10'],
-                    adc11=row['adc11'],
+                    divide_id=row["divide_id"],
+                    areasqkm=row["areasqkm"],
+                    latitude=row["latitude"],
+                    elevation=row["mean.elevation"],
+                    scf=row["scf"],
+                    mfmax=row["mfmax"],
+                    mfmin=row["mfmin"],
+                    uadj=row["uadj"],
+                    si=row["si"],
+                    pxtemp=row["pxtemp"],
+                    nmf=row["nmf"],
+                    tipm=row["tipm"],
+                    mbase=row["mbase"],
+                    plwhc=row["plwhc"],
+                    daygm=row["daygm"],
+                    adc1=row["adc1"],
+                    adc2=row["adc2"],
+                    adc3=row["adc3"],
+                    adc4=row["adc4"],
+                    adc5=row["adc5"],
+                    adc6=row["adc6"],
+                    adc7=row["adc7"],
+                    adc8=row["adc8"],
+                    adc9=row["adc9"],
+                    adc10=row["adc10"],
+                    adc11=row["adc11"],
                 )
             )
+
 
 def make_sacsma_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-
     sacsma_atts = duckdb.sql(f"""
         SELECT * FROM '{FilePaths.sacsma_attributes}'
         WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
     """).df()
 
-    merged = sacsma_atts.merge(
-        divide_conf_df[["divide_id", "areasqkm"]],
-        on="divide_id"
-        )
+    merged = sacsma_atts.merge(divide_conf_df[["divide_id", "areasqkm"]], on="divide_id")
 
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
@@ -204,7 +201,7 @@ def make_sacsma_config(
         with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 config_template.format(
-                    divide_id=row['divide_id'],
+                    divide_id=row["divide_id"],
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
                 )
@@ -217,26 +214,27 @@ def make_sacsma_config(
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
             file.write(
                 params_template.format(
-                    divide_id=row['divide_id'],
-                    areasqkm=row['areasqkm'],
-                    uztwm=row['uztwm'],
-                    uzfwm=row['uzfwm'],
-                    lztwm=row['lztwm'],
-                    lzfpm=row['lzfpm'],
-                    lzfsm=row['lzfsm'],
-                    adimp=row['adimp'],
-                    uzk=row['uzk'],
-                    lzpk=row['lzpk'],
-                    lzsk=row['lzsk'],
-                    zperc=row['zperc'],
-                    rexp=row['rexp'],
-                    pctim=row['pctim'],
-                    pfree=row['pfree'],
-                    riva=row['riva'],
-                    side=row['side'],
-                    rserv=row['rserv'],
+                    divide_id=row["divide_id"],
+                    areasqkm=row["areasqkm"],
+                    uztwm=row["uztwm"],
+                    uzfwm=row["uzfwm"],
+                    lztwm=row["lztwm"],
+                    lzfpm=row["lzfpm"],
+                    lzfsm=row["lzfsm"],
+                    adimp=row["adimp"],
+                    uzk=row["uzk"],
+                    lzpk=row["lzpk"],
+                    lzsk=row["lzsk"],
+                    zperc=row["zperc"],
+                    rexp=row["rexp"],
+                    pctim=row["pctim"],
+                    pfree=row["pfree"],
+                    riva=row["riva"],
+                    side=row["side"],
+                    rserv=row["rserv"],
                 )
             )
+
 
 def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
@@ -303,14 +301,19 @@ def make_dhbv2_config(
     start_time: datetime,
     end_time: datetime,
     template_path: Path = FilePaths.template_dhbv2_config,
+    output_suffix: str = "",
+    clear_dir: bool = True,
 ):
     divide_conf_df = get_model_attributes(hydrofabric)
     dhbv_atts = duckdb.sql(f"""
         SELECT * FROM '{FilePaths.dhbv_attributes}'
         WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
     """).df()
-    cat_config_dir = output_dir / "cat_config" / "dhbv2"
-    if cat_config_dir.exists():
+    if template_path == FilePaths.template_dhbv2_daily_config:
+        cat_config_dir = output_dir / "cat_config" / "dhbv2_daily"
+    else:
+        cat_config_dir = output_dir / "cat_config" / "dhbv2"
+    if cat_config_dir.exists() and clear_dir:
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
@@ -320,13 +323,13 @@ def make_dhbv2_config(
     )
 
     for _, row in merged.iterrows():
-        (cat_config_dir / f"{row['divide_id']}.yml").write_text(
+        (cat_config_dir / f"{row['divide_id']}{output_suffix}.yml").write_text(
             template.format(
                 **row,
                 start_time=start_time,
                 end_time=end_time,
                 start_date=start_time.strftime("%Y/%m/%d"),
-                start_time_str=start_time.strftime("%Y/%m/%d %H")
+                start_time_str=start_time.strftime("%Y/%m/%d %H"),
             )
         )
 
@@ -710,8 +713,14 @@ def create_summa_realization(cat_id: str, start_time: datetime, end_time: dateti
     make_summa_config(hru_ids, paths.config_dir)
     paths.setup_run_folders(["outputs/summa"])
 
-def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datetime,
-    use_nwm_gw: bool = False, gage_id: Optional[str] = None):
+
+def create_snow17_realization(
+    cat_id: str,
+    start_time: datetime,
+    end_time: datetime,
+    use_nwm_gw: bool = False,
+    gage_id: Optional[str] = None,
+):
     paths = FilePaths(cat_id)
 
     conf_df = get_model_attributes(paths.geopackage_path)
@@ -733,9 +742,10 @@ def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datet
     )
     paths.setup_run_folders()
 
-def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datetime,
-    gage_id: Optional[str] = None):
 
+def create_sacsma_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, gage_id: Optional[str] = None
+):
     paths = FilePaths(cat_id)
 
     conf_df = get_model_attributes(paths.geopackage_path)
@@ -750,6 +760,7 @@ def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datet
         end_time,
     )
     paths.setup_run_folders()
+
 
 def create_realization(
     cat_id: str,
