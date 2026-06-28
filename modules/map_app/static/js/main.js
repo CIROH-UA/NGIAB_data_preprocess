@@ -342,9 +342,10 @@ map.on("mouseleave", "conus_gages", () => {
   popup.remove();
 });
 
-// Populate the workflow using the selected gage from the map.
+// Populate the workflow using the selected gage from the map and keep the USGS link available.
 map.on("click", "conus_gages", (e) => {
   const gageId = e.features[0].properties.hl_link;
+  const usgsUrl = "https://waterdata.usgs.gov/monitoring-location/" + gageId;
 
   document.querySelector('input[name="input-type"][value="gage"]').checked = true;
   updateWorkflowInputPlaceholder();
@@ -354,7 +355,10 @@ map.on("click", "conus_gages", (e) => {
 
   new maplibregl.Popup()
     .setLngLat(e.lngLat)
-    .setHTML(`Selected gage ${gageId}`)
+    .setHTML(
+      `Selected gage ${gageId}<br>` +
+      `<a href="${usgsUrl}" target="_blank" rel="noopener noreferrer">Open USGS monitoring location</a>`
+    )
     .addTo(map);
 });
 

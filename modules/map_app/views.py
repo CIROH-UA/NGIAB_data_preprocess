@@ -9,13 +9,14 @@ import sys
 
 
 
+
 import geopandas as gpd
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import FilePaths
 from data_processing.forcings import create_forcings
-from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
+from data_processing.graph_utils import get_upstream_ids
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
 
@@ -288,23 +289,33 @@ def run_cli():
             "command": " ".join(cmd),
         }), 500
 
-    if result.returncode != 0:
+    combined_output = f"{result.stdout}\n{result.stderr}".lower()
+    if result.returncode != 0 or "not found" in combined_output or "error" in combined_output:
         return jsonify({
             "status": "failed",
             "error": result.stderr or result.stdout,
             "command": " ".join(cmd),
         }), 500
 
-    input_type = data.get("input_type", "basin")
     input_feature = data.get("input_feature", "")
-    base_output = Path(os.path.expanduser(output_root)) if output_root else Path.home() / ".ngiab"
 
-     # Return the generated command and output folder so the UI can display them to the user.
+    if output_root:
+        base_output = Path(os.path.expanduser(output_root))
+    else:
+        base_output = Path.home() / "ngiab_data_preprocess"
+
+    output_name = (
+        f"gage-{input_feature}"
+        if data.get("input_type") == "gage" and not input_feature.startswith("gage-")
+        else input_feature
+    )
+
+    # Return the generated command and output folder so the UI can display them to the user.
     return jsonify({
         "status": "completed",
         "command": " ".join(cmd),
         "output": result.stdout,
-        "output_dir": str(base_output / f"{input_type}-{input_feature}"),
+        "output_dir": str(base_output / output_name),
     }), 200
 
 @main.route("/logs", methods=["GET"])

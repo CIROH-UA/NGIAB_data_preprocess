@@ -302,7 +302,7 @@ async function runWorkflow() {
             data.output_dir ||
             (outputRoot
                 ? `${outputRoot}/${inputType}-${inputFeature}`
-                : "~/.ngiab/...");
+                : `~/ngiab_data_preprocess/${inputFeature}`);
 
         const successMessage = runNgiab
             ? "✅ Preprocessing and NextGen simulation completed successfully."
