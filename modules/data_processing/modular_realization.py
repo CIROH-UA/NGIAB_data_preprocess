@@ -1,7 +1,12 @@
 """Placeholder module to generate modular realizations. Currently only contains rules and model
 dependencies."""
 
+import copy
+import json
+from datetime import datetime
 from rich.prompt import Prompt
+
+from data_processing.file_paths import FilePaths
 
 ACCEPTED_MODELS = [
     "cfe",
@@ -204,6 +209,18 @@ MODEL_VARIABLE_OVERRIDES = {
     ],
 }
 
+# placeholder dictionary for currently non-existent modularized realization configs
+MODEL_PATHS = {
+    # "cfe": FilePaths.cfe_modular_config,
+    # "casam": FilePaths.casam_modular_config,
+    # "sft": FilePaths.sft_modular_config,
+    # "smp": FilePaths.smp_modular_config,
+    # "topmodel": FilePaths.topmodel_modular_config,
+    # "nom": FilePaths.nom_modular_config,
+    # "pet": FilePaths.pet_modular_config,
+    # "sloth": FilePaths.sloth_modular_config,
+}
+
 # This function would get called to use the above rules to validate a passed list of models
 def validate_models(models: list[str], routing: bool):
     """Check that the specified models are valid and that any dependencies are met. If there are any
@@ -266,3 +283,91 @@ def validate_models(models: list[str], routing: bool):
         if response == "n":
             raise ValueError("Model configuration invalid: " + warning_message)
         print("Proceeding with data preprocessing despite warnings: " + warning_message)
+
+
+def _append_model_realization(
+    model: str,
+    target_variable_names: dict[str, dict[str, str]],
+    modules: list[dict],
+) -> None:
+    if model == "cfe":
+        with open(MODEL_PATHS["cfe"], 'r', encoding="utf-8") as f:
+            realization = json.load(f)
+        realization["params"]["variable_names_map"] = target_variable_names["cfe"]
+        modules.append(realization)
+    elif model == "nom":
+        with open(MODEL_PATHS["nom"], 'r', encoding="utf-8") as f:
+            realization = json.load(f)
+        modules.append(realization)
+
+
+def _insert_sloth_module(
+    models: list[str], target_variable_names: dict[str, dict[str, str]], modules: list[dict]
+) -> None:
+    params: dict[str, float] = {}
+    for model_vars in target_variable_names.values():
+        for varname in model_vars.values():
+            if varname in ALL_SLOTH_MODEL_PARAMS:
+                params[varname + ALL_SLOTH_MODEL_PARAMS[varname]] = 0.0
+    sloth_position = models.index("sloth")
+    with open(MODEL_PATHS["sloth"], "r", encoding="utf-8") as f:
+        sloth_realization = json.load(f)
+    sloth_realization["params"]["model_params"] = params
+    modules.insert(sloth_position, sloth_realization)
+
+
+def create_modular_realization(
+    output_folder: str,
+    start_time: datetime,
+    end_time: datetime,
+    models: list[str],
+    routing: bool = False,
+):
+    """Creates a realization file based on the specified models.
+
+    Args:
+        output_folder (str): Name of the output folder, usually the cat-id
+        start_time (str): Start time of simulation in YYYY-MM-DD HH:MM:SS
+        end_time (str): End time of simulation in YYYY-MM-DD HH:MM:SS
+        models (list[str]): List of models to be coupled together
+        routing (bool, optional): True if t-route is coupled. Defaults to False.
+    """
+
+    paths = FilePaths(output_folder)
+    main_output_variable = MAIN_OUTPUT_VARIABLES[models[-1]]
+
+    target_variable_names = {}
+    for model in models:
+        if model in ALL_VARIABLE_NAMES_MAPS:
+            target_variable_names[model] = copy.deepcopy(ALL_VARIABLE_NAMES_MAPS[model])
+
+    modules: list[dict] = []
+    seen_models: list[str] = []
+
+    for model in list(target_variable_names.keys()):
+        # Implicitly this means that if we have something like ["nom", "pet"], then the PET value
+        # from the evapotranspiration module will override the PET value from Noah-OWP-M
+        for dependency, overrides in MODEL_VARIABLE_OVERRIDES.get(model, []):
+            if dependency in seen_models:
+                target_variable_names[model].update(overrides)
+
+        _append_model_realization(model, target_variable_names, modules)
+        seen_models.append(model)
+
+    if "sloth" in models:
+        _insert_sloth_module(models, target_variable_names, modules)
+
+    with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
+        realization = json.load(f)
+    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
+        main_output_variable
+    )
+    realization["global"]["formulations"][0]["params"]["modules"] = modules
+    realization["time"]["start_time"] = start_time
+    realization["time"]["end_time"] = end_time
+
+    if routing:
+        realization["routing"] = {"t_route_config_file_with_path": "./config/troute.yaml"}
+
+    with open(paths.config_dir / "realization.json", "w", encoding="utf-8") as f:
+        json.dump(realization, f, indent=4)
