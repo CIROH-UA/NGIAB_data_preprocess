@@ -8,8 +8,6 @@ import subprocess
 import sys
 
 
-
-
 import geopandas as gpd
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
@@ -30,6 +28,7 @@ logger = logging.getLogger(__name__)
 def index():
     return render_template("index.html")
 
+
 # this subset does not include the downstream nexus
 @main.route("/get_upstream_catids", methods=["POST"])
 def get_upstream_catids():
@@ -44,6 +43,7 @@ def get_upstream_catids():
     if cat_id in cleaned_upstreams:
         cleaned_upstreams.remove(cat_id)
     return list(cleaned_upstreams), 200
+
 
 # this subset includes the downstream nexus
 @main.route("/get_upstream_wbids", methods=["POST"])
@@ -70,12 +70,12 @@ def subset_check():
     if run_paths.geopackage_path.exists():
         return str(run_paths.geopackage_path), 409
     else:
-        return "no conflict",200
+        return "no conflict", 200
 
 
 @main.route("/subset", methods=["POST"])
 def subset_selection():
-    #body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type})
+    # body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type})
     data = json.loads(request.data.decode("utf-8"))
     cat_ids = data.get("cat_id")
     subset_type = data.get("subset_type")
@@ -87,7 +87,12 @@ def subset_selection():
     if subset_type == "nexus":
         subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, override_gpkg=True)
     else:
-        subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, include_outlet=False, override_gpkg=True)
+        subset(
+            cat_ids,
+            output_gpkg_path=run_paths.geopackage_path,
+            include_outlet=False,
+            override_gpkg=True,
+        )
     return str(run_paths.geopackage_path), 200
 
 
@@ -105,6 +110,7 @@ def subset_to_file():
         f.write("\n".join(total_subset))
     return str(subset_paths.subset_dir), 200
 
+
 @main.route("/make_forcings_progress_file", methods=["POST"])
 def make_forcings_progress_file():
     data = json.loads(request.data.decode("utf-8"))
@@ -115,18 +121,20 @@ def make_forcings_progress_file():
         json.dump({"total_steps": 0, "steps_completed": 0}, f)
     return str(paths.forcing_progress_file), 200
 
+
 @main.route("/forcings_progress", methods=["POST"])
 def forcings_progress_endpoint():
     progress_file = Path(json.loads(request.data.decode("utf-8")))
     with open(progress_file, "r") as f:
         forcings_progress = json.load(f)
-    forcings_progress_all = forcings_progress['total_steps']
-    forcings_progress_completed = forcings_progress['steps_completed']
+    forcings_progress_all = forcings_progress["total_steps"]
+    forcings_progress_completed = forcings_progress["steps_completed"]
     try:
         percent = int((forcings_progress_completed / forcings_progress_all) * 100)
     except ZeroDivisionError:
         percent = "NaN"
     return str(percent), 200
+
 
 def download_forcings(data_source, start_time, end_time, paths):
     if data_source == "aorc":
@@ -139,8 +147,10 @@ def download_forcings(data_source, start_time, end_time, paths):
     cached_data = save_and_clip_dataset(raw_data, gdf, start_time, end_time, paths.cached_nc_file)
     return cached_data
 
+
 def compute_forcings(cached_data, paths):
     create_forcings(cached_data, paths.output_dir.stem)  # type: ignore
+
 
 @main.route("/forcings", methods=["POST"])
 def get_forcings():
@@ -168,10 +178,10 @@ def get_forcings():
 
     cached_data = download_forcings(data_source, start_time, end_time, paths)
     # threading implemented so that main process can periodically poll progress file
-    thread = threading.Thread(target=compute_forcings,
-                              args=(cached_data, paths))
+    thread = threading.Thread(target=compute_forcings, args=(cached_data, paths))
     thread.start()
     return "started", 200
+
 
 @main.route("/realization", methods=["POST"])
 def get_realization():
@@ -191,6 +201,7 @@ def get_realization():
 @main.route("/get_catids_from_vpu", methods=["POST"])
 def get_catids_from_vpu():
     raise NotImplementedError
+
 
 @main.route("/gage_location", methods=["POST"])
 def gage_location():
@@ -228,11 +239,14 @@ def gage_location():
     geom = match.geometry
     point = geom if geom.geom_type == "Point" else geom.centroid
 
-    return jsonify({
-        "gage_id": gage_id,
-        "lon": point.x,
-        "lat": point.y,
-    }), 200
+    return jsonify(
+        {
+            "gage_id": gage_id,
+            "lon": point.x,
+            "lat": point.y,
+        }
+    ), 200
+
 
 # Run the complete workflow by translating UI selections into the existing CLI command.
 @main.route("/run_cli", methods=["POST"])
@@ -257,7 +271,7 @@ def run_cli():
     output_root = data.get("output_root")
     if output_root:
         cmd += ["--output_root", os.path.expanduser(output_root)]
-    
+
     # Pass the selected forcing dataset through to the CLI.
     source = data.get("source")
     if source:
@@ -283,19 +297,23 @@ def run_cli():
         )
     except Exception as exc:
         logger.exception("Failed to start workflow")
-        return jsonify({
-            "status": "failed",
-            "error": str(exc),
-            "command": " ".join(cmd),
-        }), 500
+        return jsonify(
+            {
+                "status": "failed",
+                "error": str(exc),
+                "command": " ".join(cmd),
+            }
+        ), 500
 
     combined_output = f"{result.stdout}\n{result.stderr}".lower()
     if result.returncode != 0 or "not found" in combined_output or "error" in combined_output:
-        return jsonify({
-            "status": "failed",
-            "error": result.stderr or result.stdout,
-            "command": " ".join(cmd),
-        }), 500
+        return jsonify(
+            {
+                "status": "failed",
+                "error": result.stderr or result.stdout,
+                "command": " ".join(cmd),
+            }
+        ), 500
 
     input_feature = data.get("input_feature", "")
 
@@ -311,12 +329,15 @@ def run_cli():
     else:
         output_dir = FilePaths(output_name).output_dir
 
-    return jsonify({
-        "status": "completed",
-        "command": " ".join(cmd),
-        "output": result.stdout,
-        "output_dir": str(output_dir),
-    }), 200
+    return jsonify(
+        {
+            "status": "completed",
+            "command": " ".join(cmd),
+            "output": result.stdout,
+            "output_dir": str(output_dir),
+        }
+    ), 200
+
 
 @main.route("/logs", methods=["GET"])
 def get_logs():
