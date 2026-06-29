@@ -10,7 +10,7 @@ ACCEPTED_MODELS = [
     "nom",
     "pet",
     "snow17",
-    "sacsma",
+    "sac-sma",
     "lstm",
     "lstm_rust",
     "dhbv2",
@@ -108,6 +108,7 @@ ALL_SLOTH_MODEL_PARAMS = {
     "sloth_Qv_topmodel": "(1,double,m h^-1,node)",
     "sloth_global_deficit": "(1,double,m,node)",
     "sloth_pet": "(1,double,m s-1,node)",
+    "sloth_ground_temperature": "(1,double,K,node)"
 }
 
 # read like this:
