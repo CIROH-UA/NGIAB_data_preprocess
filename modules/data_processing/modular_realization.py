@@ -1,6 +1,8 @@
 """Placeholder module to generate modular realizations. Currently only contains rules and model
 dependencies."""
 
+from rich.prompt import Prompt
+
 ACCEPTED_MODELS = [
     "cfe",
     "casam",
@@ -201,3 +203,66 @@ MODEL_VARIABLE_OVERRIDES = {
         ("pet", {"pet": "water_potential_evaporation_flux"}),
     ],
 }
+
+# This function would get called to use the above rules to validate a passed list of models
+def validate_models(models: list[str], routing: bool):
+    """Check that the specified models are valid and that any dependencies are met. If there are any
+    issues, print a warning message and ask the user if they want to proceed anyway.
+
+    Args:
+        models (list[str]): List of models to use, in the order they will be executed
+        routing (bool): Whether routing is enabled
+
+    Raises:
+        ValueError: models is empty
+        ValueError: models contains invalid model names
+        ValueError: Model dependencies are not met and user chooses not to proceed
+    """
+    if len(models) == 0:
+        raise ValueError("No models specified")
+
+    if any(model not in ACCEPTED_MODELS for model in models):
+        invalid_models = [model for model in models if model not in ACCEPTED_MODELS]
+        raise ValueError(
+            f"Invalid models specified: {invalid_models}. Accepted models are: {ACCEPTED_MODELS}"
+        )
+
+    main_model = models[-1]
+
+    # checks model dependencies
+    warnings = []
+    warnings.extend(
+        message
+        for model_name, predicate, message in MODEL_DEPENDENCY_RULES
+        if model_name == main_model and predicate(models)
+    )
+
+    # Check that a rainfall-runoff model is used when routing is on
+    if routing and not any(
+        model in models
+        for model in [
+            "cfe",
+            "casam",
+            "topmodel",
+            "sac-sma",
+            "lstm",
+            "lstm_rust",
+            "dhbv2",
+            "dhbv2_daily",
+            "summa",
+        ]
+    ):
+        warnings.append("Routing is on but no rainfall-runoff model is used")
+
+    if len(warnings) > 0:
+        warning_message = "Model configuration warnings:\n" + "\n".join(warnings)
+        print(warning_message)
+
+        response = Prompt.ask(
+            "Run anyway? (y/n)",
+            default="n",
+            choices=["y", "n"],
+        )
+        if response == "n":
+            raise ValueError("Model configuration invalid: " + warning_message)
+        print("Proceeding with data preprocessing despite warnings: " + warning_message)
