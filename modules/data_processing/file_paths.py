@@ -53,6 +53,10 @@ class FilePaths:
 
     summa_file_dir = data_sources / "config" / "SUMMA"
 
+    # Modular realization components
+    modular_realization_dir = data_sources / "config" / "modular_realization"
+    modular_template = modular_realization_dir / "multi-template.json"
+
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
         Initialize the FilePaths class with a the name of the output subfolder.
