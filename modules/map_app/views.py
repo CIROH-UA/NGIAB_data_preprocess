@@ -299,23 +299,23 @@ def run_cli():
 
     input_feature = data.get("input_feature", "")
 
-    if output_root:
-        base_output = Path(os.path.expanduser(output_root))
-    else:
-        base_output = Path.home() / "ngiab_data_preprocess"
-
     output_name = (
         f"gage-{input_feature}"
         if data.get("input_type") == "gage" and not input_feature.startswith("gage-")
         else input_feature
     )
 
-    # Return the generated command and output folder so the UI can display them to the user.
+    if output_root:
+        base_output = Path(os.path.expanduser(output_root))
+        output_dir = base_output / output_name
+    else:
+        output_dir = FilePaths(output_name).output_dir
+
     return jsonify({
         "status": "completed",
         "command": " ".join(cmd),
         "output": result.stdout,
-        "output_dir": str(base_output / output_name),
+        "output_dir": str(output_dir),
     }), 200
 
 @main.route("/logs", methods=["GET"])
