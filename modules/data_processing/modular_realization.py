@@ -6,6 +6,17 @@ from datetime import datetime
 from rich.prompt import Prompt
 
 from data_processing.file_paths import FilePaths
+from data_processing.create_realization import (
+    get_model_attributes,
+    get_approximate_gw_storage,
+    make_cfe_config,
+    make_noahowp_config,
+    make_snow17_config,
+    make_sacsma_config,
+    make_lstm_config,
+    make_dhbv2_config,
+    configure_troute,
+)
 
 ACCEPTED_MODELS = [
     "cfe",
@@ -381,3 +392,67 @@ def create_modular_realization(
 
     with open(paths.config_dir / "realization.json", "w", encoding="utf-8") as f:
         json.dump(realization, f, indent=4)
+
+
+def create_modular_configs( # pylint: disable=too-many-arguments, too-many-branches
+    output_folder: str,
+    start_time: datetime,
+    end_time: datetime,
+    models: list[str],
+    *,
+    routing: bool = False,
+    use_nwm_gw: bool = False,
+):
+    """Creates a BMI configuration files based on the specified models.
+
+    Args:
+        output_folder (str): Name of the output folder, usually the cat-id
+        start_time (str): Start time of simulation in YYYY-MM-DD HH:MM:SS
+        end_time (str): End time of simulation in YYYY-MM-DD HH:MM:SS
+        models (list[str]): List of models to be coupled together
+        routing (bool, optional): True if t-route is coupled. Defaults to False.
+        use_nwm_gw (bool, optional): True if user wants to use NWM retrospective to initialize soil
+            moisture values in CFE config. Defaults to False
+
+    Raises:
+        NotImplementedError: Raised when user tries to generate a configuration for a model not
+            supported by this module yet
+    """
+    paths = FilePaths(output_folder)
+    conf_df = get_model_attributes(paths.geopackage_path)
+    if use_nwm_gw:
+        gw_levels = get_approximate_gw_storage(paths, start_time)
+    else:
+        gw_levels = {}
+
+    for model in models:
+        if model == "cfe":
+            make_cfe_config(conf_df, paths, gw_levels)
+        elif model == "nom":
+            make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+        elif model == "snow17":
+            make_snow17_config(paths.config_dir, conf_df, start_time, end_time)
+        elif model == "sac-sma":
+            make_sacsma_config(paths.config_dir, conf_df, start_time, end_time)
+        elif model in ("lstm", "lstm_rust"):
+            make_lstm_config(paths.geopackage_path, paths.config_dir)
+        elif model == "dhbv2":
+            make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
+        elif model == "dhbv2_daily":
+            make_dhbv2_config(
+                paths.geopackage_path,
+                paths.config_dir,
+                start_time,
+                end_time,
+                template_path=FilePaths.template_dhbv2_daily_config,
+            )
+        elif model == "sloth":
+            pass  # no config file needed for SLoTH
+        else:
+            # config generation not supported for CASAM, PET, SFT, SMP, TOPMODEL yet
+            # SUMMA also needs forcings for config generation, this will get added as a separate
+            # PR
+            raise NotImplementedError(f"Config generation not yet supported for '{model}'")
+
+    if routing:
+        configure_troute(output_folder, paths.config_dir, start_time, end_time)
