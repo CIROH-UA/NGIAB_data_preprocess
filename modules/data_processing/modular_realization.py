@@ -121,7 +121,7 @@ ALL_SLOTH_MODEL_PARAMS = {
     "sloth_Qv_topmodel": "(1,double,m h^-1,node)",
     "sloth_global_deficit": "(1,double,m,node)",
     "sloth_pet": "(1,double,m s-1,node)",
-    "sloth_ground_temperature": "(1,double,K,node)"
+    "sloth_ground_temperature": "(1,double,K,node)",
 }
 
 # read like this:
@@ -214,6 +214,7 @@ MODEL_VARIABLE_OVERRIDES = {
         ("pet", {"pet": "water_potential_evaporation_flux"}),
     ],
 }
+
 
 # This function would get called to use the above rules to validate a passed list of models
 def validate_models(models: list[str], routing: bool):

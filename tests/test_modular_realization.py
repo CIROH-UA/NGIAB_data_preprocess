@@ -29,6 +29,7 @@ def answer_prompt_fixture(monkeypatch):
 
     class Recorder:  # pylint: disable=too-few-public-methods
         """Simple prompt-answer recorder used to stub Prompt.ask in tests."""
+
         called = False
         response = "n"
 
@@ -43,7 +44,8 @@ def answer_prompt_fixture(monkeypatch):
         return rec.response
 
     monkeypatch.setattr(mr.Prompt, "ask", staticmethod(fake_ask))
-    return rec # pylint: disable=too-few-public-methods
+    return rec  # pylint: disable=too-few-public-methods
+
 
 # ---------------------------------------------------------------------------
 # validate_models -- input validation
@@ -128,6 +130,7 @@ class TestValidateModelsDependencies:
         """Ensure satisfied dependencies do not trigger a confirmation prompt."""
         validate_models(models, routing=False)
         assert not answer_prompt.called
+
 
 # ---------------------------------------------------------------------------
 # validate_models -- routing rule
