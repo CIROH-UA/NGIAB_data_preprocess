@@ -369,9 +369,9 @@ def create_modular_realization(
 
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
-    realization["global"]["formulations"][0]["params"][
-        "main_output_variable"
-    ] = main_output_variable
+    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
+        main_output_variable
+    )
     realization["global"]["formulations"][0]["params"]["modules"] = modules
     realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")

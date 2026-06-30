@@ -110,6 +110,7 @@ def _cfe_module(realization):
 # Headline: the modular sloth->nom->cfe build must equal the cfe-nom golden.
 # ===========================================================================
 
+
 def test_sloth_nom_cfe_matches_cfe_nom_golden(make_realization):
     """A sloth->nom->cfe realization (routing on) must reproduce cfe-nom.json.
 
@@ -386,8 +387,9 @@ class TestCreateModularRealization:
         """cfe before nom -> cfe keeps its default (sloth/forcing) sources."""
         r = make_realization(["sloth", "cfe", "nom"])
         vmap = _cfe_module(r)["params"]["variables_names_map"]
-        assert vmap["water_potential_evaporation_flux"] == (
-            ALL_VARIABLES_NAMES_MAPS["cfe"]["water_potential_evaporation_flux"]
+        assert (
+            vmap["water_potential_evaporation_flux"]
+            == (ALL_VARIABLES_NAMES_MAPS["cfe"]["water_potential_evaporation_flux"])
         )
 
     def test_routing_on_adds_troute_block(self, make_realization):
