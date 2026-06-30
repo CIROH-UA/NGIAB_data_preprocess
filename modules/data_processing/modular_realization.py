@@ -211,14 +211,14 @@ MODEL_VARIABLE_OVERRIDES = {
 
 # placeholder dictionary for currently non-existent modularized realization configs
 MODEL_PATHS = {
-    # "cfe": FilePaths.cfe_modular_config,
+    "cfe": FilePaths.cfe_modular_config,
     # "casam": FilePaths.casam_modular_config,
     # "sft": FilePaths.sft_modular_config,
     # "smp": FilePaths.smp_modular_config,
     # "topmodel": FilePaths.topmodel_modular_config,
-    # "nom": FilePaths.nom_modular_config,
+    "nom": FilePaths.nom_modular_config,
     # "pet": FilePaths.pet_modular_config,
-    # "sloth": FilePaths.sloth_modular_config,
+    "sloth": FilePaths.sloth_modular_config,
 }
 
 # This function would get called to use the above rules to validate a passed list of models

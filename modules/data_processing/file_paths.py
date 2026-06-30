@@ -56,6 +56,9 @@ class FilePaths:
     # Modular realization components
     modular_realization_dir = data_sources / "config" / "modular_realization"
     modular_template = modular_realization_dir / "multi-template.json"
+    cfe_modular_config = modular_realization_dir / "cfe.json"
+    nom_modular_config = modular_realization_dir / "nom.json"
+    sloth_modular_config = modular_realization_dir / "sloth.json"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
