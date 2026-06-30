@@ -1,5 +1,4 @@
-"""Placeholder module to generate modular realizations. Currently only contains rules and model
-dependencies."""
+"""Placeholder module to generate modular realizations."""
 
 from rich.prompt import Prompt
 
@@ -30,11 +29,12 @@ MAIN_OUTPUT_VARIABLES = {
     "nom": "EVAPOTRANS",
     "snow17": "raim",
     "sac-sma": "tci",
+    "sloth": "z",
 }
 
 # these go into the variable_names_map section of the realization. This dictionary is a template
 # until a copy is edited later
-ALL_VARIABLE_NAMES_MAPS = {
+ALL_VARIABLES_NAMES_MAPS = {
     "cfe": {
         "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface",
         "water_potential_evaporation_flux": "sloth_pet",
@@ -47,6 +47,17 @@ ALL_VARIABLE_NAMES_MAPS = {
         "potential_evapotranspiration_rate": "sloth_pet",
         "soil_temperature_profile": "sloth_soil_temperature_profile",
     },
+    "nom": {
+        "PRCPNONC": "precip_rate",
+        "Q2": "SPFH_2maboveground",
+        "SFCTMP": "TMP_2maboveground",
+        "UU": "UGRD_10maboveground",
+        "VV": "VGRD_10maboveground",
+        "LWDN": "DLWRF_surface",
+        "SOLDN": "DSWRF_surface",
+        "SFCPRS": "PRES_surface",
+    },
+    "pet": {"water_potential_evaporation_flux": "potential_evapotranspiration"},
     "sft": {
         "ground_temperature": "sloth_ground_temperature",
         "soil_moisture_profile": "sloth_soil_moisture_profile",
@@ -227,14 +238,12 @@ def validate_models(models: list[str], routing: bool):
             f"Invalid models specified: {invalid_models}. Accepted models are: {ACCEPTED_MODELS}"
         )
 
-    main_model = models[-1]
-
     # checks model dependencies
     warnings = []
     warnings.extend(
         message
         for model_name, predicate, message in MODEL_DEPENDENCY_RULES
-        if model_name == main_model and predicate(models)
+        if model_name in models and predicate(models)
     )
 
     # Check that a rainfall-runoff model is used when routing is on
