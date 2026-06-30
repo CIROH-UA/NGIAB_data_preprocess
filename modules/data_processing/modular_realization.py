@@ -1,5 +1,4 @@
-"""Placeholder module to generate modular realizations. Currently only contains rules and model
-dependencies."""
+"""Placeholder module to generate modular realizations."""
 
 import copy
 import json

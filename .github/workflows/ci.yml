@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, modular-configs]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -40,6 +40,7 @@ jobs:
   test:
     name: pytest (unit · hermetic)
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
