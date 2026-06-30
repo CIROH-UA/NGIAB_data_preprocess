@@ -35,11 +35,12 @@ MAIN_OUTPUT_VARIABLES = {
     "nom": "EVAPOTRANS",
     "snow17": "raim",
     "sac-sma": "tci",
+    "sloth": "z",
 }
 
-# these go into the variable_names_map section of the realization. This dictionary is a template
+# these go into the variables_names_map section of the realization. This dictionary is a template
 # until a copy is edited later
-ALL_VARIABLE_NAMES_MAPS = {
+ALL_VARIABLES_NAMES_MAPS = {
     "cfe": {
         "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface",
         "water_potential_evaporation_flux": "sloth_pet",
@@ -52,6 +53,17 @@ ALL_VARIABLE_NAMES_MAPS = {
         "potential_evapotranspiration_rate": "sloth_pet",
         "soil_temperature_profile": "sloth_soil_temperature_profile",
     },
+    "nom": {
+        "PRCPNONC": "precip_rate",
+        "Q2": "SPFH_2maboveground",
+        "SFCTMP": "TMP_2maboveground",
+        "UU": "UGRD_10maboveground",
+        "VV": "VGRD_10maboveground",
+        "LWDN": "DLWRF_surface",
+        "SOLDN": "DSWRF_surface",
+        "SFCPRS": "PRES_surface",
+    },
+    "pet": {"water_potential_evaporation_flux": "potential_evapotranspiration"},
     "sft": {
         "ground_temperature": "sloth_ground_temperature",
         "soil_moisture_profile": "sloth_soil_moisture_profile",
@@ -115,7 +127,7 @@ ALL_SLOTH_MODEL_PARAMS = {
     "sloth_Qv_topmodel": "(1,double,m h^-1,node)",
     "sloth_global_deficit": "(1,double,m,node)",
     "sloth_pet": "(1,double,m s-1,node)",
-    "sloth_ground_temperature": "(1,double,K,node)"
+    "sloth_ground_temperature": "(1,double,K,node)",
 }
 
 # read like this:
@@ -221,6 +233,7 @@ MODEL_PATHS = {
     "sloth": FilePaths.sloth_modular_config,
 }
 
+
 # This function would get called to use the above rules to validate a passed list of models
 def validate_models(models: list[str], routing: bool):
     """Check that the specified models are valid and that any dependencies are met. If there are any
@@ -244,14 +257,12 @@ def validate_models(models: list[str], routing: bool):
             f"Invalid models specified: {invalid_models}. Accepted models are: {ACCEPTED_MODELS}"
         )
 
-    main_model = models[-1]
-
     # checks model dependencies
     warnings = []
     warnings.extend(
         message
         for model_name, predicate, message in MODEL_DEPENDENCY_RULES
-        if model_name == main_model and predicate(models)
+        if model_name in models and predicate(models)
     )
 
     # Check that a rainfall-runoff model is used when routing is on
@@ -291,12 +302,12 @@ def _append_model_realization(
     modules: list[dict],
 ) -> None:
     if model == "cfe":
-        with open(MODEL_PATHS["cfe"], 'r', encoding="utf-8") as f:
+        with open(MODEL_PATHS["cfe"], "r", encoding="utf-8") as f:
             realization = json.load(f)
-        realization["params"]["variable_names_map"] = target_variable_names["cfe"]
+        realization["params"]["variables_names_map"] = target_variable_names["cfe"]
         modules.append(realization)
     elif model == "nom":
-        with open(MODEL_PATHS["nom"], 'r', encoding="utf-8") as f:
+        with open(MODEL_PATHS["nom"], "r", encoding="utf-8") as f:
             realization = json.load(f)
         modules.append(realization)
 
@@ -338,8 +349,8 @@ def create_modular_realization(
 
     target_variable_names = {}
     for model in models:
-        if model in ALL_VARIABLE_NAMES_MAPS:
-            target_variable_names[model] = copy.deepcopy(ALL_VARIABLE_NAMES_MAPS[model])
+        if model in ALL_VARIABLES_NAMES_MAPS:
+            target_variable_names[model] = copy.deepcopy(ALL_VARIABLES_NAMES_MAPS[model])
 
     modules: list[dict] = []
     seen_models: list[str] = []
@@ -359,12 +370,12 @@ def create_modular_realization(
 
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
-    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
-        main_output_variable
-    )
+    realization["global"]["formulations"][0]["params"][
+        "main_output_variable"
+    ] = main_output_variable
     realization["global"]["formulations"][0]["params"]["modules"] = modules
-    realization["time"]["start_time"] = start_time
-    realization["time"]["end_time"] = end_time
+    realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
+    realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
 
     if routing:
         realization["routing"] = {"t_route_config_file_with_path": "./config/troute.yaml"}
