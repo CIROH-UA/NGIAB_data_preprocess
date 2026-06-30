@@ -104,7 +104,7 @@
             </div>
             <script>
                 document.getElementById('copy-to-clip').addEventListener('click', async function() {
-                    const commandPrefix = document.getElementById('cli-prefix').textContent;
+                    let commandPrefix = document.getElementById('cli-prefix').textContent;
                     const commandText = document.getElementById('cli-command').textContent;
                     if (commandPrefix && !commandPrefix.endsWith(' ')) {
                         // Ensure there's a space after the prefix
@@ -132,65 +132,175 @@
                     }
                 });
             </script>
-            <h2>For selection by gage id please use the cli.</h2>
-        </section>
-        <section id="basins-container">
-            <h2>Selected Basins</h2>
-            <div id="selected-basins">None - get clicking!</div>
-            <button id="subset-button">Create subset gpkg</button>
-            <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                id="subset-loading">
-            <!-- <button id="subset-to-file-button">Output list of upstreams to file</button>
-            <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                id="subset-to-file-loading"> -->
-            <div id="output-info">
-                <strong>Output folder is configured in the ~/.ngiab/preprocessor file</strong>
-            </div>
-            <div id="output-path"></div>
-        </section>
 
         <section id="time-settings">
+            <h2>Date Range</h2>
+
             <div class="time-input">
                 <label for="start-time">Start Time:</label>
-                <input type="datetime-local" id="start-time" name="start-time" value="2010-01-01T00:00">
+                <input
+                    type="datetime-local"
+                    id="start-time"
+                    name="start-time"
+                    value="2010-01-01T00:00">
             </div>
+
             <div class="time-input">
                 <label for="end-time">End Time:</label>
-                <input type="datetime-local" id="end-time" name="end-time" value="2010-01-02T00:00">
+                <input
+                    type="datetime-local"
+                    id="end-time"
+                    name="end-time"
+                    value="2010-01-02T00:00">
             </div>
         </section>
 
-        <section id="forcings">
-            <div id="forcings-warning">
-                <strong>Forcing generation may take a while.<br> Use the Cli for progress bars and additional information</strong>
+        <!-- Complete workflow for running preprocessing and optional NGIAB execution from the UI -->
+        <section id="workflow-options">
+            <h2>Run Complete Workflow</h2>
+
+            <p class="workflow-description">
+                Runs subsetting, forcings, realization, and optionally NGIAB using the
+                selected basin or gage and date range above.
+            </p>
+
+            <div class="workflow-field">
+                <label>Input Type</label>
+
+                <div class="input-type-options">
+                    <label>
+                        <input type="radio" name="input-type" value="basin" checked>
+                        Basin
+                    </label>
+
+                    <label>
+                        <input type="radio" name="input-type" value="gage">
+                        Gage
+                    </label>
+                </div>
             </div>
-            <!-- div below to show source data toggle -->
-            <div style="display: flex; justify-content: left;">
+
+            <div class="workflow-field">
+                <label for="workflow-input">Identifier</label>
+                <input
+                    type="text"
+                    id="workflow-input"
+                    placeholder="e.g. cat-2739307">
+            </div> 
+
+            <div class="workflow-field">
+                <label for="output-root">Output Directory</label>
+                <input
+                    type="text"
+                    id="output-root"
+                    placeholder="e.g. ~/ngiab_output">
+            </div>
+
+
+            <div class="workflow-field" id="forcing-source">
+                <label>Forcing Dataset</label>
+
                 <div class="toggle-switch">
-                    <input type="checkbox" id="datasource-toggle" class="toggle-input">
+                    <input
+                        type="checkbox"
+                        id="datasource-toggle"
+                        class="toggle-input">
+
                     <label for="datasource-toggle" class="toggle-label">
                         <span class="toggle-text toggle-text-left">NWM</span>
                         <span class="toggle-text toggle-text-right">AORC</span>
                         <span class="toggle-handle"></span>
                     </label>
                 </div>
-                <button id="forcings-button">Create Forcing From Zarrs</button>
-                <img class="loading" src="{{ url_for('static', filename='resources/loading.gif') }}" alt="Loading"
-                    id="forcings-loading">
-                <br>
             </div>
-            <br>
+
+            <div class="workflow-field">
+                <label for="model-select">Model</label>
+                <select id="model-select">
+                    <option value="" selected>NOAH + CFE (Default)</option>
+                    <option value="lstm">LSTM Python</option>
+                    <option value="lstm_rust">LSTM Rust</option>
+                    <option value="dhbv2">dHBV2 MTS</option>
+                    <option value="dhbv2_daily">dHBV2 Daily</option>
+                    <option value="summa">SUMMA</option>
+                    <option value="snow17">SNOW17</option>
+                    <option value="sacsma">SAC-SMA</option>
+                </select>
+            </div>
+
+            <div class="workflow-field checkbox-field">
+                <label>
+                    <input type="checkbox" id="run-ngiab">
+                    Run NGIAB after preprocessing
+                </label>
+            </div>
+
+            <button id="run-cli-button">Run Complete Workflow</button>
+
+            <div id="run-cli-output"></div>
+        </section>
+        
+        <!-- Individual preprocessing steps retained for advanced users and debugging -->
+       <details id="manual-workflow">
+            <summary>Manual Steps</summary>
+
+            <p class="workflow-description">
+                For most users, Run Complete Workflow is recommended. These controls are for running individual steps manually.
+            </p>
+
+            <div id="output-info">
+                <strong>
+                    Output folder is configured in the ~/.ngiab/preprocessor file
+                </strong>
+            </div>
+
+            <button id="subset-button">Create Subset</button>
+            <img
+                class="loading"
+                src="{{ url_for('static', filename='resources/loading.gif') }}"
+                alt="Loading"
+                id="subset-loading">
+
+            <div id="output-path"></div>
+
+            <hr>
+
+            <div id="forcings-warning">
+                <strong>
+                    Forcing generation may take a while.<br>
+                    Use the CLI for progress bars and additional information.
+                </strong>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:12px;">
+
+                <button id="forcings-button">
+                    Generate Forcings
+                </button>
+
+                <img
+                    class="loading"
+                    src="{{ url_for('static', filename='resources/loading.gif') }}"
+                    alt="Loading"
+                    id="forcings-loading">
+
+            </div>
+
             <div id="forcings-output-path"></div>
+
             <div id="progress">
                 <div id="bar"></div>
                 <div id="bar-text"></div>
             </div>
-        </section>
 
-        <section id="realization">
-            <button id="realization-button">Create Realization</button>
+            <br>
+
+            <button id="realization-button">
+                Create Realization
+            </button>
+
             <div id="realization-output-path"></div>
-        </section>
+        </details>
 
 
     </main>

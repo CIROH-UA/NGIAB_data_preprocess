@@ -280,6 +280,86 @@ input[type="datetime-local"] {
   border-color: light-dark(#059669, #34d399);
 }
 
+#workflow-options,
+#manual-workflow {
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+}
+
+#manual-workflow summary {
+  cursor: pointer;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+  list-style: none;
+}
+
+#manual-workflow summary::-webkit-details-marker {
+  display: none;
+}
+
+#manual-workflow summary::before {
+  content: "▶ ";
+}
+
+#manual-workflow[open] summary::before {
+  content: "▼ ";
+}
+
+.workflow-description {
+  margin-top: -8px;
+  margin-bottom: 18px;
+  color: var(--secondary-text);
+  font-size: 0.95rem;
+}
+
+.workflow-field {
+  display: flex;
+  flex-direction: column;
+  max-width: 360px;
+  margin-bottom: 16px;
+}
+
+.workflow-field label {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.workflow-field input,
+.workflow-field select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  background-color: var(--surface-color);
+  color: var(--text-color);
+}
+
+.checkbox-field label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+#run-cli-output {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  background: var(--code-bg);
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+#manual-workflow hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 20px 0;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1750px) {
   main {

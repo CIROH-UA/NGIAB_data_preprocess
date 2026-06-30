@@ -1,53 +1,72 @@
+// Use the shared workflow identifier field for manual basin-based steps.
+function getSelectedIdentifier() {
+    return document.getElementById("workflow-input").value.trim();
+}
+
 async function subset() {
-    var cat_id = $('#selected-basins').text()
-    if (cat_id == 'None - get clicking!') {
-        alert('Please select at least one basin in the map before subsetting');
+    var cat_id = getSelectedIdentifier();
+
+    if (!cat_id || !cat_id.startsWith("cat-")) {
+        alert("Please select or enter a basin ID, like cat-2739307, before subsetting.");
         return;
     }
+
     fetch('/subset_check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([cat_id]),
     })
     .then(async response => {
-    // 409 if that subset gpkg path already exists
+        // 409 if that subset gpkg path already exists
         if (response.status == 409) {
             const filename = await response.text();
-            console.log("check response")
             if (!confirm('A geopackage already exists with that catchment name. Overwrite?')) {
                 alert("Subset canceled.");
-                document.getElementById('output-path').innerHTML = "Subset canceled. Geopackage located at " + filename;
+                document.getElementById('output-path').innerHTML =
+                    "Subset canceled. Geopackage located at " + filename;
                 return;
             }
         }
-        // check what kind of subset
-        if (document.getElementById('radio-nexus').checked) {
-            var subset_type = 'nexus'
-        } else {
-            var subset_type = 'catchment'
-        }
 
-        const startTime = performance.now(); // Start the timer
+        // check what kind of subset
+        var subset_type = document.getElementById('radio-nexus').checked
+            ? 'nexus'
+            : 'catchment';
+
+        const startTime = performance.now(); //Start the timer
+
         fetch('/subset', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                // body: JSON.stringify([cat_id]),
-                body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type}),
-            })
-                .then(response => response.text())
-                .then(filename => {
-                    console.log(filename);
-                    const endTime = performance.now(); // Stop the timer
-                    const duration = endTime - startTime; // Calculate the duration in milliseconds
-                    console.log('Request took ' + duration / 1000 + ' milliseconds');
-                    document.getElementById('output-path').innerHTML = "Done in " + (duration / 1000).toFixed(2) + "s, subset to <a href='file://" + filename + "'>" + filename + "</a>";
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                }).finally(() => {
-                    document.getElementById('subset-button').disabled = false;
-                    document.getElementById('subset-loading').style.visibility = "hidden";
-                });
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // body: JSON.stringify([cat_id])
+            body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type }),
+        })
+        .then(response => response.text())
+        .then(filename => {
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            document.getElementById('output-path').innerHTML = `
+                Done in ${(duration / 1000).toFixed(2)} s<br><br>
+                <code>${filename}</code>
+                <span
+                    title="Copy path"
+                    style="cursor:pointer; margin-left:8px;"
+                    onclick="
+                        navigator.clipboard.writeText('${filename}');
+                        this.textContent='✔';
+                        setTimeout(() => this.textContent='📋', 1200);
+                    ">
+                    📋
+                </span>
+            `;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        })
+        .finally(() => {
+            document.getElementById('subset-button').disabled = false;
+            document.getElementById('subset-loading').style.visibility = "hidden";
+        });
     });
 }
 
@@ -92,6 +111,12 @@ function pollForcingsProgress(progressFile) {
 }
 
 async function forcings() {
+    var cat_id = getSelectedIdentifier();
+
+    if (!cat_id || !cat_id.startsWith("cat-")) {
+        alert("Please select or enter a basin ID, like cat-2739307, before generating forcings.");
+        return;
+    }
     fetch('/subset_check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,7 +204,152 @@ async function realization() {
         });
 }
 
+// Collect workflow options from the UI and run the complete CLI workflow.
+async function runWorkflow() {
+    const inputType = document.querySelector('input[name="input-type"]:checked').value;
+    const inputFeature = document.getElementById("workflow-input").value.trim();
+
+    const startTime = document.getElementById("start-time").value;
+    const endTime = document.getElementById("end-time").value;
+    const runNgiab = document.getElementById("run-ngiab").checked;
+    const outputRoot = document.getElementById("output-root").value.trim();
+
+    const runButton = document.getElementById("run-cli-button");
+    const outputBox = document.getElementById("run-cli-output");
+
+    if (!inputFeature) {
+        alert(`Please enter a ${inputType} ID.`);
+        return;
+    }
+
+    if (!startTime || !endTime) {
+        alert("Please select both start and end times.");
+        return;
+    }
+
+    if (new Date(startTime) >= new Date(endTime)) {
+        alert("Start time must be before end time.");
+        return;
+    }
+
+    runButton.disabled = true;
+    runButton.textContent = "Running...";
+
+    const workflowStartTime = Date.now();
+
+    // Show a running state while the backend processes the workflow.
+    outputBox.innerHTML = `
+        <div><strong>⏳ Workflow running...</strong></div>
+
+        <div style="margin-top:8px;">
+            This may take several minutes, especially when generating forcings or running NextGen.
+        </div>
+
+        <div style="margin-top:10px; color: var(--secondary-text);">
+            <strong>Workflow steps:</strong><br>
+            Subset hydrofabric → Generate forcings → Create realization
+            ${runNgiab ? " → Run NextGen simulation" : ""}
+        </div>
+
+        <div style="margin-top:12px;">
+            Elapsed time: <span id="workflow-elapsed">0s</span>
+        </div>
+    `;
+
+    // Keep an elapsed timer visible until the workflow request completes.
+    const elapsedTimer = setInterval(() => {
+        const elapsedSeconds = Math.floor((Date.now() - workflowStartTime) / 1000);
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const seconds = elapsedSeconds % 60;
+
+        const elapsedElement = document.getElementById("workflow-elapsed");
+        if (elapsedElement) {
+            elapsedElement.textContent =
+                minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+        }
+    }, 1000);
+
+    // Send the selected input, forcing source, model, output directory, and run option to Flask.
+    fetch("/run_cli", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            input_feature: inputFeature,
+            input_type: inputType,
+            start_time: startTime,
+            end_time: endTime,
+            output_root: outputRoot,
+            source: document.getElementById("datasource-toggle").checked ? "aorc" : "nwm",
+            model: document.getElementById("model-select").value,
+            run_ngiab: runNgiab
+        })
+    })
+    .then(async response => {
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to start workflow");
+        }
+
+        return data;
+    })
+
+    // Display the output folder and generated command after the workflow completes.
+    .then(data => {
+        const outputPath =
+            data.output_dir ||
+            (outputRoot
+                ? `${outputRoot}/${inputType}-${inputFeature}`
+                : `~/ngiab_data_preprocess/${inputFeature}`);
+
+        const successMessage = runNgiab
+            ? "✅ Preprocessing and NextGen simulation completed successfully."
+            : "✅ Preprocessing completed successfully.";
+
+        outputBox.innerHTML = `
+            <div><strong>${successMessage}</strong></div>
+
+            <div style="margin-top:12px;">
+                <strong>Output</strong><br>
+                <code id="workflow-output-path">${outputPath}</code>
+                <span
+                    id="copy-output-path"
+                    title="Copy output path"
+                    style="cursor:pointer; margin-left:8px; user-select:none;"
+                    onclick="
+                        navigator.clipboard.writeText('${outputPath}');
+                        this.textContent='✔';
+                        this.title='Copied!';
+                        setTimeout(() => {
+                            this.textContent='📋';
+                            this.title='Copy output path';
+                        }, 1200);
+                    ">
+                    📋
+                </span>
+            </div>
+
+            <details style="margin-top:12px;">
+                <summary>Show Command</summary>
+                <pre><code>${data.command}</code></pre>
+            </details>
+        `;
+    })
+    .catch(error => {
+        outputBox.innerHTML =
+            "❌ Workflow failed.<br>" + error.message;
+    })
+    .finally(() => {
+        clearInterval(elapsedTimer);
+        runButton.disabled = false;
+        runButton.textContent = "Run Workflow";
+    });
+}
+
 // These functions are exported by data_processing.js
 document.getElementById('subset-button').addEventListener('click', subset);
 document.getElementById('forcings-button').addEventListener('click', forcings);
 document.getElementById('realization-button').addEventListener('click', realization);
+document.getElementById('run-cli-button').addEventListener('click', runWorkflow);

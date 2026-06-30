@@ -10,18 +10,52 @@ var colorDict = {
   clearFill: getComputedStyle(document.documentElement).getPropertyValue('--clear-fill')
 };
 
-// A function that creates a cli command from the interface
+// Return the currently selected workflow input type (basin or gage).
+function getWorkflowInputType() {
+  return document.querySelector('input[name="input-type"]:checked').value;
+}
+
+// Update the workflow input placeholder and CLI preview when the input type changes.
+function updateWorkflowInputPlaceholder() {
+  const inputType = getWorkflowInputType();
+  const workflowInput = document.getElementById("workflow-input");
+
+  workflowInput.placeholder =
+    inputType === "gage" ? "e.g. 01646500" : "e.g. cat-2739307";
+
+  create_cli_command();
+}
+// Generate a CLI preview that reflects the current workflow configuration. 
 function create_cli_command() {
   const cliPrefix = document.getElementById("cli-prefix");
   cliPrefix.style.opacity = 1;
-  var selected_basins = $("#selected-basins").text();
-  var start_time = document.getElementById("start-time").value.split("T")[0];
-  var end_time = document.getElementById("end-time").value.split("T")[0];
-  var command = `-i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
-  var command_all = `-i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
-  if (selected_basins != "None - get clicking!") {
-    $("#cli-command").text(command);
+
+  const inputType = getWorkflowInputType();
+  const workflowInput = document.getElementById("workflow-input").value.trim();
+  const startDate = document.getElementById("start-time").value.split("T")[0];
+  const endDate = document.getElementById("end-time").value.split("T")[0];
+  const outputRoot = document.getElementById("output-root").value.trim();
+  const model = document.getElementById("model-select").value;
+  const runNgiab = document.getElementById("run-ngiab").checked;
+
+  if (!workflowInput) {
+    $("#cli-command").text("");
+    return;
   }
+
+  let inputPart = `-i ${workflowInput}`;
+
+  if (inputType === "gage") {
+    inputPart += " --gage";
+  }
+
+  let command = `${inputPart} -sfr --start ${startDate} --end ${endDate}`;
+
+  if (outputRoot) command += ` --output_root ${outputRoot}`;
+  if (model) command += ` --${model}`;
+  if (runNgiab) command += ` --run`;
+
+  $("#cli-command").text(command);
 }
 
 function updateCommandPrefix() {
@@ -29,41 +63,107 @@ function updateCommandPrefix() {
   const cliPrefix = document.getElementById("cli-prefix");
   const uvxText = "uvx --from ngiab_data_preprocess cli";
   const pythonText = "python -m ngiab_data_cli";
-  // Set initial handle text based on the default state using data attribute
+
   cliPrefix.textContent = toggleInput.checked ? pythonText : uvxText;
 }
-document.getElementById("runcmd-toggle").addEventListener('change', updateCommandPrefix);
 
-// These functions are exported by data_processing.js
-document.getElementById('map').addEventListener('click', create_cli_command);
-document.getElementById('start-time').addEventListener('change', create_cli_command);
-document.getElementById('end-time').addEventListener('change', create_cli_command);
+updateCommandPrefix();
+updateWorkflowInputPlaceholder();
 
+document.getElementById("runcmd-toggle").addEventListener("change", function () {
+  updateCommandPrefix();
+  create_cli_command();
+});
 
-// add the PMTiles plugin to the maplibregl global.
+document.getElementById("start-time").addEventListener("change", create_cli_command);
+document.getElementById("end-time").addEventListener("change", create_cli_command);
+document.getElementById("workflow-input").addEventListener("input", create_cli_command);
+
+document.getElementById("workflow-input").addEventListener("change", function () {
+  if (getWorkflowInputType() === "gage") {
+    zoomToGage();
+  }
+});
+
+document.querySelectorAll('input[name="input-type"]').forEach((radio) => {
+  radio.addEventListener("change", updateWorkflowInputPlaceholder);
+});
+
+document.getElementById("output-root").addEventListener("input", create_cli_command);
+document.getElementById("model-select").addEventListener("change", create_cli_command);
+document.getElementById("run-ngiab").addEventListener("change", create_cli_command);
+
+// Add the PMTiles plugin to the maplibregl global.
 let protocol = new pmtiles.Protocol({ metadata: true });
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
-// select light-style if the browser is in light mode
-// select dark-style if the browser is in dark mode
+// Select light-style if the browser is in light mode.
 var style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json';
 var colorScheme = "light";
+
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
   style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json';
   colorScheme = "dark";
 }
+
 var map = new maplibregl.Map({
   container: "map", // container id
   style: style, // style URL
-  center: [-96, 40], // starting position [lng, lat]
-  zoom: 4, // starting zoom
+  center: [-96, 40], //starting position [lng, lat]
+  zoom: 4, //starting zoom
 });
+
+let selectedGageMarker = null;
+
+// Zoom to the requested USGS gage and place a marker on the map.
+async function zoomToGage() {
+  const gageId = document.getElementById("workflow-input").value.trim();
+
+  if (!gageId) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/gage_location", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({gage_id: gageId}),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(data.error);
+      return;
+    }
+
+    const coordinates = [data.lon, data.lat];
+
+    if (selectedGageMarker) {
+      selectedGageMarker.remove();
+    }
+
+    selectedGageMarker = new maplibregl.Marker()
+      .setLngLat(coordinates)
+      .setPopup(new maplibregl.Popup().setHTML(`Gage ${data.gage_id}`))
+      .addTo(map);
+
+    map.flyTo({
+      center: coordinates,
+      zoom: 10,
+      essential: true,
+    });
+  } catch (error) {
+    console.error("Error zooming to gage:", error);
+  }
+}
 
 map.on("load", () => {
   map.addSource("camels_basins", {
     type: "vector",
     url: "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/camels.pmtiles",
   });
+
   map.addLayer({
     id: "camels",
     type: "line",
@@ -78,7 +178,10 @@ map.on("load", () => {
   });
 });
 
-if (colorScheme == "light") {
+let nwm_paint;
+let aorc_paint;
+
+if (colorScheme === "light") {
   nwm_paint = {
     "line-width": 1,
     "line-color": ["rgba", 0, 0, 0, 1],
@@ -88,7 +191,8 @@ if (colorScheme == "light") {
     "line-color": ["rgba", 71, 58, 222, 1],
   };
 }
-if (colorScheme == "dark") {    
+
+if (colorScheme === "dark") {
   nwm_paint = {
     "line-width": 1,
     "line-color": ["rgba", 255, 255, 255, 1],
@@ -99,16 +203,17 @@ if (colorScheme == "dark") {
   };
 }
 
-
 map.on("load", () => {
   map.addSource("nwm_zarr_chunks", {
     type: "vector",
     url: "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/forcing_chunks/nwm_retro_v3_zarr_chunks.pmtiles",
   });
+
   map.addSource("aorc_zarr_chunks", {
     type: "vector",
     url: "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/forcing_chunks/aorc_zarr_chunks.pmtiles",
   });
+
   map.addLayer({
     id: "nwm_zarr_chunks",
     type: "line",
@@ -118,6 +223,7 @@ map.on("load", () => {
     filter: ["any"],
     paint: nwm_paint,
   });
+
   map.addLayer({
     id: "aorc_zarr_chunks",
     type: "line",
@@ -130,16 +236,15 @@ map.on("load", () => {
 });
 
 function update_map(cat_id, e) {
-  $('#selected-basins').text(cat_id)
   map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
-  map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
+  map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]]);
   // get the position of the subset toggle
   // false means subset by nexus, true means subset by catchment
+
   var nexus_catchment = document.getElementById('radio-catchment').checked;
   var subset_type = nexus_catchment ? 'catchment' : 'nexus';
-  console.log('subset_type:', subset_type);
 
-  if (subset_type == 'catchment') {
+  if (subset_type === 'catchment') {
     fetch('/get_upstream_catids', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -148,6 +253,7 @@ function update_map(cat_id, e) {
     .then(response => response.json())
     .then(data => {
       map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+
       if (data.length === 0) {
         new maplibregl.Popup()
           .setLngLat(e.lngLat)
@@ -164,6 +270,7 @@ function update_map(cat_id, e) {
     .then(response => response.json())
     .then(data => {
       map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+
       if (data.length === 0) {
         new maplibregl.Popup()
           .setLngLat(e.lngLat)
@@ -173,28 +280,35 @@ function update_map(cat_id, e) {
     });
   }
 }
-let lastClickedLngLat = null; 
+
+let lastClickedLngLat = null;
+let lastClickedCatId = null;
+
+// Keep the workflow input synchronized with map selections.
 map.on('click', 'catchments', (e) => {
-  cat_id = e.features[0].properties.divide_id;
+  const cat_id = e.features[0].properties.divide_id;
+  lastClickedCatId = cat_id;
   lastClickedLngLat = e.lngLat; // Store the last clicked location
+
+  document.querySelector('input[name="input-type"][value="basin"]').checked = true;
+  updateWorkflowInputPlaceholder();
+  document.getElementById("workflow-input").value = cat_id;
+
   update_map(cat_id, e);
+  create_cli_command();
 });
 
-// if subset radio buttons changed while there's already a subset displayed
 document.getElementById("radio-catchment").addEventListener('change', function() {
-  const cat_id = document.getElementById('selected-basins').textContent;
-  if (cat_id && cat_id !== 'None - get clicking!' && lastClickedLngLat) {
-    // Create a fake event with the last clicked location
+  if (lastClickedCatId && lastClickedLngLat) {
     const fakeEvent = { lngLat: lastClickedLngLat };
-    update_map(cat_id, fakeEvent);
+    update_map(lastClickedCatId, fakeEvent);
   }
 });
+
 document.getElementById("radio-nexus").addEventListener('change', function() {
-  const cat_id = document.getElementById('selected-basins').textContent;
-  if (cat_id && cat_id !== 'None - get clicking!' && lastClickedLngLat) {
-    // Create a fake event with the last clicked location
+  if (lastClickedCatId && lastClickedLngLat) {
     const fakeEvent = { lngLat: lastClickedLngLat };
-    update_map(cat_id, fakeEvent);
+    update_map(lastClickedCatId, fakeEvent);
   }
 });
 
@@ -209,7 +323,7 @@ map.on('mouseenter', 'conus_gages', (e) => {
   map.getCanvas().style.cursor = 'pointer';
 
   const coordinates = e.features[0].geometry.coordinates.slice();
-  const description = e.features[0].properties.hl_uri + "<br> click for more info";
+  const description = e.features[0].properties.hl_uri + "<br> click to select gage";
 
   // Ensure that if the map is zoomed out such that multiple
   // copies of the feature are visible, the popup appears
@@ -228,76 +342,81 @@ map.on("mouseleave", "conus_gages", () => {
   popup.remove();
 });
 
+// Populate the workflow using the selected gage from the map and keep the USGS link available.
 map.on("click", "conus_gages", (e) => {
-  //  https://waterdata.usgs.gov/monitoring-location/02465000
-  window.open(
-    "https://waterdata.usgs.gov/monitoring-location/" +
-    e.features[0].properties.hl_link,
-    "_blank",
-  );
+  const gageId = e.features[0].properties.hl_link;
+  const usgsUrl = "https://waterdata.usgs.gov/monitoring-location/" + gageId;
+
+  document.querySelector('input[name="input-type"][value="gage"]').checked = true;
+  updateWorkflowInputPlaceholder();
+  document.getElementById("workflow-input").value = gageId;
+
+  create_cli_command();
+
+  new maplibregl.Popup()
+    .setLngLat(e.lngLat)
+    .setHTML(
+      `Selected gage ${gageId}<br>` +
+      `<a href="${usgsUrl}" target="_blank" rel="noopener noreferrer">Open USGS monitoring location</a>`
+    )
+    .addTo(map);
 });
-show = false;
 
 // TOGGLE BUTTON LOGIC
 function initializeToggleSwitches() {
   // Find all toggle switches
   const toggleSwitches = document.querySelectorAll(".toggle-switch");
-  // Process each toggle switch
+
   toggleSwitches.forEach((toggleSwitch) => {
     const toggleInput = toggleSwitch.querySelector(".toggle-input");
     const toggleHandle = toggleSwitch.querySelector(".toggle-handle");
-    const leftText =
-      toggleSwitch.querySelector(".toggle-text-left").textContent;
-    const rightText =
-      toggleSwitch.querySelector(".toggle-text-right").textContent;
-    // Set initial handle text based on the default state using data attribute
+    const leftText = toggleSwitch.querySelector(".toggle-text-left").textContent;
+    const rightText = toggleSwitch.querySelector(".toggle-text-right").textContent;
+
     toggleHandle.textContent = toggleInput.checked ? rightText : leftText;
-    // Add event listener
+
     toggleInput.addEventListener("change", function () {
       setTimeout(() => {
-        if (this.checked) {
-          toggleHandle.textContent = rightText;
-        } else {
-          toggleHandle.textContent = leftText;
-        }
+        toggleHandle.textContent = this.checked ? rightText : leftText;
       }, 180);
     });
   });
 }
+
 document.addEventListener("DOMContentLoaded", initializeToggleSwitches);
 
 const toggleSwitchGages = document.querySelector("#gages__input");
 toggleSwitchGages.addEventListener("change", function () {
   if (toggleSwitchGages.checked) {
-    map.setFilter("conus_gages", null); // show gages
+    map.setFilter("conus_gages", null); //show gages
   } else {
-    map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]); // hide gages
+    map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]); //hide gages
   }
 });
 
 const toggleSwitchCamels = document.querySelector("#camels__input");
 toggleSwitchCamels.addEventListener("change", function () {
   if (toggleSwitchCamels.checked) {
-    map.setFilter("camels", null); 
+    map.setFilter("camels", null);
   } else {
-    map.setFilter("camels", ["any", ["==", "hl_uri", ""]]); 
+    map.setFilter("camels", ["any", ["==", "hl_uri", ""]]);
   }
 });
 
 const toggleSwitchNwm = document.querySelector("#nwm__input");
 toggleSwitchNwm.addEventListener("change", function () {
   if (toggleSwitchNwm.checked) {
-    map.setFilter("nwm_zarr_chunks", null); 
+    map.setFilter("nwm_zarr_chunks", null);
   } else {
-    map.setFilter("nwm_zarr_chunks", ["any", ["==", "hl_uri", ""]]); 
+    map.setFilter("nwm_zarr_chunks", ["any", ["==", "hl_uri", ""]]);
   }
 });
 
 const toggleSwitchAorc = document.querySelector("#aorc__input");
 toggleSwitchAorc.addEventListener("change", function () {
   if (toggleSwitchAorc.checked) {
-    map.setFilter("aorc_zarr_chunks", null); 
+    map.setFilter("aorc_zarr_chunks", null);
   } else {
-    map.setFilter("aorc_zarr_chunks", ["any", ["==", "hl_uri", ""]]); 
+    map.setFilter("aorc_zarr_chunks", ["any", ["==", "hl_uri", ""]]);
   }
 });
