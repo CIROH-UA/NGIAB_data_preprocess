@@ -8,7 +8,6 @@ from rich.prompt import Prompt
 from data_processing.file_paths import FilePaths
 from data_processing.create_realization import (
     get_model_attributes,
-    get_approximate_gw_storage,
     make_cfe_config,
     make_noahowp_config,
     make_snow17_config,
@@ -401,7 +400,6 @@ def create_modular_configs( # pylint: disable=too-many-arguments, too-many-branc
     models: list[str],
     *,
     routing: bool = False,
-    use_nwm_gw: bool = False,
 ):
     """Creates a BMI configuration files based on the specified models.
 
@@ -411,8 +409,6 @@ def create_modular_configs( # pylint: disable=too-many-arguments, too-many-branc
         end_time (str): End time of simulation in YYYY-MM-DD HH:MM:SS
         models (list[str]): List of models to be coupled together
         routing (bool, optional): True if t-route is coupled. Defaults to False.
-        use_nwm_gw (bool, optional): True if user wants to use NWM retrospective to initialize soil
-            moisture values in CFE config. Defaults to False
 
     Raises:
         NotImplementedError: Raised when user tries to generate a configuration for a model not
@@ -420,14 +416,12 @@ def create_modular_configs( # pylint: disable=too-many-arguments, too-many-branc
     """
     paths = FilePaths(output_folder)
     conf_df = get_model_attributes(paths.geopackage_path)
-    if use_nwm_gw:
-        gw_levels = get_approximate_gw_storage(paths, start_time)
-    else:
-        gw_levels = {}
 
     for model in models:
         if model == "cfe":
-            make_cfe_config(conf_df, paths, gw_levels)
+            # currently does not support pulling GW from NWM
+            # pretty sure that upstream implementation is broken right now
+            make_cfe_config(conf_df, paths, {})
         elif model == "nom":
             make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
         elif model == "snow17":
