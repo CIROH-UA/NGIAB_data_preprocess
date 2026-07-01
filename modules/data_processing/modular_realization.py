@@ -393,7 +393,7 @@ def create_modular_realization(
         json.dump(realization, f, indent=4)
 
 
-def create_modular_configs( # pylint: disable=too-many-arguments, too-many-branches
+def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-branches
     output_folder: str,
     start_time: datetime,
     end_time: datetime,

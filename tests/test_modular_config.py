@@ -182,6 +182,4 @@ class TestOrchestration:
         the offending model."""
         require(CAT_ID)
         with pytest.raises(NotImplementedError, match="casam"):
-            _generate_modular_config(
-                CAT_ID, tmp_path, monkeypatch, models=["casam"], routing=False
-            )
+            _generate_modular_config(CAT_ID, tmp_path, monkeypatch, models=["casam"], routing=False)
