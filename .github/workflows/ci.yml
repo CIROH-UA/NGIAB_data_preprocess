@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, modular-configs]
+    branches: [main, modular-configs, modular-rules, realization-implementation]
 
 concurrency:
   group: ci-${{ github.ref }}
