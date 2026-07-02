@@ -7,7 +7,7 @@ timestep=300[sec]
 forcing_resolution=3600[sec]
 endtime={endtime}[hr]
 layer_soil_type={layer_soil_type}
-max_valid_soil_types{max_valid_soil_types}
+max_valid_soil_types={max_valid_soil_types}
 wilting_point_psi={wilting_point_psi}[cm]
 field_capacity_psi={field_capacity_psi}[cm]
 use_closed_form_G=false

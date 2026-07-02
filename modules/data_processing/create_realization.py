@@ -345,6 +345,57 @@ def make_summa_config(hru_ids: list[int], output_dir: Path):
             # + 1 because fortran's first index is 1 not 0
             file.write(template.format(divide_index=i + 1))
 
+def make_casam_config(
+    base_dir: Path,
+    divide_conf_df: pandas.DataFrame,
+    start_time: datetime,
+    end_time: datetime,
+    sft_coupled: bool
+) -> None:
+    """Generates CASAM BMI config
+
+    Args:
+        base_dir (Path): ngen run directory, usually the name of the cat-ID
+        divide_conf_df (pandas.DataFrame): Subsetted hydrofabric layer
+        start_time (datetime): Start time of simulation
+        end_time (datetime): End time of simulation
+        sft_coupled (bool): True if SFT is coupled, False if not
+    """
+    casam_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.casam_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
+
+    def fmt_list(value) -> str:
+        return ",".join(str(v) for v in value)
+
+    elapsed_time = end_time - start_time
+    elapsed_hours = elapsed_time.total_seconds() / 3600
+
+    with open(FilePaths.template_casam_config, "r", encoding="utf-8") as config_file:
+        config_template = config_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "CASAM"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in casam_atts.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w", encoding="utf-8") as file:
+            file.write(
+                config_template.format(
+                    layer_thickness=fmt_list(row["layer_thickness"]),
+                    initial_psi=row["initial_psi"],
+                    ponded_depth_max=row["ponded_depth_max"],
+                    endtime=elapsed_hours,
+                    layer_soil_type=fmt_list(row["layer_soil_type"]),
+                    max_valid_soil_types=row["max_valid_soil_types"],
+                    wilting_point_psi=row["wilting_point_psi"],
+                    field_capacity_psi=row["field_capacity_psi"],
+                    giuh_ordinates=fmt_list(row["giuh_ordinates"]),
+                    sft_coupled=str(sft_coupled).lower(),
+                    soil_z=row["soil_z"]
+                )
+            )
+
 
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime

@@ -24,6 +24,7 @@ class FilePaths:
     dhbv_attributes = hf_bucket + resource_key + "dhbv_attrs_sorted.parquet"
     snow17_attributes = hf_bucket + resource_key + "snow17_attributes_sorted.parquet"
     sacsma_attributes = hf_bucket + resource_key + "sacsma_attributes_sorted.parquet"
+    casam_attributes = hf_bucket + resource_key + "casam_attributes_sorted.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
@@ -39,6 +40,7 @@ class FilePaths:
     template_snow17_params = template_cat_dir / "snow17-params.txt"
     template_sac_config = template_cat_dir / "sac-init.namelist.input"
     template_sac_params = template_cat_dir / "sac-params.txt"
+    template_casam_config = template_cat_dir / "casam.txt"
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
