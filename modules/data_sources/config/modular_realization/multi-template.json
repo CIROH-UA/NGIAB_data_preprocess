@@ -1,0 +1,30 @@
+{
+    "global": {
+        "formulations": [
+            {
+                "name": "bmi_multi",
+                "params": {
+                    "name": "bmi_multi",
+                    "model_type_name": "bmi_multi",
+                    "main_output_variable": "Q_OUT",
+                    "forcing_file": "",
+                    "init_config": "",
+                    "allow_exceed_end_time": true,
+                    "modules": [],
+                    "uses_forcing_file": false
+                }
+            }
+        ],
+        "forcing": {
+            "path": "./forcings/forcings.nc",
+            "provider": "NetCDF",
+            "enable_cache": false
+        }
+    },
+    "time": {
+        "start_time": "2010-01-01 00:00:00",
+        "end_time": "2010-02-23 00:00:00",
+        "output_interval": 3600
+    },
+    "output_root": "./outputs/ngen"
+}
