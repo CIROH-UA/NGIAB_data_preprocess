@@ -14,6 +14,7 @@ from data_processing.create_realization import (
     make_sacsma_config,
     make_lstm_config,
     make_dhbv2_config,
+    make_casam_config,
     configure_troute,
 )
 
@@ -318,19 +319,7 @@ MODEL_VARIABLE_OVERRIDES = {
 # placeholder dictionary for currently non-existent modularized realization configs
 MODEL_PATHS = {
     "cfe": FilePaths.cfe_modular_config,
-    # "casam": FilePaths.casam_modular_config,
-    # "sft": FilePaths.sft_modular_config,
-    # "smp": FilePaths.smp_modular_config,
-    # "topmodel": FilePaths.topmodel_modular_config,
-    "nom": FilePaths.nom_modular_config,
-    # "pet": FilePaths.pet_modular_config,
-    "sloth": FilePaths.sloth_modular_config,
-}
-
-# placeholder dictionary for currently non-existent modularized realization configs
-MODEL_PATHS = {
-    "cfe": FilePaths.cfe_modular_config,
-    # "casam": FilePaths.casam_modular_config,
+    "casam": FilePaths.casam_modular_config,
     # "sft": FilePaths.sft_modular_config,
     # "smp": FilePaths.smp_modular_config,
     # "topmodel": FilePaths.topmodel_modular_config,
@@ -414,6 +403,10 @@ def _append_model_realization(
         modules.append(realization)
     elif model == "nom":
         with open(MODEL_PATHS["nom"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        modules.append(realization)
+    elif model == "casam":
+        with open(MODEL_PATHS["casam"], "r", encoding="utf-8") as f:
             realization = json.load(f)
         modules.append(realization)
 
@@ -539,8 +532,14 @@ def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-bran
             )
         elif model == "sloth":
             pass  # no config file needed for SLoTH
+        elif model == "casam":
+            if "sft" in models:
+                sft_coupled = True
+            else:
+                sft_coupled = False
+            make_casam_config(paths.config_dir, conf_df, start_time, end_time, sft_coupled)
         else:
-            # config generation not supported for CASAM, PET, SFT, SMP, TOPMODEL yet
+            # config generation not supported for PET, SFT, SMP, TOPMODEL yet
             # SUMMA also needs forcings for config generation, this will get added as a separate
             # PR
             raise NotImplementedError(f"Config generation not yet supported for '{model}'")

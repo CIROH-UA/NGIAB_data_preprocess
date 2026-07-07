@@ -61,6 +61,7 @@ class FilePaths:
     cfe_modular_config = modular_realization_dir / "cfe.json"
     nom_modular_config = modular_realization_dir / "nom.json"
     sloth_modular_config = modular_realization_dir / "sloth.json"
+    casam_modular_config = modular_realization_dir / "casam.json"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
