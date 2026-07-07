@@ -410,6 +410,7 @@ def _append_model_realization(
     elif model == "casam":
         with open(MODEL_PATHS["casam"], "r", encoding="utf-8") as f:
             realization = json.load(f)
+        realization["params"]["variables_names_map"] = target_variable_names["casam"]
         modules.append(realization)
 
 

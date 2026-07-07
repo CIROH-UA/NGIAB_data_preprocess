@@ -233,6 +233,14 @@ class TestValidateModelsDependencies:
         assert "CFE requires SLoTH" in message
         assert "CASAM requires SLoTH" in message
 
+    def test_casam_is_recognized_as_a_runoff_model(self, answer_prompt):
+        """casam counts as a downstream runoff model, so the new NOM/Snow17
+        rules are satisfied by nom+casam and snow17+casam (with SLoTH present)
+        and must not prompt."""
+        validate_models(["sloth", "nom", "casam"], routing=False)
+        validate_models(["sloth", "snow17", "casam"], routing=False)
+        assert not answer_prompt.called
+
 
 # ---------------------------------------------------------------------------
 # validate_models -- routing rule
@@ -279,8 +287,18 @@ class TestAppendModelRealization:
         assert len(modules) == 1
         assert modules[0]["params"]["model_type_name"] == "NoahOWP"
 
+    def test_casam_appends_and_sets_variables_names_map(self):
+        """Ensure the CASAM module is appended with its variable-name mapping
+        (like CFE, it applies the computed target map, not the template map)."""
+        modules = []
+        _append_model_realization("casam", {"casam": {"some_var": "some_source"}}, modules)
+        assert len(modules) == 1
+        assert modules[0]["params"]["model_type_name"] == "CASAM"
+        assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
+
+
     def test_sloth_is_not_appended_by_this_function(self):
-        """_append_model_realization only builds cfe and nom. sloth is a
+        """_append_model_realization only builds cfe, nom, and casam. sloth is a
         developed model but is deliberately added by _insert_sloth_module
         instead, so it must be a no-op here."""
         modules = []
@@ -373,6 +391,23 @@ class TestCreateModularRealization:
         vmap = _cfe_module(r)["params"]["variables_names_map"]
         assert vmap["water_potential_evaporation_flux"] == "EVAPOTRANS"
         assert vmap["atmosphere_water__liquid_equivalent_precipitation_rate"] == "QINSUR"
+
+    def test_casam_can_be_main_model(self, make_realization):
+        """casam has a MAIN_OUTPUT_VARIABLES entry, so it can be the terminal
+        model, and its module appears in the coupled chain."""
+        r = make_realization(["sloth", "nom", "casam"])
+        assert "CASAM" in _model_type_names(r)
+        params = r["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MAIN_OUTPUT_VARIABLES["casam"] == "total_discharge"
+
+    def test_nom_override_rewrites_casam_pet_source(self, make_realization):
+        """nom seen before casam -> casam's PET source switches to the Noah-OWP
+        output (confirms casam applies its computed map, like cfe)."""
+        r = make_realization(["sloth", "nom", "casam"])
+        casam = next(m for m in _modules_of(r) if m["params"]["model_type_name"] == "CASAM")
+        assert casam["params"]["variables_names_map"]["potential_evapotranspiration_rate"] == (
+            "EVAPOTRANS"
+        )
 
     def test_override_does_not_fire_when_dependency_seen_later(self, make_realization):
         """cfe before nom -> cfe keeps its default (sloth/forcing) sources."""
