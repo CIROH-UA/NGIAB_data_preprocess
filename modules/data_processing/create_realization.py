@@ -392,7 +392,7 @@ def make_casam_config(
                     field_capacity_psi=row["field_capacity_psi"],
                     giuh_ordinates=fmt_list(row["giuh_ordinates"]),
                     sft_coupled=str(sft_coupled).lower(),
-                    soil_z=row["soil_z"]
+                    soil_z=fmt_list(row["soil_z"])
                 )
             )
 
