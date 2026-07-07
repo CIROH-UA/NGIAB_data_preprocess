@@ -17,6 +17,10 @@ from data_processing.create_realization import (
     configure_troute,
 )
 
+# ---------------------------------------------------------------------------
+# ACCEPTED MODELS
+# ---------------------------------------------------------------------------
+
 ACCEPTED_MODELS = [
     "cfe",
     "casam",
@@ -36,19 +40,33 @@ ACCEPTED_MODELS = [
 ]
 
 MAIN_OUTPUT_VARIABLES = {
-    "cfe": "Q_OUT",
-    "pet": "water_potential_evaporation_flux",
-    "sft": "num_cells",
-    "smp": "soil_storage",
-    "topmodel": "Qout",
-    "nom": "EVAPOTRANS",
-    "snow17": "raim",
-    "sac-sma": "tci",
-    "sloth": "z",
+    # --- Streamflow → T-Route ---
+    "cfe": "Q_OUT",  # GIUH + Nash cascade + baseflow (m/timestep)
+    "casam": "total_discharge",  # Green-Ampt infiltration excess (m/timestep)
+    "topmodel": "Qout",  # Accumulated discharge (m/timestep)
+    "sacsma": "tci",  # Total channel inflow (m)
+    "summa": "land_surface_water__runoff_volume_flux",  # Total runoff flux
+    "lstm": "land_surface_water__runoff_volume_flux",  # ML streamflow
+    "lstm_rust": "land_surface_water__runoff_volume_flux",  # ML streamflow
+    "dhbv2": "streamflow",  # ML streamflow (hourly)
+    "dhbv2_daily": "streamflow",  # ML streamflow (daily)
+    # --- Intermediate → downstream BMI models ---
+    "pet": "water_potential_evaporation_flux",  # → CFE/CASAM/TOPMODEL/SAC-SMA
+    "sft": "num_cells",  # Soil column layer count; ice fractions via get_value()
+    "smp": "soil_storage",  # Scalar (CFE/TOPMODEL) or wetting fronts (CASAM)
+    "nom": "EVAPOTRANS",  # ET → CFE/CASAM/TOPMODEL; also outputs QINSUR
+    "snow17": "raim",  # Rain + snowmelt (mm/s) → CFE/CASAM/SAC-SMA
 }
 
-# these go into the variables_names_map section of the realization. This dictionary is a template
-# until a copy is edited later
+# ---------------------------------------------------------------------------
+# ALL_VARIABLE_NAMES_MAPS
+# Default variables_names_map per model assuming NO coupling.
+# Left:  model's internal BMI input name (from get_input_var_names())
+# Right: forcing column name or sloth_* prefixed default
+# Only models that appear in a bmi_multi variables_names_map are included.
+# When coupled, MODEL_VARIABLE_OVERRIDES supersede relevant entries.
+# ---------------------------------------------------------------------------
+
 ALL_VARIABLES_NAMES_MAPS = {
     "cfe": {
         "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface",
@@ -78,11 +96,14 @@ ALL_VARIABLES_NAMES_MAPS = {
         "soil_moisture_profile": "sloth_soil_moisture_profile",
     },
     "smp": {
+        # CFE/TOPMODEL mode — scalar storage
         "soil_storage": "sloth_soil_storage",
         "soil_storage_change": "sloth_soil_storage_change",
+        # CASAM/layered mode — wetting fronts
         "num_wetting_fronts": "sloth_num_wetting_fronts",
         "soil_moisture_wetting_fronts": "sloth_soil_moisture_wetting_fronts",
         "soil_depth_wetting_fronts": "sloth_soil_depth_wetting_fronts",
+        # TOPMODEL mode
         "Qb_topmodel": "sloth_Qb_topmodel",
         "Qv_topmodel": "sloth_Qv_topmodel",
         "global_deficit": "sloth_global_deficit",
@@ -94,34 +115,12 @@ ALL_VARIABLES_NAMES_MAPS = {
     "sac-sma": {"tair": "TMP_2maboveground", "precip": "precip_rate", "pet": "sloth_pet"},
 }
 
-# Some models cannot run without other models running first.
-# if models is a list of models that a user wants to run in the order that is passed,
-# we would read these rules like this:
-# ("target model", lambda models: models that need to run before the target model, warning message
-# that is shown if the model list is invalid)
-MODEL_DEPENDENCY_RULES = (
-    ("cfe", lambda models: "sloth" not in models, "CFE requires SLoTH"),
-    ("casam", lambda models: "sloth" not in models, "CASAM requires SLoTH"),
-    ("sft", lambda models: "sloth" not in models, "SFT requires SLoTH"),
-    (
-        "smp",
-        lambda models: "sloth" not in models
-        and ("casam" not in models or "cfe" not in models or "topmodel" not in models),
-        "SMP requires SLoTH or CASAM, CFE, and TOPMODEL",
-    ),
-    (
-        "topmodel",
-        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
-        "TOPMODEL requires SLoTH, NOM, or PET",
-    ),
-    (
-        "sac-sma",
-        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
-        "SAC-SMA requires SLoTH, NOM, or PET",
-    ),
-)
+# ---------------------------------------------------------------------------
+# ALL_SLOTH_MODEL_PARAMS
+# SLoTH model_params used to bootstrap variables at t=0 when upstream
+# models are absent. Format: { param_name: "(size,type,unit,location)" }
+# ---------------------------------------------------------------------------
 
-# SLoTH is used to fill in parameters when prerequisite models aren't used
 ALL_SLOTH_MODEL_PARAMS = {
     "sloth_ice_fraction_schaake": "(1,double,m,node)",
     "sloth_ice_fraction_xinanjiang": "(1,double,1,node)",
@@ -139,9 +138,105 @@ ALL_SLOTH_MODEL_PARAMS = {
     "sloth_ground_temperature": "(1,double,K,node)",
 }
 
-# read like this:
-# "target model"("model run prior to target model", {lines in realization template that would get
-# overwritten}
+# ---------------------------------------------------------------------------
+# MODEL DEPENDENCY RULES
+# Format: (model, violation_lambda, message)
+# Lambda receives the full module list and returns True when VIOLATED.
+#
+# Read as: ("target_model", lambda models: <condition that means rule is broken>, "warning")
+# ---------------------------------------------------------------------------
+
+MODEL_DEPENDENCY_RULES = (
+    # SLoTH required — bootstraps defaults for any model needing inter-model vars at t=0
+    ("cfe", lambda models: "sloth" not in models, "CFE requires SLoTH"),
+    ("casam", lambda models: "sloth" not in models, "CASAM requires SLoTH"),
+    ("sft", lambda models: "sloth" not in models, "SFT requires SLoTH"),
+    ("smp", lambda models: "sloth" not in models, "SMP requires SLoTH"),
+    (
+        "topmodel",
+        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
+        "TOPMODEL requires SLoTH, NOM, or PET",
+    ),
+    (
+        "sac-sma",
+        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
+        "SAC-SMA requires SLoTH, NOM, or PET",
+    ),
+    # Snow17 must have a downstream runoff model (unless standalone with only SLoTH)
+    (
+        "snow17",
+        lambda models: len([m for m in models if m != "sloth"]) > 1
+        and not any(m in models for m in ("cfe", "casam", "topmodel", "sacsma")),
+        "Snow17 requires a downstream runoff model (CFE, CASAM, TOPMODEL, or SAC-SMA)",
+    ),
+    # CFE: NOM and Snow17 are mutually exclusive precip sources
+    (
+        "cfe",
+        lambda models: "nom" in models and "snow17" in models,
+        "CFE cannot have both NOM and Snow17 as precip sources",
+    ),
+    # NOM with no runoff model is likely misconfigured (unless standalone)
+    (
+        "nom",
+        lambda models: len([m for m in models if m != "sloth"]) > 1
+        and not any(m in models for m in ("cfe", "casam", "topmodel", "sacsma")),
+        "NOM is present but no runoff model (CFE, CASAM, TOPMODEL, SAC-SMA) found",
+    ),
+    # SFT: flag if coupled but no downstream consumer and no SMP
+    (
+        "sft",
+        lambda models: len([m for m in models if m != "sloth"]) > 1
+        and not any(m in models for m in ("cfe", "casam", "smp")),
+        "SFT has no downstream consumer (CFE or CASAM) and no SMP",
+    ),
+    # Standalone models should not couple with physics models
+    (
+        "lstm",
+        lambda models: any(
+            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+        ),
+        "LSTM is standalone — unexpected coupling with physics models",
+    ),
+    (
+        "lstm_rust",
+        lambda models: any(
+            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+        ),
+        "LSTM-rust is standalone — unexpected coupling with physics models",
+    ),
+    (
+        "dhbv2",
+        lambda models: any(
+            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+        ),
+        "dHBV2 is standalone — unexpected coupling with physics models",
+    ),
+    (
+        "dhbv2_daily",
+        lambda models: any(
+            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+        ),
+        "dHBV2-daily is standalone — unexpected coupling with physics models",
+    ),
+    (
+        "summa",
+        lambda models: any(
+            m in models for m in ("cfe", "casam", "sft", "smp", "snow17", "pet", "sacsma")
+        ),
+        "SUMMA is a full land surface model — unexpected coupling with physics models",
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# MODEL VARIABLE OVERRIDES
+# When a model is coupled to an upstream provider, these entries override
+# the corresponding entries in ALL_VARIABLE_NAMES_MAPS.
+#
+# Format: { receiving_model: [ (providing_model, {input_name: source_name}) ] }
+# Left:  receiving model's internal BMI input name
+# Right: providing model's output variable name
+# ---------------------------------------------------------------------------
+
 MODEL_VARIABLE_OVERRIDES = {
     "cfe": [
         (
@@ -151,10 +246,8 @@ MODEL_VARIABLE_OVERRIDES = {
                 "water_potential_evaporation_flux": "EVAPOTRANS",
             },
         ),
-        (
-            "pet",
-            {"water_potential_evaporation_flux": "water_potential_evaporation_flux"},
-        ),
+        ("snow17", {"atmosphere_water__liquid_equivalent_precipitation_rate": "raim"}),
+        ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
         (
             "sft",
             {
@@ -162,24 +255,13 @@ MODEL_VARIABLE_OVERRIDES = {
                 "ice_fraction_xinanjiang": "ice_fraction_xinanjiang",
             },
         ),
-        (
-            "smp",
-            {"soil_moisture_profile": "soil_moisture_profile"},
-        ),
+        ("smp", {"soil_moisture_profile": "soil_moisture_profile"}),
     ],
     "casam": [
-        (
-            "nom",
-            {"potential_evapotranspiration_rate": "EVAPOTRANS"},
-        ),
-        (
-            "pet",
-            {"potential_evapotranspiration_rate": "water_potential_evaporation_flux"},
-        ),
-        (
-            "sft",
-            {"soil_temperature_profile": "soil_temperature_profile"},
-        ),
+        ("nom", {"potential_evapotranspiration_rate": "EVAPOTRANS"}),
+        ("snow17", {"precipitation_rate": "raim"}),
+        ("pet", {"potential_evapotranspiration_rate": "water_potential_evaporation_flux"}),
+        ("sft", {"soil_temperature_profile": "soil_temperature_profile"}),
     ],
     "sft": [
         ("nom", {"ground_temperature": "TGS"}),
@@ -219,15 +301,30 @@ MODEL_VARIABLE_OVERRIDES = {
                 "water_potential_evaporation_flux": "EVAPOTRANS",
             },
         ),
-        (
-            "pet",
-            {"water_potential_evaporation_flux": "water_potential_evaporation_flux"},
-        ),
+        ("snow17", {"atmosphere_water__liquid_equivalent_precipitation_rate": "raim"}),
+        ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
     ],
     "sac-sma": [
         ("nom", {"pet": "EVAPOTRANS"}),
         ("pet", {"pet": "water_potential_evaporation_flux"}),
     ],
+    "sacsma": [
+        ("nom", {"pet": "EVAPOTRANS"}),
+        ("snow17", {"precip": "raim"}),
+        ("pet", {"pet": "water_potential_evaporation_flux"}),
+    ],
+}
+
+# placeholder dictionary for currently non-existent modularized realization configs
+MODEL_PATHS = {
+    "cfe": FilePaths.cfe_modular_config,
+    # "casam": FilePaths.casam_modular_config,
+    # "sft": FilePaths.sft_modular_config,
+    # "smp": FilePaths.smp_modular_config,
+    # "topmodel": FilePaths.topmodel_modular_config,
+    "nom": FilePaths.nom_modular_config,
+    # "pet": FilePaths.pet_modular_config,
+    "sloth": FilePaths.sloth_modular_config,
 }
 
 # placeholder dictionary for currently non-existent modularized realization configs
@@ -393,7 +490,7 @@ def create_modular_realization(
         json.dump(realization, f, indent=4)
 
 
-def create_modular_configs( # pylint: disable=too-many-arguments, too-many-branches
+def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-branches
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
