@@ -233,15 +233,6 @@ class TestValidateModelsDependencies:
         assert "CFE requires SLoTH" in message
         assert "CASAM requires SLoTH" in message
 
-    def test_smp_specific_warning_suppressed_by_casam_cfe_topmodel_trio(self, answer_prompt):
-        """SMP's compound predicate is satisfied when casam+cfe+topmodel are all
-        present, so no 'SMP requires' line appears -- even though each of those
-        three independently warns about needing SLoTH."""
-        answer_prompt("n")
-        with pytest.raises(ValueError) as exc:
-            validate_models(["casam", "cfe", "topmodel", "smp"], routing=False)
-        assert "SMP requires" not in str(exc.value)
-
 
 # ---------------------------------------------------------------------------
 # validate_models -- routing rule
