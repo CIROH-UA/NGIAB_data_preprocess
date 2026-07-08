@@ -312,10 +312,6 @@ MODEL_VARIABLE_OVERRIDES = {
     ],
     "sac-sma": [
         ("nom", {"pet": "EVAPOTRANS"}),
-        ("pet", {"pet": "water_potential_evaporation_flux"}),
-    ],
-    "sac-sma": [
-        ("nom", {"pet": "EVAPOTRANS"}),
         ("snow17", {"precip": "raim"}),
         ("pet", {"pet": "water_potential_evaporation_flux"}),
     ],
