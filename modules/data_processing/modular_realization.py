@@ -153,6 +153,12 @@ MODEL_DEPENDENCY_RULES = (
     ("sft", lambda models: "sloth" not in models, "SFT requires SLoTH"),
     ("smp", lambda models: "sloth" not in models, "SMP requires SLoTH"),
     (
+        "smp",
+        lambda models: len([m for m in models if m != "sloth"]) > 1
+        and not any(m in models for m in ("casam", "cfe", "topmodel")),
+        "SMP requires one of: CASAM, CFE, or TOPMODEL when coupled",
+    ),
+    (
         "topmodel",
         lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
         "TOPMODEL requires SLoTH, NOM, or PET",
@@ -464,9 +470,9 @@ def create_modular_realization(
 
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
-    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
-        main_output_variable
-    )
+    realization["global"]["formulations"][0]["params"][
+        "main_output_variable"
+    ] = main_output_variable
     realization["global"]["formulations"][0]["params"]["modules"] = modules
     realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
