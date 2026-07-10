@@ -114,6 +114,42 @@ ALL_VARIABLES_NAMES_MAPS = {
         "water_potential_evaporation_flux": "sloth_pet",
     },
     "sac-sma": {"tair": "TMP_2maboveground", "precip": "precip_rate", "pet": "sloth_pet"},
+    "snow17": {
+        "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
+        "tair": "land_surface_air__temperature",
+    },
+    "dhbv2": {
+        "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
+        "land_surface_air__temperature": "TMP_2maboveground",
+        "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+        "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+        "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+        "land_surface_air__pressure": "PRES_surface",
+        "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+        "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+        "land_surface_water__runoff_volume_flux": "streamflow",
+    },
+    "dhbv2_daily": {
+        "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
+        "land_surface_air__temperature": "TMP_2maboveground",
+        "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+        "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+        "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+        "land_surface_air__pressure": "PRES_surface",
+        "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+        "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+        "land_surface_water__runoff_volume_flux": "streamflow",
+    },
+    "summa": {
+        "atmosphere_water__precipitation_mass_flux": "precip_rate",
+        "land_surface_air__temperature": "TMP_2maboveground",
+        "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+        "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+        "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+        "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+        "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+        "land_surface_air__pressure": "PRES_surface",
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -413,11 +449,45 @@ def _append_model_realization(
     elif model == "nom":
         with open(MODEL_PATHS["nom"], "r", encoding="utf-8") as f:
             realization = json.load(f)
+        realization["params"]["variable_names_map"] = target_variable_names["nom"]
         modules.append(realization)
     elif model == "casam":
         with open(MODEL_PATHS["casam"], "r", encoding="utf-8") as f:
             realization = json.load(f)
         realization["params"]["variables_names_map"] = target_variable_names["casam"]
+        modules.append(realization)
+    elif model == "snow17":
+        with open(MODEL_PATHS["snow17"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        realization["params"]["variables_names_map"] = target_variable_names["snow17"]
+        modules.append(realization)
+    elif model == "sac-sma":
+        with open(MODEL_PATHS["sac-sma"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        realization["params"]["variables_names_map"] = target_variable_names["sac-sma"]
+        modules.append(realization)
+    elif model == "lstm":
+        with open(MODEL_PATHS["lstm"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        modules.append(realization)
+    elif model == "lstm_rust":
+        with open(MODEL_PATHS["lstm_rust"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        modules.append(realization)
+    elif model == "dhbv2":
+        with open(MODEL_PATHS["dhbv2"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        realization["params"]["variables_names_map"] = target_variable_names["dhbv2"]
+        modules.append(realization)
+    elif model == "dhbv2_daily":
+        with open(MODEL_PATHS["dhbv2_daily"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        realization["params"]["variables_names_map"] = target_variable_names["dhbv2_daily"]
+        modules.append(realization)
+    elif model == "summa":
+        with open(MODEL_PATHS["summa"], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        realization["params"]["variables_names_map"] = target_variable_names["summa"]
         modules.append(realization)
 
 
@@ -479,9 +549,9 @@ def create_modular_realization(
 
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
-    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
-        main_output_variable
-    )
+    realization["global"]["formulations"][0]["params"][
+        "main_output_variable"
+    ] = main_output_variable
     realization["global"]["formulations"][0]["params"]["modules"] = modules
     realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
