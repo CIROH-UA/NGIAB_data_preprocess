@@ -47,8 +47,8 @@ MAIN_OUTPUT_VARIABLES = {
     "topmodel": "Qout",  # Accumulated discharge (m/timestep)
     "sac-sma": "tci",  # Total channel inflow (m)
     "summa": "land_surface_water__runoff_volume_flux",  # Total runoff flux
-    "lstm": "land_surface_water__runoff_volume_depth",  # ML streamflow
-    "lstm_rust": "land_surface_water__runoff_volume_depth",  # ML streamflow
+    "lstm": "land_surface_water__runoff_depth",  # ML streamflow
+    "lstm_rust": "land_surface_water__runoff_depth",  # ML streamflow
     "dhbv2": "land_surface_water__runoff_volume_flux",  # ML streamflow (hourly)
     "dhbv2_daily": "land_surface_water__runoff_volume_flux",  # ML streamflow (daily)
     # --- Intermediate → downstream BMI models ---

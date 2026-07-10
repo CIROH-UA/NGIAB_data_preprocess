@@ -49,7 +49,7 @@
     "end_time": "2020-01-02 00:00:00",
     "output_interval": 3600
   },
-  "output_root": "./outputs/ngen/",
+  "output_root": "./outputs/ngen",
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
   }

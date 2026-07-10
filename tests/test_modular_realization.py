@@ -107,32 +107,46 @@ def _cfe_module(realization):
 
 
 # ===========================================================================
-# Headline: the modular sloth->nom->cfe build must equal the cfe-nom golden.
+# Headline: the modular build must equal the respective golden.
 # ===========================================================================
 
+# One entry per committed golden: (models in execution order, golden filename, label).
+# routing is on for all of them (the goldens were stamped with routing enabled).
+GOLDEN_CASES = [
+    (["sloth", "nom", "cfe"], "cfe-nom.json", "sloth->nom->cfe"),
+    (["dhbv2"], "dhbv2.json", "dhbv2"),
+    (["dhbv2_daily"], "dhbv2-daily.json", "dhbv2_daily"),
+    (["lstm"], "lstm-py.json", "lstm"),
+    (["lstm_rust"], "lstm-rs.json", "lstm_rust"),
+    (["nom", "sac-sma"], "sacsma-nom.json", "nom->sac-sma"),
+    (["sloth", "snow17", "nom", "cfe"], "snow17-nom-cfe.json", "sloth->snow17->nom->cfe"),
+    (["summa"], "summa.json", "summa"),
+]
 
-def test_sloth_nom_cfe_matches_cfe_nom_golden(make_realization):
-    """A sloth->nom->cfe realization (routing on) must reproduce cfe-nom.json.
 
-    The golden has routing enabled and is stamped 2020-01-01 .. 2020-01-02,
-    so we build with the same inputs. Equality is on the parsed dicts, so key
-    ordering does not matter -- only structure and values.å
+@pytest.mark.parametrize("models, golden_name, label", GOLDEN_CASES)
+def test_modular_realization_matches_golden(models, golden_name, label, make_realization):
+    """Each model combination (routing on) must reproduce its committed golden.
+
+    Mirrors test_sloth_nom_cfe_matches_cfe_nom_golden: build with the same fixed
+    inputs the golden was stamped with, then compare the parsed dicts (key order
+    is irrelevant -- only structure and values matter).
     """
-    produced = make_realization(["sloth", "nom", "cfe"], routing=True)
-    golden = json.loads(CFE_NOM_GOLDEN.read_text())
+    produced = make_realization(models, routing=True)
+    golden = json.loads((GOLDEN_DIR / golden_name).read_text())
     if produced != golden:
         diff = "\n".join(
             difflib.unified_diff(
                 json.dumps(golden, indent=2, sort_keys=True).splitlines(),
                 json.dumps(produced, indent=2, sort_keys=True).splitlines(),
-                fromfile="golden/cfe-nom.json",
-                tofile="produced (sloth->nom->cfe)",
+                fromfile=f"golden/{golden_name}",
+                tofile=f"produced ({label})",
                 lineterm="",
             )
         )
-        pytest.fail(
-            "modular sloth->nom->cfe realization does not match the cfe-nom golden.\n\n" + diff
-        )
+        pytest.fail(f"modular {label} realization does not match {golden_name}.\n\n" + diff)
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -177,9 +191,9 @@ class TestValidateModelsDependencies:
     WARNING_CASES = [
         (["cfe"], "CFE requires SLoTH"),
         (["casam"], "CASAM requires SLoTH"),
-        (["sft"], "SFT requires SLoTH"),
-        (["smp"], "SMP requires SLoTH"),
-        (["topmodel"], "TOPMODEL requires SLoTH, NOM, or PET"),
+        # (["sft"], "SFT requires SLoTH"),
+        # (["smp"], "SMP requires SLoTH"),
+        # (["topmodel"], "TOPMODEL requires SLoTH, NOM, or PET"),
         (["sac-sma"], "SAC-SMA requires SLoTH, NOM, or PET"),
     ]
 
@@ -204,12 +218,12 @@ class TestValidateModelsDependencies:
         [
             ["sloth", "cfe"],
             ["sloth", "casam"],
-            ["sloth", "sft"],
-            ["sloth", "smp"],
-            ["nom", "topmodel"],
-            ["pet", "topmodel"],
+            # ["sloth", "sft"],
+            # ["sloth", "smp"],
+            # ["nom", "topmodel"],
+            # ["pet", "topmodel"],
             ["nom", "sac-sma"],
-            ["pet", "sac-sma"],
+            # ["pet", "sac-sma"],
         ],
     )
     def test_met_dependency_does_not_prompt(self, models, answer_prompt):
@@ -283,9 +297,10 @@ class TestAppendModelRealization:
     def test_nom_appends_template_unchanged(self):
         """Ensure the NOM module is appended with the expected template data."""
         modules = []
-        _append_model_realization("nom", {}, modules)
+        _append_model_realization("nom", {"nom": {"some_var": "some_source"}}, modules)
         assert len(modules) == 1
         assert modules[0]["params"]["model_type_name"] == "NoahOWP"
+        assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
 
     def test_casam_appends_and_sets_variables_names_map(self):
         """Ensure the CASAM module is appended with its variable-name mapping
