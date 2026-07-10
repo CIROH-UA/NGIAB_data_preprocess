@@ -45,7 +45,7 @@ MAIN_OUTPUT_VARIABLES = {
     "cfe": "Q_OUT",  # GIUH + Nash cascade + baseflow (m/timestep)
     "casam": "total_discharge",  # Green-Ampt infiltration excess (m/timestep)
     "topmodel": "Qout",  # Accumulated discharge (m/timestep)
-    "sacsma": "tci",  # Total channel inflow (m)
+    "sac-sma": "tci",  # Total channel inflow (m)
     "summa": "land_surface_water__runoff_volume_flux",  # Total runoff flux
     "lstm": "land_surface_water__runoff_volume_flux",  # ML streamflow
     "lstm_rust": "land_surface_water__runoff_volume_flux",  # ML streamflow
@@ -154,6 +154,12 @@ MODEL_DEPENDENCY_RULES = (
     ("sft", lambda models: "sloth" not in models, "SFT requires SLoTH"),
     ("smp", lambda models: "sloth" not in models, "SMP requires SLoTH"),
     (
+        "smp",
+        lambda models: len([m for m in models if m != "sloth"]) > 1
+        and not any(m in models for m in ("casam", "cfe", "topmodel")),
+        "SMP requires one of: CASAM, CFE, or TOPMODEL when coupled",
+    ),
+    (
         "topmodel",
         lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
         "TOPMODEL requires SLoTH, NOM, or PET",
@@ -167,7 +173,7 @@ MODEL_DEPENDENCY_RULES = (
     (
         "snow17",
         lambda models: len([m for m in models if m != "sloth"]) > 1
-        and not any(m in models for m in ("cfe", "casam", "topmodel", "sacsma")),
+        and not any(m in models for m in ("cfe", "casam", "topmodel", "sac-sma")),
         "Snow17 requires a downstream runoff model (CFE, CASAM, TOPMODEL, or SAC-SMA)",
     ),
     # CFE: NOM and Snow17 are mutually exclusive precip sources
@@ -180,7 +186,7 @@ MODEL_DEPENDENCY_RULES = (
     (
         "nom",
         lambda models: len([m for m in models if m != "sloth"]) > 1
-        and not any(m in models for m in ("cfe", "casam", "topmodel", "sacsma")),
+        and not any(m in models for m in ("cfe", "casam", "topmodel", "sac-sma")),
         "NOM is present but no runoff model (CFE, CASAM, TOPMODEL, SAC-SMA) found",
     ),
     # SFT: flag if coupled but no downstream consumer and no SMP
@@ -194,35 +200,35 @@ MODEL_DEPENDENCY_RULES = (
     (
         "lstm",
         lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
         ),
         "LSTM is standalone — unexpected coupling with physics models",
     ),
     (
         "lstm_rust",
         lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
         ),
         "LSTM-rust is standalone — unexpected coupling with physics models",
     ),
     (
         "dhbv2",
         lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
         ),
         "dHBV2 is standalone — unexpected coupling with physics models",
     ),
     (
         "dhbv2_daily",
         lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sacsma", "topmodel")
+            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
         ),
         "dHBV2-daily is standalone — unexpected coupling with physics models",
     ),
     (
         "summa",
         lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "snow17", "pet", "sacsma")
+            m in models for m in ("cfe", "casam", "sft", "smp", "snow17", "pet", "sac-sma")
         ),
         "SUMMA is a full land surface model — unexpected coupling with physics models",
     ),
@@ -306,10 +312,6 @@ MODEL_VARIABLE_OVERRIDES = {
         ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
     ],
     "sac-sma": [
-        ("nom", {"pet": "EVAPOTRANS"}),
-        ("pet", {"pet": "water_potential_evaporation_flux"}),
-    ],
-    "sacsma": [
         ("nom", {"pet": "EVAPOTRANS"}),
         ("snow17", {"precip": "raim"}),
         ("pet", {"pet": "water_potential_evaporation_flux"}),
