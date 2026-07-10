@@ -25,11 +25,11 @@ from data_processing.create_realization import (
 ACCEPTED_MODELS = [
     "cfe",
     "casam",
-    "sft",
-    "smp",
-    "topmodel",
+    # "sft",
+    # "smp",
+    # "topmodel",
     "nom",
-    "pet",
+    # "pet",
     "snow17",
     "sac-sma",
     "lstm",
@@ -318,7 +318,7 @@ MODEL_VARIABLE_OVERRIDES = {
     ],
 }
 
-# placeholder dictionary for currently non-existent modularized realization configs
+# placeholder dictionary for modularized realization configs
 MODEL_PATHS = {
     "cfe": FilePaths.cfe_modular_config,
     "casam": FilePaths.casam_modular_config,
@@ -327,6 +327,13 @@ MODEL_PATHS = {
     # "topmodel": FilePaths.topmodel_modular_config,
     "nom": FilePaths.nom_modular_config,
     # "pet": FilePaths.pet_modular_config,
+    "snow17": FilePaths.snow17_modular_config,
+    "sac-sma": FilePaths.sac_modular_config,
+    "lstm": FilePaths.lstm_modular_config,
+    "lstm_rust": FilePaths.lstm_rust_modular_config,
+    "dhbv2": FilePaths.dhbv2_modular_config,
+    "dhbv2_daily": FilePaths.dhbv2_daily_modular_config,
+    "summa": FilePaths.summa_modular_config,
     "sloth": FilePaths.sloth_modular_config,
 }
 
