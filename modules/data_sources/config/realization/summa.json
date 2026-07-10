@@ -4,6 +4,7 @@
       {
         "name": "bmi_multi",
         "params": {
+          "name": "bmi_multi",
           "model_type_name": "bmi_multi_summa",
           "forcing_file": "",
           "init_config": "",

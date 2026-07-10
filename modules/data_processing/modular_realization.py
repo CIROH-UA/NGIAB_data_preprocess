@@ -47,16 +47,26 @@ MAIN_OUTPUT_VARIABLES = {
     "topmodel": "Qout",  # Accumulated discharge (m/timestep)
     "sac-sma": "tci",  # Total channel inflow (m)
     "summa": "land_surface_water__runoff_volume_flux",  # Total runoff flux
-    "lstm": "land_surface_water__runoff_volume_flux",  # ML streamflow
-    "lstm_rust": "land_surface_water__runoff_volume_flux",  # ML streamflow
-    "dhbv2": "streamflow",  # ML streamflow (hourly)
-    "dhbv2_daily": "streamflow",  # ML streamflow (daily)
+    "lstm": "land_surface_water__runoff_volume_depth",  # ML streamflow
+    "lstm_rust": "land_surface_water__runoff_volume_depth",  # ML streamflow
+    "dhbv2": "land_surface_water__runoff_volume_flux",  # ML streamflow (hourly)
+    "dhbv2_daily": "land_surface_water__runoff_volume_flux",  # ML streamflow (daily)
     # --- Intermediate → downstream BMI models ---
     "pet": "water_potential_evaporation_flux",  # → CFE/CASAM/TOPMODEL/SAC-SMA
     "sft": "num_cells",  # Soil column layer count; ice fractions via get_value()
     "smp": "soil_storage",  # Scalar (CFE/TOPMODEL) or wetting fronts (CASAM)
     "nom": "EVAPOTRANS",  # ET → CFE/CASAM/TOPMODEL; also outputs QINSUR
     "snow17": "raim",  # Rain + snowmelt (mm/s) → CFE/CASAM/SAC-SMA
+}
+
+# TODO: Unclear if this field even affects ngen whatsoever, but I included it to keep our tests
+# from failing. Need to decide if it should be ignored.
+MODEL_TYPE_NAMES = {
+    "dhbv2": "dhbv2",
+    "dhbv2_daily": "dhbv2",
+    "lstm": "lstm",
+    "lstm_rust": "lstm",
+    "summa": "bmi_multi_summa",
 }
 
 # ---------------------------------------------------------------------------
@@ -113,7 +123,11 @@ ALL_VARIABLES_NAMES_MAPS = {
         "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface",
         "water_potential_evaporation_flux": "sloth_pet",
     },
-    "sac-sma": {"tair": "TMP_2maboveground", "precip": "precip_rate", "pet": "sloth_pet"},
+    "sac-sma": {
+        "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
+        "tair": "land_surface_air__temperature",
+        "pet": "sloth_pet"
+    },
     "snow17": {
         "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
         "tair": "land_surface_air__temperature",
@@ -150,6 +164,8 @@ ALL_VARIABLES_NAMES_MAPS = {
         "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
         "land_surface_air__pressure": "PRES_surface",
     },
+    "lstm": {},
+    "lstm_rust": {},
 }
 
 # ---------------------------------------------------------------------------
@@ -449,7 +465,7 @@ def _append_model_realization(
     elif model == "nom":
         with open(MODEL_PATHS["nom"], "r", encoding="utf-8") as f:
             realization = json.load(f)
-        realization["params"]["variable_names_map"] = target_variable_names["nom"]
+        realization["params"]["variables_names_map"] = target_variable_names["nom"]
         modules.append(realization)
     elif model == "casam":
         with open(MODEL_PATHS["casam"], "r", encoding="utf-8") as f:
@@ -525,6 +541,10 @@ def create_modular_realization(
 
     paths = FilePaths(output_folder)
     main_output_variable = MAIN_OUTPUT_VARIABLES[models[-1]]
+    if models[-1] in MODEL_TYPE_NAMES:
+        model_type_name = MODEL_TYPE_NAMES[models[-1]]
+    else:
+        model_type_name = "bmi_multi"
 
     target_variable_names = {}
     for model in models:
@@ -549,6 +569,8 @@ def create_modular_realization(
 
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
+
+    realization["global"]["formulations"][0]["params"]["model_type_name"] = model_type_name
     realization["global"]["formulations"][0]["params"][
         "main_output_variable"
     ] = main_output_variable
