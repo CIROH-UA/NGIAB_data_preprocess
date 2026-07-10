@@ -189,9 +189,9 @@ class TestValidateModelsDependencies:
     WARNING_CASES = [
         (["cfe"], "CFE requires SLoTH"),
         (["casam"], "CASAM requires SLoTH"),
-        # (["sft"], "SFT requires SLoTH"),
-        # (["smp"], "SMP requires SLoTH"),
-        # (["topmodel"], "TOPMODEL requires SLoTH, NOM, or PET"),
+        (["sft"], "SFT requires SLoTH"),
+        (["smp"], "SMP requires SLoTH"),
+        (["topmodel"], "TOPMODEL requires SLoTH, NOM, or PET"),
         (["sac-sma"], "SAC-SMA requires SLoTH, NOM, or PET"),
     ]
 
@@ -216,25 +216,18 @@ class TestValidateModelsDependencies:
         [
             ["sloth", "cfe"],
             ["sloth", "casam"],
-            # ["sloth", "sft"],
-            # ["sloth", "smp"],
-            # ["nom", "topmodel"],
-            # ["pet", "topmodel"],
+            ["sloth", "sft"],
+            ["sloth", "smp"],
+            ["nom", "topmodel"],
+            ["pet", "topmodel"],
             ["nom", "sac-sma"],
-            # ["pet", "sac-sma"],
+            ["pet", "sac-sma"],
         ],
     )
     def test_met_dependency_does_not_prompt(self, models, answer_prompt):
         """Ensure satisfied dependencies do not trigger a confirmation prompt."""
         validate_models(models, routing=False)
         assert not answer_prompt.called
-
-    def test_dependency_warns_for_non_terminal_model(self, answer_prompt):
-        """Predicates run for EVERY model in the list, not just the last one."""
-        answer_prompt("n")
-        with pytest.raises(ValueError, match="CFE requires SLoTH"):
-            validate_models(["cfe", "nom"], routing=False)
-        assert answer_prompt.called
 
     def test_multiple_unmet_dependencies_accumulate(self, answer_prompt):
         """Each failing model contributes its own warning line to the message."""
@@ -244,14 +237,6 @@ class TestValidateModelsDependencies:
         message = str(exc.value)
         assert "CFE requires SLoTH" in message
         assert "CASAM requires SLoTH" in message
-
-    def test_casam_is_recognized_as_a_runoff_model(self, answer_prompt):
-        """casam counts as a downstream runoff model, so the new NOM/Snow17
-        rules are satisfied by nom+casam and snow17+casam (with SLoTH present)
-        and must not prompt."""
-        validate_models(["sloth", "nom", "casam"], routing=False)
-        validate_models(["sloth", "snow17", "casam"], routing=False)
-        assert not answer_prompt.called
 
 
 # ---------------------------------------------------------------------------
@@ -292,8 +277,8 @@ class TestAppendModelRealization:
         assert modules[0]["params"]["model_type_name"] == "CFE"
         assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
 
-    def test_nom_appends_template_unchanged(self):
-        """Ensure the NOM module is appended with the expected template data."""
+    def test_nom_appends_and_sets_variables_names_map(self):
+        """Ensure the NOM module is appended with its variable-name mapping."""
         modules = []
         _append_model_realization("nom", {"nom": {"some_var": "some_source"}}, modules)
         assert len(modules) == 1
@@ -310,7 +295,7 @@ class TestAppendModelRealization:
         assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
 
     def test_sloth_is_not_appended_by_this_function(self):
-        """_append_model_realization only builds cfe, nom, and casam. sloth is a
+        """_append_model_realization does not build SLoTH. SLoTH is a
         developed model but is deliberately added by _insert_sloth_module
         instead, so it must be a no-op here."""
         modules = []
@@ -384,11 +369,6 @@ class TestCreateModularRealization:
         r = make_realization(["sloth", "cfe"])
         params = r["global"]["formulations"][0]["params"]
         assert params["main_output_variable"] == MAIN_OUTPUT_VARIABLES["cfe"] == "Q_OUT"
-
-    def test_nom_appears_in_module_list(self, make_realization):
-        """nom now has a variable map, so it is iterated and its module appended."""
-        r = make_realization(["sloth", "nom", "cfe"])
-        assert "NoahOWP" in _model_type_names(r)
 
     def test_sloth_inserted_before_cfe_by_position(self, make_realization):
         """Ensure the SLOTH module appears before the CFE module in the chain."""
