@@ -147,8 +147,6 @@ def test_modular_realization_matches_golden(models, golden_name, label, make_rea
         pytest.fail(f"modular {label} realization does not match {golden_name}.\n\n" + diff)
 
 
-
-
 # ---------------------------------------------------------------------------
 # validate_models -- input validation
 # ---------------------------------------------------------------------------

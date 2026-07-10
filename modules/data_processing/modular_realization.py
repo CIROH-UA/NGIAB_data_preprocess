@@ -126,7 +126,7 @@ ALL_VARIABLES_NAMES_MAPS = {
     "sac-sma": {
         "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
         "tair": "land_surface_air__temperature",
-        "pet": "sloth_pet"
+        "pet": "sloth_pet",
     },
     "snow17": {
         "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
@@ -571,9 +571,9 @@ def create_modular_realization(
         realization = json.load(f)
 
     realization["global"]["formulations"][0]["params"]["model_type_name"] = model_type_name
-    realization["global"]["formulations"][0]["params"][
-        "main_output_variable"
-    ] = main_output_variable
+    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
+        main_output_variable
+    )
     realization["global"]["formulations"][0]["params"]["modules"] = modules
     realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
