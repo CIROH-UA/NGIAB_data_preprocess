@@ -296,7 +296,6 @@ class TestAppendModelRealization:
         assert modules[0]["params"]["model_type_name"] == "CASAM"
         assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
 
-
     def test_sloth_is_not_appended_by_this_function(self):
         """_append_model_realization only builds cfe, nom, and casam. sloth is a
         developed model but is deliberately added by _insert_sloth_module
