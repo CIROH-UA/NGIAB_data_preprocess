@@ -1,5 +1,5 @@
 forcing_file=./forcing/forcing_data_resampled_uniform_Bushland.csv
-soil_params_file=/dmod/shared_datasets/static/vG_default_params.dat
+soil_params_file=/dmod/datasets/static/vG_default_params.dat
 layer_thickness={layer_thickness}[cm]
 initial_psi={initial_psi}[cm]
 ponded_depth_max={ponded_depth_max}[cm]

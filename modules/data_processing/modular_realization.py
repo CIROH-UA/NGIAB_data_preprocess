@@ -3,6 +3,9 @@
 import copy
 import json
 from datetime import datetime
+import shutil
+from pathlib import Path
+import subprocess
 from rich.prompt import Prompt
 
 from data_processing.file_paths import FilePaths
@@ -472,9 +475,9 @@ def create_modular_realization(
 
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
-    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
-        main_output_variable
-    )
+    realization["global"]["formulations"][0]["params"][
+        "main_output_variable"
+    ] = main_output_variable
     realization["global"]["formulations"][0]["params"]["modules"] = modules
     realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
@@ -549,3 +552,63 @@ def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-bran
 
     if routing:
         configure_troute(output_folder, paths.config_dir, start_time, end_time)
+
+
+def main():
+    """
+    Main function to test the modular realization creation process for CASAM.
+    """
+
+    # this section processes forcings and sets up the ngen-run dir
+    # it does produce CFE+NOM stuff but that gets ignored because the realization file gets
+    # overwritten
+    subprocess.run(
+        [
+            "uv",
+            "run",
+            "cli",
+            "-i",
+            "cat-1555522",
+            "-sfr",
+            "--start",
+            "2020-01-01",
+            "--end",
+            "2020-01-02",
+            "--source",
+            "aorc",
+            "-o",
+            "casam_test_output",
+        ],
+        check=True,
+    )
+
+    # set up CASAM modular realization with SLoTH and NOM, and routing enabled
+    models = ["sloth", "nom", "casam"]
+    routing = True
+    start_time = datetime(2020, 1, 1, 0, 0, 0)
+    end_time = datetime(2020, 1, 2, 0, 0, 0)
+    output_folder = "casam_test_output"
+
+    validate_models(models, routing)
+    print(f"Validated models: {models} with routing={routing}")
+
+    create_modular_configs(
+        output_folder=output_folder,
+        start_time=start_time,
+        end_time=end_time,
+        models=models,
+        routing=routing,
+    )
+    print(f"Created modular configs for models: {models} with routing={routing}")
+
+    create_modular_realization(
+        output_folder=output_folder,
+        start_time=start_time,
+        end_time=end_time,
+        models=models,
+        routing=routing,
+    )
+    print(f"Created modular realization for models: {models} with routing={routing}")
+
+if __name__ == "__main__":
+    main()
