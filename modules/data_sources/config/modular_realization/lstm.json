@@ -1,0 +1,12 @@
+{
+    "name": "bmi_python",
+    "params": {
+        "name": "bmi_python",
+        "python_type": "lstm.bmi_lstm.bmi_LSTM",
+        "model_type_name": "bmi_lstm",
+        "init_config": "./config/cat_config/lstm/{{id}}.yml",
+        "allow_exceed_end_time": true,
+        "main_output_variable": "land_surface_water__runoff_depth",
+        "uses_forcing_file": false
+    }
+}

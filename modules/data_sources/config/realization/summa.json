@@ -4,6 +4,7 @@
       {
         "name": "bmi_multi",
         "params": {
+          "name": "bmi_multi",
           "model_type_name": "bmi_multi_summa",
           "forcing_file": "",
           "init_config": "",
@@ -48,7 +49,7 @@
     "end_time": "2015-12-30 23:00:00",
     "output_interval": 3600
   },
-  "output_root": "./outputs/ngen/",
+  "output_root": "./outputs/ngen",
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
   }

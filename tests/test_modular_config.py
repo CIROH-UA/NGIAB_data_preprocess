@@ -42,8 +42,8 @@ CAT_ID = "cat-1555522"
 
 # The models create_modular_configs can build a config for today; this is exactly
 # the set baked into the golden {cat_id}.json files (sloth produces no file, and
-# casam/pet/sft/smp/topmodel/summa are not supported yet).
-ALL_CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily"]
+# pet/sft/smp/topmodel/summa are not supported yet).
+ALL_CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily", "casam"]
 
 
 def _generate_modular_config(cat_id, tmp_root, monkeypatch, *, models, routing=False):
@@ -181,5 +181,5 @@ class TestOrchestration:
         """Models without a config builder yet raise NotImplementedError naming
         the offending model."""
         require(CAT_ID)
-        with pytest.raises(NotImplementedError, match="casam"):
-            _generate_modular_config(CAT_ID, tmp_path, monkeypatch, models=["casam"], routing=False)
+        with pytest.raises(NotImplementedError, match="sft"):
+            _generate_modular_config(CAT_ID, tmp_path, monkeypatch, models=["sft"], routing=False)

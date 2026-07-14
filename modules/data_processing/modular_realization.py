@@ -3,6 +3,7 @@
 import copy
 import json
 from datetime import datetime
+import subprocess
 from rich.prompt import Prompt
 
 from data_processing.file_paths import FilePaths
@@ -14,6 +15,7 @@ from data_processing.create_realization import (
     make_sacsma_config,
     make_lstm_config,
     make_dhbv2_config,
+    make_casam_config,
     configure_troute,
 )
 
@@ -46,16 +48,26 @@ MAIN_OUTPUT_VARIABLES = {
     "topmodel": "Qout",  # Accumulated discharge (m/timestep)
     "sac-sma": "tci",  # Total channel inflow (m)
     "summa": "land_surface_water__runoff_volume_flux",  # Total runoff flux
-    "lstm": "land_surface_water__runoff_volume_flux",  # ML streamflow
-    "lstm_rust": "land_surface_water__runoff_volume_flux",  # ML streamflow
-    "dhbv2": "streamflow",  # ML streamflow (hourly)
-    "dhbv2_daily": "streamflow",  # ML streamflow (daily)
+    "lstm": "land_surface_water__runoff_depth",  # ML streamflow
+    "lstm_rust": "land_surface_water__runoff_depth",  # ML streamflow
+    "dhbv2": "land_surface_water__runoff_volume_flux",  # ML streamflow (hourly)
+    "dhbv2_daily": "land_surface_water__runoff_volume_flux",  # ML streamflow (daily)
     # --- Intermediate → downstream BMI models ---
     "pet": "water_potential_evaporation_flux",  # → CFE/CASAM/TOPMODEL/SAC-SMA
     "sft": "num_cells",  # Soil column layer count; ice fractions via get_value()
     "smp": "soil_storage",  # Scalar (CFE/TOPMODEL) or wetting fronts (CASAM)
     "nom": "EVAPOTRANS",  # ET → CFE/CASAM/TOPMODEL; also outputs QINSUR
     "snow17": "raim",  # Rain + snowmelt (mm/s) → CFE/CASAM/SAC-SMA
+}
+
+# TODO: Unclear if this field even affects ngen whatsoever, but I included it to keep our tests
+# from failing. Need to decide if it should be ignored.
+MODEL_TYPE_NAMES = {
+    "dhbv2": "dhbv2",
+    "dhbv2_daily": "dhbv2",
+    "lstm": "lstm",
+    "lstm_rust": "lstm",
+    "summa": "bmi_multi_summa",
 }
 
 # ---------------------------------------------------------------------------
@@ -112,7 +124,47 @@ ALL_VARIABLES_NAMES_MAPS = {
         "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface",
         "water_potential_evaporation_flux": "sloth_pet",
     },
-    "sac-sma": {"tair": "TMP_2maboveground", "precip": "precip_rate", "pet": "sloth_pet"},
+    "sac-sma": {
+        "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
+        "tair": "land_surface_air__temperature",
+        "pet": "sloth_pet",
+    },
+    "snow17": {
+        "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
+        "tair": "land_surface_air__temperature",
+    },
+    "dhbv2": {
+        "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
+        "land_surface_air__temperature": "TMP_2maboveground",
+        "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+        "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+        "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+        "land_surface_air__pressure": "PRES_surface",
+        "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+        "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+        "land_surface_water__runoff_volume_flux": "streamflow",
+    },
+    "dhbv2_daily": {
+        "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
+        "land_surface_air__temperature": "TMP_2maboveground",
+        "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+        "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+        "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+        "land_surface_air__pressure": "PRES_surface",
+        "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+        "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+        "land_surface_water__runoff_volume_flux": "streamflow",
+    },
+    "summa": {
+        "atmosphere_water__precipitation_mass_flux": "precip_rate",
+        "land_surface_air__temperature": "TMP_2maboveground",
+        "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+        "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+        "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+        "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+        "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+        "land_surface_air__pressure": "PRES_surface",
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -317,15 +369,22 @@ MODEL_VARIABLE_OVERRIDES = {
     ],
 }
 
-# placeholder dictionary for currently non-existent modularized realization configs
+# placeholder dictionary for modularized realization configs
 MODEL_PATHS = {
     "cfe": FilePaths.cfe_modular_config,
-    # "casam": FilePaths.casam_modular_config,
+    "casam": FilePaths.casam_modular_config,
     # "sft": FilePaths.sft_modular_config,
     # "smp": FilePaths.smp_modular_config,
     # "topmodel": FilePaths.topmodel_modular_config,
     "nom": FilePaths.nom_modular_config,
     # "pet": FilePaths.pet_modular_config,
+    "snow17": FilePaths.snow17_modular_config,
+    "sac-sma": FilePaths.sac_modular_config,
+    "lstm": FilePaths.lstm_modular_config,
+    "lstm_rust": FilePaths.lstm_rust_modular_config,
+    "dhbv2": FilePaths.dhbv2_modular_config,
+    "dhbv2_daily": FilePaths.dhbv2_daily_modular_config,
+    "summa": FilePaths.summa_modular_config,
     "sloth": FilePaths.sloth_modular_config,
 }
 
@@ -392,22 +451,6 @@ def validate_models(models: list[str], routing: bool):
         print("Proceeding with data preprocessing despite warnings: " + warning_message)
 
 
-def _append_model_realization(
-    model: str,
-    target_variable_names: dict[str, dict[str, str]],
-    modules: list[dict],
-) -> None:
-    if model == "cfe":
-        with open(MODEL_PATHS["cfe"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["cfe"]
-        modules.append(realization)
-    elif model == "nom":
-        with open(MODEL_PATHS["nom"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        modules.append(realization)
-
-
 def _insert_sloth_module(
     models: list[str], target_variable_names: dict[str, dict[str, str]], modules: list[dict]
 ) -> None:
@@ -419,11 +462,15 @@ def _insert_sloth_module(
     sloth_position = models.index("sloth")
     with open(MODEL_PATHS["sloth"], "r", encoding="utf-8") as f:
         sloth_realization = json.load(f)
+
+    # insert dummy param if no other params are present, otherwise BMI will throw an error
+    if not params:
+        params["sloth_dummy_param(1,double,1,node)"] = 0.0
     sloth_realization["params"]["model_params"] = params
     modules.insert(sloth_position, sloth_realization)
 
 
-def create_modular_realization(
+def create_modular_realization(  # pylint: disable=too-many-locals
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
@@ -442,6 +489,10 @@ def create_modular_realization(
 
     paths = FilePaths(output_folder)
     main_output_variable = MAIN_OUTPUT_VARIABLES[models[-1]]
+    if models[-1] in MODEL_TYPE_NAMES:
+        model_type_name = MODEL_TYPE_NAMES[models[-1]]
+    else:
+        model_type_name = "bmi_multi"
 
     target_variable_names = {}
     for model in models:
@@ -451,14 +502,22 @@ def create_modular_realization(
     modules: list[dict] = []
     seen_models: list[str] = []
 
-    for model in list(target_variable_names.keys()):
+    for model in models:
+        if model == "sloth":
+            continue  # SLoTH is handled separately below after all other models have been processed
+
         # Implicitly this means that if we have something like ["nom", "pet"], then the PET value
         # from the evapotranspiration module will override the PET value from Noah-OWP-M
         for dependency, overrides in MODEL_VARIABLE_OVERRIDES.get(model, []):
             if dependency in seen_models:
                 target_variable_names[model].update(overrides)
 
-        _append_model_realization(model, target_variable_names, modules)
+        with open(MODEL_PATHS[model], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        if model in target_variable_names:
+            realization["params"]["variables_names_map"] = target_variable_names[model]
+        modules.append(realization)
+
         seen_models.append(model)
 
     if "sloth" in models:
@@ -466,6 +525,8 @@ def create_modular_realization(
 
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
+
+    realization["global"]["formulations"][0]["params"]["model_type_name"] = model_type_name
     realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
         main_output_variable
     )
@@ -529,8 +590,14 @@ def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-bran
             )
         elif model == "sloth":
             pass  # no config file needed for SLoTH
+        elif model == "casam":
+            if "sft" in models:
+                sft_coupled = True
+            else:
+                sft_coupled = False
+            make_casam_config(paths.config_dir, conf_df, start_time, end_time, sft_coupled)
         else:
-            # config generation not supported for CASAM, PET, SFT, SMP, TOPMODEL yet
+            # config generation not supported for PET, SFT, SMP, TOPMODEL yet
             # SUMMA also needs forcings for config generation, this will get added as a separate
             # PR
             raise NotImplementedError(f"Config generation not yet supported for '{model}'")

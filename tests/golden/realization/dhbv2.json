@@ -4,6 +4,7 @@
       {
         "name": "bmi_multi",
         "params": {
+          "name": "bmi_multi",
           "model_type_name": "dhbv2",
           "forcing_file": "",
           "init_config": "",
@@ -33,13 +34,15 @@
                 }
               }
             }
-          ]
+          ],
+          "uses_forcing_file": false
         }
       }
     ],
     "forcing": {
       "path": "./forcings/forcings.nc",
-      "provider": "NetCDF"
+      "provider": "NetCDF",
+      "enable_cache": false
     }
   },
   "time": {

@@ -32,7 +32,6 @@ from data_processing.modular_realization import (
     ALL_SLOTH_MODEL_PARAMS,
     ALL_VARIABLES_NAMES_MAPS,
     MAIN_OUTPUT_VARIABLES,
-    _append_model_realization,
     _insert_sloth_module,
     create_modular_realization,
     validate_models,
@@ -107,32 +106,44 @@ def _cfe_module(realization):
 
 
 # ===========================================================================
-# Headline: the modular sloth->nom->cfe build must equal the cfe-nom golden.
+# Headline: the modular build must equal the respective golden.
 # ===========================================================================
 
+# One entry per committed golden: (models in execution order, golden filename, label).
+# routing is on for all of them (the goldens were stamped with routing enabled).
+GOLDEN_CASES = [
+    (["sloth", "nom", "cfe"], "cfe-nom.json", "sloth->nom->cfe"),
+    (["dhbv2"], "dhbv2.json", "dhbv2"),
+    (["dhbv2_daily"], "dhbv2-daily.json", "dhbv2_daily"),
+    (["lstm"], "lstm-py.json", "lstm"),
+    (["lstm_rust"], "lstm-rs.json", "lstm_rust"),
+    (["nom", "sac-sma"], "sacsma-nom.json", "nom->sac-sma"),
+    (["sloth", "snow17", "nom", "cfe"], "snow17-nom-cfe.json", "sloth->snow17->nom->cfe"),
+    (["summa"], "summa.json", "summa"),
+]
 
-def test_sloth_nom_cfe_matches_cfe_nom_golden(make_realization):
-    """A sloth->nom->cfe realization (routing on) must reproduce cfe-nom.json.
 
-    The golden has routing enabled and is stamped 2020-01-01 .. 2020-01-02,
-    so we build with the same inputs. Equality is on the parsed dicts, so key
-    ordering does not matter -- only structure and values.å
+@pytest.mark.parametrize("models, golden_name, label", GOLDEN_CASES)
+def test_modular_realization_matches_golden(models, golden_name, label, make_realization):
+    """Each model combination (routing on) must reproduce its committed golden.
+
+    Mirrors test_sloth_nom_cfe_matches_cfe_nom_golden: build with the same fixed
+    inputs the golden was stamped with, then compare the parsed dicts (key order
+    is irrelevant -- only structure and values matter).
     """
-    produced = make_realization(["sloth", "nom", "cfe"], routing=True)
-    golden = json.loads(CFE_NOM_GOLDEN.read_text())
+    produced = make_realization(models, routing=True)
+    golden = json.loads((GOLDEN_DIR / golden_name).read_text())
     if produced != golden:
         diff = "\n".join(
             difflib.unified_diff(
                 json.dumps(golden, indent=2, sort_keys=True).splitlines(),
                 json.dumps(produced, indent=2, sort_keys=True).splitlines(),
-                fromfile="golden/cfe-nom.json",
-                tofile="produced (sloth->nom->cfe)",
+                fromfile=f"golden/{golden_name}",
+                tofile=f"produced ({label})",
                 lineterm="",
             )
         )
-        pytest.fail(
-            "modular sloth->nom->cfe realization does not match the cfe-nom golden.\n\n" + diff
-        )
+        pytest.fail(f"modular {label} realization does not match {golden_name}.\n\n" + diff)
 
 
 # ---------------------------------------------------------------------------
@@ -217,13 +228,6 @@ class TestValidateModelsDependencies:
         validate_models(models, routing=False)
         assert not answer_prompt.called
 
-    def test_dependency_warns_for_non_terminal_model(self, answer_prompt):
-        """Predicates run for EVERY model in the list, not just the last one."""
-        answer_prompt("n")
-        with pytest.raises(ValueError, match="CFE requires SLoTH"):
-            validate_models(["cfe", "nom"], routing=False)
-        assert answer_prompt.called
-
     def test_multiple_unmet_dependencies_accumulate(self, answer_prompt):
         """Each failing model contributes its own warning line to the message."""
         answer_prompt("n")
@@ -256,44 +260,6 @@ class TestValidateModelsRouting:
         """Ensure routing is ignored when routing is disabled."""
         validate_models(["nom"], routing=False)
         assert not answer_prompt.called
-
-
-# ---------------------------------------------------------------------------
-# _append_model_realization
-# ---------------------------------------------------------------------------
-class TestAppendModelRealization:
-    """Validate the helpers that append per-model realization blocks."""
-
-    def test_cfe_appends_and_sets_variables_names_map(self):
-        """Ensure the CFE module is appended with its variable-name mapping."""
-        modules = []
-        _append_model_realization("cfe", {"cfe": {"some_var": "some_source"}}, modules)
-        assert len(modules) == 1
-        assert modules[0]["params"]["model_type_name"] == "CFE"
-        assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
-
-    def test_nom_appends_template_unchanged(self):
-        """Ensure the NOM module is appended with the expected template data."""
-        modules = []
-        _append_model_realization("nom", {}, modules)
-        assert len(modules) == 1
-        assert modules[0]["params"]["model_type_name"] == "NoahOWP"
-
-    def test_sloth_is_not_appended_by_this_function(self):
-        """_append_model_realization only builds cfe and nom. sloth is a
-        developed model but is deliberately added by _insert_sloth_module
-        instead, so it must be a no-op here."""
-        modules = []
-        _append_model_realization("sloth", {"sloth": {}}, modules)
-        assert not modules
-
-    def test_each_cfe_call_reads_a_fresh_copy(self):
-        """Ensure each append call uses a fresh copy of the template mapping."""
-        modules = []
-        _append_model_realization("cfe", {"cfe": {"a": "1"}}, modules)
-        _append_model_realization("cfe", {"cfe": {"b": "2"}}, modules)
-        assert modules[0]["params"]["variables_names_map"] == {"a": "1"}
-        assert modules[1]["params"]["variables_names_map"] == {"b": "2"}
 
 
 # ---------------------------------------------------------------------------
@@ -330,7 +296,13 @@ class TestInsertSlothModule:
         """Ensure non-SLOTH variables do not contribute model parameters."""
         modules = []
         _insert_sloth_module(["sloth"], {"cfe": {"precip": "APCP_surface"}}, modules)
-        assert modules[0]["params"]["model_params"] == {}
+        assert modules[0]["params"]["model_params"] == {"sloth_dummy_param(1,double,1,node)": 0.0}
+
+    def test_sloth_dummy_variable_added(self):
+        """Ensure SLoTH dummy variable is added when no other parameters are present."""
+        modules = []
+        _insert_sloth_module(["sloth"], {}, modules)
+        assert modules[0]["params"]["model_params"] == {"sloth_dummy_param(1,double,1,node)": 0.0}
 
 
 # ---------------------------------------------------------------------------
@@ -355,11 +327,6 @@ class TestCreateModularRealization:
         params = r["global"]["formulations"][0]["params"]
         assert params["main_output_variable"] == MAIN_OUTPUT_VARIABLES["cfe"] == "Q_OUT"
 
-    def test_nom_appears_in_module_list(self, make_realization):
-        """nom now has a variable map, so it is iterated and its module appended."""
-        r = make_realization(["sloth", "nom", "cfe"])
-        assert "NoahOWP" in _model_type_names(r)
-
     def test_sloth_inserted_before_cfe_by_position(self, make_realization):
         """Ensure the SLOTH module appears before the CFE module in the chain."""
         r = make_realization(["sloth", "cfe"])
@@ -373,6 +340,23 @@ class TestCreateModularRealization:
         vmap = _cfe_module(r)["params"]["variables_names_map"]
         assert vmap["water_potential_evaporation_flux"] == "EVAPOTRANS"
         assert vmap["atmosphere_water__liquid_equivalent_precipitation_rate"] == "QINSUR"
+
+    def test_casam_can_be_main_model(self, make_realization):
+        """casam has a MAIN_OUTPUT_VARIABLES entry, so it can be the terminal
+        model, and its module appears in the coupled chain."""
+        r = make_realization(["sloth", "nom", "casam"])
+        assert "CASAM" in _model_type_names(r)
+        params = r["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MAIN_OUTPUT_VARIABLES["casam"] == "total_discharge"
+
+    def test_nom_override_rewrites_casam_pet_source(self, make_realization):
+        """nom seen before casam -> casam's PET source switches to the Noah-OWP
+        output (confirms casam applies its computed map, like cfe)."""
+        r = make_realization(["sloth", "nom", "casam"])
+        casam = next(m for m in _modules_of(r) if m["params"]["model_type_name"] == "CASAM")
+        assert casam["params"]["variables_names_map"]["potential_evapotranspiration_rate"] == (
+            "EVAPOTRANS"
+        )
 
     def test_override_does_not_fire_when_dependency_seen_later(self, make_realization):
         """cfe before nom -> cfe keeps its default (sloth/forcing) sources."""

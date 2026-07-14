@@ -24,6 +24,7 @@ from data_processing.create_realization import (
     make_lstm_config,
     make_sacsma_config,
     make_snow17_config,
+    make_casam_config,
     configure_troute,
 )
 from data_processing.file_paths import FilePaths
@@ -173,6 +174,7 @@ def _generate_config(cat_id: str, tmp_root: Path, monkeypatch) -> dict:
         END,
         template_path=FilePaths.template_dhbv2_daily_config,
     )
+    make_casam_config(paths.config_dir, conf_df, START, END, False)
     configure_troute(cat_id, paths.config_dir, START, END)
 
     produced = {}
@@ -279,6 +281,9 @@ def test_config_generation_produces_expected_artifacts(cat_id, tmp_path, monkeyp
     )
     assert any(k.startswith("cat_config/dhbv2_daily/") and k.endswith(".yml") for k in keys), (
         "no dHBV2 daily configs"
+    )
+    assert any(k.startswith("cat_config/CASAM/") and k.endswith(".input") for k in keys), (
+        "no CASAM configs"
     )
 
 

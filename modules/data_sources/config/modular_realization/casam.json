@@ -1,0 +1,18 @@
+{
+    "name": "bmi_c++",
+    "params": {
+        "name": "bmi_c++",
+        "model_type_name": "CASAM",
+        "main_output_variable": "total_discharge",
+        "init_config": "./config/cat_config/CASAM/{{id}}.input",
+        "allow_exceed_end_time": true,
+        "fixed_time_step": false,
+        "uses_forcing_file": false,
+        "variables_names_map": {
+            "precipitation_rate": "precip_rate",
+            "potential_evapotranspiration_rate": "EVAPOTRANS",
+            "soil_temperature_profile": "sloth_soil_temperature_profile"
+        },
+        "library_file": "/dmod/shared_libs/liblasambmi.so"
+    }
+}

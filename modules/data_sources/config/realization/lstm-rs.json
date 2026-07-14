@@ -24,7 +24,8 @@
                 "library_file": "/dmod/shared_libs/librust_lstm_1025.so"
               }
             }
-          ]
+          ],
+          "uses_forcing_file": false
         }
       }
     ],
