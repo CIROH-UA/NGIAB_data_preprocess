@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, modular-configs, casam, other-realizations]
+    branches: [main, modular-configs, casam, other-realizations, sloth-fix]
 
 concurrency:
   group: ci-${{ github.ref }}
