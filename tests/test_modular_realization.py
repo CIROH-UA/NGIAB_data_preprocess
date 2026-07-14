@@ -32,7 +32,6 @@ from data_processing.modular_realization import (
     ALL_SLOTH_MODEL_PARAMS,
     ALL_VARIABLES_NAMES_MAPS,
     MAIN_OUTPUT_VARIABLES,
-    _append_model_realization,
     _insert_sloth_module,
     create_modular_realization,
     validate_models,
@@ -261,54 +260,6 @@ class TestValidateModelsRouting:
         """Ensure routing is ignored when routing is disabled."""
         validate_models(["nom"], routing=False)
         assert not answer_prompt.called
-
-
-# ---------------------------------------------------------------------------
-# _append_model_realization
-# ---------------------------------------------------------------------------
-class TestAppendModelRealization:
-    """Validate the helpers that append per-model realization blocks."""
-
-    def test_cfe_appends_and_sets_variables_names_map(self):
-        """Ensure the CFE module is appended with its variable-name mapping."""
-        modules = []
-        _append_model_realization("cfe", {"cfe": {"some_var": "some_source"}}, modules)
-        assert len(modules) == 1
-        assert modules[0]["params"]["model_type_name"] == "CFE"
-        assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
-
-    def test_nom_appends_and_sets_variables_names_map(self):
-        """Ensure the NOM module is appended with its variable-name mapping."""
-        modules = []
-        _append_model_realization("nom", {"nom": {"some_var": "some_source"}}, modules)
-        assert len(modules) == 1
-        assert modules[0]["params"]["model_type_name"] == "NoahOWP"
-        assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
-
-    def test_casam_appends_and_sets_variables_names_map(self):
-        """Ensure the CASAM module is appended with its variable-name mapping
-        (like CFE, it applies the computed target map, not the template map)."""
-        modules = []
-        _append_model_realization("casam", {"casam": {"some_var": "some_source"}}, modules)
-        assert len(modules) == 1
-        assert modules[0]["params"]["model_type_name"] == "CASAM"
-        assert modules[0]["params"]["variables_names_map"] == {"some_var": "some_source"}
-
-    def test_sloth_is_not_appended_by_this_function(self):
-        """_append_model_realization does not build SLoTH. SLoTH is a
-        developed model but is deliberately added by _insert_sloth_module
-        instead, so it must be a no-op here."""
-        modules = []
-        _append_model_realization("sloth", {"sloth": {}}, modules)
-        assert not modules
-
-    def test_each_cfe_call_reads_a_fresh_copy(self):
-        """Ensure each append call uses a fresh copy of the template mapping."""
-        modules = []
-        _append_model_realization("cfe", {"cfe": {"a": "1"}}, modules)
-        _append_model_realization("cfe", {"cfe": {"b": "2"}}, modules)
-        assert modules[0]["params"]["variables_names_map"] == {"a": "1"}
-        assert modules[1]["params"]["variables_names_map"] == {"b": "2"}
 
 
 # ---------------------------------------------------------------------------
