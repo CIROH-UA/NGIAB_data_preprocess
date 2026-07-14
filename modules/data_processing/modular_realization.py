@@ -3,8 +3,6 @@
 import copy
 import json
 from datetime import datetime
-import shutil
-from pathlib import Path
 import subprocess
 from rich.prompt import Prompt
 
@@ -708,6 +706,7 @@ def main():
         routing=routing,
     )
     print(f"Created modular realization for models: {models} with routing={routing}")
+
 
 if __name__ == "__main__":
     main()
