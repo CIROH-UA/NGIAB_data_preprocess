@@ -296,7 +296,13 @@ class TestInsertSlothModule:
         """Ensure non-SLOTH variables do not contribute model parameters."""
         modules = []
         _insert_sloth_module(["sloth"], {"cfe": {"precip": "APCP_surface"}}, modules)
-        assert modules[0]["params"]["model_params"] == {}
+        assert modules[0]["params"]["model_params"] == {"sloth_dummy_param(1,double,1,node)": 0.0}
+
+    def test_sloth_dummy_variable_added(self):
+        """Ensure SLoTH dummy variable is added when no other parameters are present."""
+        modules = []
+        _insert_sloth_module(["sloth"], {}, modules)
+        assert modules[0]["params"]["model_params"] == {"sloth_dummy_param(1,double,1,node)": 0.0}
 
 
 # ---------------------------------------------------------------------------

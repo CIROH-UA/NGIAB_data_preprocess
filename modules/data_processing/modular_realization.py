@@ -462,11 +462,15 @@ def _insert_sloth_module(
     sloth_position = models.index("sloth")
     with open(MODEL_PATHS["sloth"], "r", encoding="utf-8") as f:
         sloth_realization = json.load(f)
+
+    # insert dummy param if no other params are present, otherwise BMI will throw an error
+    if not params:
+        params["sloth_dummy_param(1,double,1,node)"] = 0.0
     sloth_realization["params"]["model_params"] = params
     modules.insert(sloth_position, sloth_realization)
 
 
-def create_modular_realization( # pylint: disable=too-many-locals
+def create_modular_realization(  # pylint: disable=too-many-locals
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
