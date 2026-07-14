@@ -296,7 +296,7 @@ class TestInsertSlothModule:
         """Ensure SLoTH dummy variable is added when no other parameters are present."""
         modules = []
         _insert_sloth_module(["sloth"], {}, modules)
-        assert modules[0]["params"]["model_params"] == {'sloth_dummy_param(1,double,1,node)': 0.0}
+        assert modules[0]["params"]["model_params"] == {"sloth_dummy_param(1,double,1,node)": 0.0}
 
 
 # ---------------------------------------------------------------------------
