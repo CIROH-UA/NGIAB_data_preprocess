@@ -3,7 +3,6 @@
 import copy
 import json
 from datetime import datetime
-import subprocess
 from rich.prompt import Prompt
 
 from data_processing.file_paths import FilePaths
