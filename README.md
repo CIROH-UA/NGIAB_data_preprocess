@@ -10,33 +10,38 @@ This repository contains tools for preparing data to run a [NextGen](https://git
 
 ## Table of Contents
 
-1. [What does this tool do?](#what-does-this-tool-do)
-2. [Limitations](#limitations)
-   - [Custom realizations](#custom-realizations)
-   - [Calibration](#calibration)
-   - [Evaluation](#evaluation)
-   - [Visualisation](#visualisation)
-3. [Requirements](#requirements)
-4. [Installation and running](#installation-and-running)
-   - [Running without install](#running-without-install)
-   - [For uv installation](#for-uv-installation)
-   - [For legacy pip installation](#for-legacy-pip-installation)
-   - [Development installation](#development-installation)
-5. [Map interface documentation](#map-interface-documentation)
-   - [Running the map interface app](#running-the-map-interface-app)
-   - [Using the map interace](#using-the-map-interface)
-6. [CLI documentation](#cli-documentation)
-   - [Running the CLI](#running-the-cli)
-   - [Arguments](#arguments)
-   - [Usage notes](#usage-notes)
-   - [Examples](#examples)
-7. [Realization information](#realization-information)
-   - [NOAH + CFE](#noah--cfe-default)
-   - [LSTM (Python)](#lstm-python)
-   - [LSTM (Rust)](#lstm-rust)
-   - [dHBV2.0 (hourly)](#dhbv20-hourly-mts)
-   - [dHBV2.0 (daily)](#dhbv20-daily)
-   - [SUMMA](#summa)
+- [NGIAB Data Preprocess](#ngiab-data-preprocess)
+  - [Table of Contents](#table-of-contents)
+  - [What does this tool do?](#what-does-this-tool-do)
+  - [Limitations](#limitations)
+    - [Calibration](#calibration)
+    - [Evaluation](#evaluation)
+    - [Visualisation](#visualisation)
+- [Requirements](#requirements)
+- [Installation and running](#installation-and-running)
+    - [Running without install](#running-without-install)
+    - [For uv installation](#for-uv-installation)
+    - [For legacy pip installation](#for-legacy-pip-installation)
+    - [Development installation](#development-installation)
+- [Map interface documentation](#map-interface-documentation)
+  - [Running the map interface app](#running-the-map-interface-app)
+  - [Using the map interface](#using-the-map-interface)
+- [CLI documentation](#cli-documentation)
+  - [Running the CLI](#running-the-cli)
+  - [Arguments](#arguments)
+  - [Usage notes](#usage-notes)
+  - [Examples](#examples)
+- [Realization information](#realization-information)
+  - [Defaults](#defaults)
+    - [NOAH + CFE (Default)](#noah--cfe-default)
+    - [LSTM (Python)](#lstm-python)
+    - [LSTM (Rust)](#lstm-rust)
+    - [dHBV2.0 (Hourly MTS)](#dhbv20-hourly-mts)
+    - [dHBV2.0 (Daily)](#dhbv20-daily)
+    - [SUMMA](#summa)
+    - [SNOW17](#snow17)
+    - [SAC-SMA](#sac-sma)
+  - [Custom](#custom)
 
 ## What does this tool do?
 
@@ -54,9 +59,6 @@ The raw forcing data is [nwm retrospective v3 forcing](https://noaa-nwm-retrospe
 
 ## Limitations
 This tool cannot do the following:
-
-### Custom realizations
-This tool currently only outputs a single, default realization, which is described in "[Realization information](#realization-information)". Support for additional model configurations is planned, but not currently available.
 
 ### Calibration
 If available, this repository will download [calibrated parameters](https://communityhydrofabric.s3.us-east-1.amazonaws.com/index.html#hydrofabrics/community/gage_parameters/) from the [Community Hydrofabric](https://github.com/CIROH-UA/community_hf_patcher) AWS S3 bucket.
@@ -206,13 +208,15 @@ Installed with uv: `uv run cli`
 - `--subset_type`: Specify the subset type. `nexus`: get everything flowing into the downstream nexus of the selected catchment. `catchment`: get everything flowing into the selected catchment.
 - `-f`, `--forcings`: Generate forcings for the given feature.
 - `-r`, `--realization`: Create a realization for the given feature.
-- `--lstm`: Configures the data for the [python lstm](https://github.com/ciroh-ua/lstm/).
-- `--lstm_rust`: Configures the data for the [rust lstm](https://github.com/ciroh-ua/rust-lstm-1025/).
-- `--dhbv2`: Configures the data for the hourly [dHBV2](https://github.com/mhpi/dhbv2).
-- `--dhbv2_daily`: Configures the data for the daily [dHBV2](https://github.com/mhpi/dhbv2).
-- `--summa`: Configures the data for the [SUMMA](https://github.com/CH-Earth/summa) model.
-- `--snow17`: Configures the data for the [SNOW17](https://github.com/NOAA-OWP/snow17) model.
-- `--sacsma`: Configures the data for the [SAC-SMA](https://github.com/NOAA-OWP/sac-sma) model.
+- `--lstm`: Configures the data for the [python lstm](https://github.com/ciroh-ua/lstm/) with t-route activated.
+- `--lstm_rust`: Configures the data for the [rust lstm](https://github.com/ciroh-ua/rust-lstm-1025/) with t-route activated.
+- `--dhbv2`: Configures the data for the hourly [dHBV2](https://github.com/mhpi/dhbv2) with t-route activated.
+- `--dhbv2_daily`: Configures the data for the daily [dHBV2](https://github.com/mhpi/dhbv2) with t-route activated.
+- `--summa`: Configures the data for the [SUMMA](https://github.com/CH-Earth/summa) model with t-route activated.
+- `--snow17`: Configures the data for the [SNOW17](https://github.com/NOAA-OWP/snow17) model. This configuration contains SLoTH, SNOW17, NOM, and CFE, and activates t-route.
+- `--sacsma`: Configures the data for the [SAC-SMA](https://github.com/NOAA-OWP/sac-sma) model. This configuration contains NOM and SAC-SMA, and activates t-route
+- `--models`: Configures the data for a user-specified model coupling, e.g., `--models sloth nom cfe`
+- `--routing`: Configures the data for a t-route run. This flag only changes preprocessor behavior if used with `--models`.
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
@@ -277,28 +281,62 @@ Installed with uv: `uv run cli`
    #         you can replace --lstm with any other model, like --lstm_rust, --dhbv2, --dhbv2_daily, --summa
    ```
 
+9. Prepare everything for a custom NGIAB SLoTH + SNOW17 + CASAM + t-route run at a given gage:
+
+   ```bash
+   uvx ngiab-prep -i gage-10154200 -sfr --start 2022-01-01 --end 2022-02-28 --models sloth snow17 casam --routing
+   ```
+
 # Realization information
 
-This tool currently offers three realizations.
+This tool currently offers eight default realizations, as well as the ability to create custom realizations with user-passed arguments.
 
-## NOAH + CFE (Default)
+## Defaults
+
+### NOAH + CFE (Default)
 
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/cfe-nom.json) is intended to be roughly comparable to earlier versions of the National Water Model.
 - [NOAH-OWP-Modular](https://github.com/NOAA-OWP/NOAH-OWP-Modular): A refactoring of Noah-MP, a land-surface model. Used to model groundwater properties.
 - [Conceptual Functional Equivalent (CFE)](https://github.com/NOAA-OWP/CFE): A simplified conceptual approximation of versions 1.2, 2.0, and 2.1 of the National Water Model. Used to model precipitation and evaporation.
 - [SLoTH](https://github.com/NOAA-OWP/SLoTH): A module used to feed through unchanged values. In this default configuration, it simply forces certain soil moisture and ice fraction properties to zero.
 
-## LSTM (Python)
+### LSTM (Python)
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/lstm-py.json) will run the [python lstm](https://github.com/ciroh-ua/lstm/). It's designed to work with ngiab using [these example weights](https://github.com/CIROH-UA/lstm/tree/example_weights/trained_neuralhydrology_models) generously contributed by [jmframe/lstm](https://github.com/jmframe/lstm)
 
-## LSTM (Rust)
+### LSTM (Rust)
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/lstm-rs.json) will run the [rust port](https://github.com/CIROH-UA/rust-lstm-1025/tree/main) of the python lstm above. It's an experimental drop in replacement that should produce identical results with a ~2-5x speedup depending on your setup.
 
-## dHBV2.0 (Hourly MTS)
+### dHBV2.0 (Hourly MTS)
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2.json) will run the [multi-timescale dHBV2.0 model](https://github.com/mhpi/dhbv2/tree/39379fd435747a3f765d1a2201d613f9f0087448). Weights and model attributes developed by Penn State's MHPI group.
 
-## dHBV2.0 (Daily)
+### dHBV2.0 (Daily)
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2-daily.json) will run the [daily dHBV2.0 model](https://github.com/mhpi/dhbv2/tree/39379fd435747a3f765d1a2201d613f9f0087448). Weights and model attributes developed by Penn State's MHPI group.
 
-## SUMMA
+### SUMMA
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/summa.json) will run the [SUMMA](https://github.com/CIROH-UA/ngen/tree/ngiab/extern/summa) model (version linked is what's currently in nextgen in a box).
+
+### SNOW17
+
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/snow17-nom-cfe.json) will run the [SNOW17](https://github.com/CIROH-UA/ngen/tree/ngiab/extern/snow17) model in conjunction with SLoTH, Noah-OWP-Modular, CFE, and t-route.
+
+### SAC-SMA
+
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/sacsma-nom.json) will run the [SAC-SMA](https://github.com/CIROH-UA/ngen/tree/ngiab/extern/sac-sma) model in conjunction with Noah-OWP-Modular and t-route.
+
+## Custom
+
+Users can now mix and match models to create custom realizations. Models supported by this capability are `sloth`, `nom`, `cfe`, `lstm`, `lstm_rust`, `dhbv2`, `dhbv2_daily`, `snow17`, `sac-sma`, and `casam`. SUMMA is not currently supported by this functionality, but we plan on adding it in the future. This feature includes automated validation (i.e., a warning will appear if the preprocessor thinks a user has submitted an invalid list of models to couple).
+
+To use this functionality, add the `--models` flag with the list of models you would like to couple together in the order that they should be run. To activate routing through t-route, append the `--routing` flag. Some examples include:
+
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models sloth nom cfe --routing --run` (Run SLoTH, Noah-OWP-Modular, CFE, and t-route)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models sloth nom casam --routing --run` (Run SLotH, Noah-OWP-Modular, CASAM, and t-route)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models dhbv2 --routing --run` (Run dHBV2 and t-route)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models lstm --routing --run` (Run LSTM and t-route)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models lstm_rust --routing --run` (Run Rust LSTM and t-route)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models nom --run` (Run Noah-OWP-Modular standalone)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models nom snow17 sac-sma --routing --run` (Run Noah-OWP-Modular, SNOW17, SAC-SMA, and t-route)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models sloth snow17 casam --routing --run` (Run SLoTH, SNOW17, CASAM, and t-route)
+- `uv run cli -i cat-1555522 -sfr --start 2020-01-01 --end 2020-01-02 --source aorc --models snow17 --run` (Run SNOW17 standalone)
+
+Please note: the `--models` flag cannot be used in conjunction with any of the default options listed above. In addition, the presence or absence of the `--routing` flag will not change any of the default realizations' inclusion of t-route (i.e., `--routing` only has an effect when used with `--models`).
