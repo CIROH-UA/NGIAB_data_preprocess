@@ -166,7 +166,7 @@ def parse_arguments() -> argparse.Namespace:
         "--models",
         type=str,
         nargs="+",
-        help="List of models to couple together in the order of executionß, e.g. --models sloth nom cfe",
+        help="List of models to couple together in the order of execution, e.g. --models sloth nom cfe",
         choices=[
             "sloth",
             "nom",
@@ -184,7 +184,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--routing",
         action="store_true",
-        help="enable routing when running with custom coupled models",
+        help="enable routing when running with custom coupled models. Note this this will not activate without --models",
     )
 
     parser.add_argument(
