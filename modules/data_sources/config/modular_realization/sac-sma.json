@@ -1,0 +1,17 @@
+{
+    "name": "bmi_fortran",
+    "params": {
+        "model_type_name": "bmi_fortran_sac",
+        "library_file": "/dmod/shared_libs/libsacbmi.so",
+        "forcing_file": "",
+        "init_config": "./config/cat_config/SAC-SMA/{{id}}.input",
+        "allow_exceed_end_time": true,
+        "main_output_variable": "tci",
+        "variables_names_map": {
+            "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
+            "tair": "land_surface_air__temperature",
+            "pet": "EVAPOTRANS"
+        },
+        "uses_forcing_file": false
+    }
+}
