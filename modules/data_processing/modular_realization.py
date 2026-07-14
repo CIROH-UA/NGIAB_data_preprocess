@@ -470,7 +470,7 @@ def _insert_sloth_module(
     modules.insert(sloth_position, sloth_realization)
 
 
-def create_modular_realization(  # pylint: disable=too-many-locals
+def create_modular_realization( # pylint: disable=too-many-locals
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
