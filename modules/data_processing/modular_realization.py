@@ -165,8 +165,6 @@ ALL_VARIABLES_NAMES_MAPS = {
         "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
         "land_surface_air__pressure": "PRES_surface",
     },
-    "lstm": {},
-    "lstm_rust": {},
 }
 
 # ---------------------------------------------------------------------------
@@ -453,61 +451,6 @@ def validate_models(models: list[str], routing: bool):
         print("Proceeding with data preprocessing despite warnings: " + warning_message)
 
 
-def _append_model_realization(
-    model: str,
-    target_variable_names: dict[str, dict[str, str]],
-    modules: list[dict],
-) -> None:
-    if model == "cfe":
-        with open(MODEL_PATHS["cfe"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["cfe"]
-        modules.append(realization)
-    elif model == "nom":
-        with open(MODEL_PATHS["nom"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["nom"]
-        modules.append(realization)
-    elif model == "casam":
-        with open(MODEL_PATHS["casam"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["casam"]
-        modules.append(realization)
-    elif model == "snow17":
-        with open(MODEL_PATHS["snow17"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["snow17"]
-        modules.append(realization)
-    elif model == "sac-sma":
-        with open(MODEL_PATHS["sac-sma"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["sac-sma"]
-        modules.append(realization)
-    elif model == "lstm":
-        with open(MODEL_PATHS["lstm"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        modules.append(realization)
-    elif model == "lstm_rust":
-        with open(MODEL_PATHS["lstm_rust"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        modules.append(realization)
-    elif model == "dhbv2":
-        with open(MODEL_PATHS["dhbv2"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["dhbv2"]
-        modules.append(realization)
-    elif model == "dhbv2_daily":
-        with open(MODEL_PATHS["dhbv2_daily"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["dhbv2_daily"]
-        modules.append(realization)
-    elif model == "summa":
-        with open(MODEL_PATHS["summa"], "r", encoding="utf-8") as f:
-            realization = json.load(f)
-        realization["params"]["variables_names_map"] = target_variable_names["summa"]
-        modules.append(realization)
-
-
 def _insert_sloth_module(
     models: list[str], target_variable_names: dict[str, dict[str, str]], modules: list[dict]
 ) -> None:
@@ -523,7 +466,7 @@ def _insert_sloth_module(
     modules.insert(sloth_position, sloth_realization)
 
 
-def create_modular_realization(
+def create_modular_realization( # pylint: disable=too-many-locals
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
@@ -555,14 +498,22 @@ def create_modular_realization(
     modules: list[dict] = []
     seen_models: list[str] = []
 
-    for model in list(target_variable_names.keys()):
+    for model in models:
+        if model == "sloth":
+            continue  # SLoTH is handled separately below after all other models have been processed
+
         # Implicitly this means that if we have something like ["nom", "pet"], then the PET value
         # from the evapotranspiration module will override the PET value from Noah-OWP-M
         for dependency, overrides in MODEL_VARIABLE_OVERRIDES.get(model, []):
             if dependency in seen_models:
                 target_variable_names[model].update(overrides)
 
-        _append_model_realization(model, target_variable_names, modules)
+        with open(MODEL_PATHS[model], "r", encoding="utf-8") as f:
+            realization = json.load(f)
+        if model in target_variable_names:
+            realization["params"]["variables_names_map"] = target_variable_names[model]
+        modules.append(realization)
+
         seen_models.append(model)
 
     if "sloth" in models:
