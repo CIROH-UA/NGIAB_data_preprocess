@@ -336,6 +336,13 @@ async function runWorkflow() {
                 <pre><code>${data.command}</code></pre>
             </details>
         `;
+
+        // Point the results viewer at this run's output so its t-route
+        // results can be loaded onto the map with one click.
+        document.getElementById("results-dir").value = outputPath;
+        if (runNgiab) {
+            setResultsStatus("", "Run complete — load its t-route output");
+        }
     })
     .catch(error => {
         outputBox.innerHTML =

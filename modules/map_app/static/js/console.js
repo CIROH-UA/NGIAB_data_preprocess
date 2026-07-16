@@ -1,8 +1,8 @@
-// Toggle the log console and adjust the bottom padding so the manual workflow 
+// Toggle the log console and adjust the bottom padding so the sidebar content
 // remains visible when the console is expanded.
 document.getElementById('toggleConsole').addEventListener('click', function () {
     const consoleElement = document.getElementById('console');
-    const bottomElement = document.getElementById('manual-workflow');
+    const bottomElement = document.getElementById('sidebar');
 
     consoleElement.classList.toggle('minimized');
 

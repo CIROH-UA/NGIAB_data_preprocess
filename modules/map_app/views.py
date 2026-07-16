@@ -9,6 +9,8 @@ import sys
 
 
 import geopandas as gpd
+import numpy as np
+import xarray as xr
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -335,6 +337,63 @@ def run_cli():
             "command": " ".join(cmd),
             "output": result.stdout,
             "output_dir": str(output_dir),
+        }
+    ), 200
+
+
+# Serve one variable of the newest t-route output in a run's output directory,
+# keyed by numeric flowpath id so the map can color flowpaths client-side.
+@main.route("/troute_output", methods=["POST"])
+def troute_output():
+    data = json.loads(request.data.decode("utf-8"))
+    output_dir = Path(os.path.expanduser(str(data.get("output_dir", "")).strip()))
+    variable = data.get("variable", "flow")
+
+    if variable not in ("flow", "velocity", "depth"):
+        return jsonify({"error": f"Unknown variable: {variable}"}), 400
+
+    troute_dir = output_dir / "outputs" / "troute"
+    nc_files = sorted(troute_dir.glob("*.nc"))
+    if not nc_files:
+        return jsonify({"error": f"No t-route output found in {troute_dir}"}), 404
+    nc_file = nc_files[-1]
+
+    try:
+        with xr.open_dataset(nc_file) as ds:
+            if variable not in ds:
+                return jsonify({"error": f"{nc_file.name} has no '{variable}' variable"}), 404
+
+            da = ds[variable]
+            if set(da.dims) != {"feature_id", "time"}:
+                return jsonify(
+                    {"error": f"Unexpected dimensions {da.dims} for '{variable}'"}
+                ), 500
+            values = da.transpose("feature_id", "time").values.astype(float)
+
+            finite = values[np.isfinite(values)]
+            vmin = float(finite.min()) if finite.size else 0.0
+            vmax = float(finite.max()) if finite.size else 1.0
+            # JSON has no NaN; use the t-route fill value convention instead.
+            values = np.where(np.isfinite(values), values.round(3), -9999.0)
+
+            feature_ids = ds["feature_id"].values
+            times = ds["time"].values
+            if np.issubdtype(times.dtype, np.datetime64):
+                time_list = np.datetime_as_string(times, unit="m").tolist()
+            else:
+                time_list = [float(t) for t in times]
+    except Exception as exc:
+        logger.exception("Failed to read t-route output")
+        return jsonify({"error": f"Failed to read {nc_file.name}: {exc}"}), 500
+
+    return jsonify(
+        {
+            "file": str(nc_file),
+            "variable": variable,
+            "time": time_list,
+            "min": vmin,
+            "max": vmax,
+            "values": {str(int(fid)): row.tolist() for fid, row in zip(feature_ids, values)},
         }
     ), 200
 

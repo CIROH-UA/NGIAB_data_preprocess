@@ -1,393 +1,231 @@
 /* Modern CSS Reset and Base Styles */
 :root {
-  color-scheme: light dark;
-  /* Define both light and dark mode colors directly in properties */
-  --primary-color: #2563eb;
-  --primary-hover: #1d4ed8;
-  --background-color: light-dark(#f8fafc, #0f172a);
-  --surface-color: light-dark(#ffffff, #1e293b);
-  --text-color: light-dark(#1e293b, #f1f5f9);
-  --secondary-text: light-dark(#64748b, #94a3b8);
-  --border-color: light-dark(#e2e8f0, #334155);
-  --warning-bg: light-dark(#fee2e2, #7f1d1d);
-  --warning-border: light-dark(#ef4444, #b91c1c);
-  --info-bg: light-dark(#fef9c3, #713f12);
-  --info-border: light-dark(#eab308, #ca8a04);
-  --code-bg: light-dark(#f8fafc, #1e293b);
-  --border-radius: 8px;
-  --shadow-sm: light-dark(0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.5));
-  --shadow-md: light-dark(0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.5));
+  --code-bg: light-dark(#f8fafc, oklch(44% 0.043 257.281));
+  --panel-margin: 16px;
+  --border-color: light-dark(#d8dee4, #2a3a4a);
+  --font-mono: 'IBM Plex Mono', 'Monaco', 'Consolas', monospace;
 }
 
-main {
-  width: 80vw;
-  margin: 0 auto;
-  display: grid;
-  gap: 24px;
-}
-
-.maplibregl-popup-content {
-  background: var(--surface-color) !important;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-base-100: #0a0e14;   /* bg-primary */
+    --color-base-200: #111820;   /* bg-secondary */
+    --color-base-300: #1a2332;   /* bg-tertiary */
+    --color-neutral:  #232f42;   /* bg-elevated */
+    --color-neutral-content: #e6edf5;
+    --color-base-content: #e6edf5;
+    --color-primary: #00d4ff;         /* accent-primary */
+    --color-primary-content: #0a0e14;
+    --color-secondary: #39d7ff;       /* accent-secondary */
+    --color-secondary-content: #0a0e14;
+    --color-warning: #ffaa00;         /* accent-warning */
+    --color-warning-content: #0a0e14;
+    --color-error: #ff4466;           /* accent-danger */
+    --color-error-content: #e6edf5;
+    --color-success: #00ff88;         /* upstream-stroke */
+    --color-success-content: #0a0e14;
+    --color-accent: #00d4ff;          /* selected-stroke, reuse of primary hue */
+    --color-accent-content: #0a0e14;
+    --color-info: #00d4ff;
+  }
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
   margin: 0;
-  padding: 0;
-  background-color: var(--background-color);
-  color: var(--text-color);
-  line-height: 1.5;
-  min-height: 100vh;
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+}
+
+.maplibregl-popup-content {
+  background: var(--color-base-100) !important;
+}
+
+/* Sidebar + map layout */
+#app-layout {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-header {
-  width: 100%;
-  padding: 24px 0;
-  text-align: center;
-}
-
-h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  text-align: center;
-  color: var(--text-color);
-  margin: 24px 0;
-}
-
-h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 16px 0;
-}
-
-h3 {
-  font-size: 1.5rem;
-  font-weight: 500;
-  color: var(--text-color);
-  margin: 12px 0;
-}
-
-h4 {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--text-color);
-  margin: 12px 0;
-}
-
-h4.menu-header {
-  position: relative;
-  top: -35px;
-}
-
-#map-container {
-  background: var(--surface-color);
-  border-radius: var(--border-radius);
-  padding: 16px;
-  box-shadow: var(--shadow-md);
-}
-
-#map {
-  height: 65vh;
-  min-height: 450px;
-  max-height: max(55vh, 500px);
-  width: 100%;
-  border-radius: var(--border-radius);
+  height: 100vh;
   overflow: hidden;
 }
 
-#basins-container {
-  background: var(--surface-color);
-  border-radius: var(--border-radius);
-  padding: 20px;
-  box-shadow: var(--shadow-md);
+#sidebar {
+  width: 400px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-margin);
+  padding: var(--panel-margin);
+  /* clear the fixed console bar at the bottom of the viewport */
+  padding-bottom: 56px;
+  background: var(--color-base-200);
+  border-right: 1px solid var(--border-color);
 }
 
-#selected-basins,
-#cli-command,#cli-prefix {
-  background: var(--code-bg);
-  padding: 16px;
-  border-radius: var(--border-radius);
-  margin: 16px 0;
-  font-family: 'Monaco', 'Consolas', monospace;
-  font-size: 0.9rem;
-  color: var(--text-color);
-}
-
-
-button {
-  background-color: var(--primary-color);
-  color: light-dark(white, #f1f5f9);
-  padding: 12px 20px;
-  border: none;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-button:hover {
-  background-color: var(--primary-hover);
-}
-
-#time-settings {
-  background: var(--surface-color);
-  padding: 20px;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-md);
-}
-
-.time-input {
+#sidebar-title {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 12px 0;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-input[type="datetime-local"] {
-  padding: 8px 12px;
+#sidebar-title h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+#sidebar-title p {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.sidebar-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  fill: var(--color-primary);
+}
+
+#map-area {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Sidebar panels (daisyUI fieldsets) */
+.panel {
+  flex-shrink: 0;
+  min-width: 0;
+  margin: 0;
+  background: var(--color-base-300);
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  background-color: var(--surface-color);
-  color: var(--text-color);
-}
-
-#forcings-warning,
-#time-warning,
-#output-info {
+  border-radius: 12px;
   padding: 16px;
-  border-radius: var(--border-radius);
-  margin: 16px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
 
-#forcings-warning,
-#time-warning {
-  background: var(--warning-bg);
-  border-left: 4px solid var(--warning-border);
+.panel .fieldset-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-base-content);
+  opacity: 0.75;
 }
 
-#output-info {
-  background: var(--info-bg);
-  border-left: 4px solid var(--info-border);
+.panel .fieldset-legend svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  fill: currentColor;
 }
 
-#output-path,
-#forcings-output-path,
-#realization-output-path {
+.panel-hint {
+  margin: 10px 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-base-content);
+  opacity: 0.6;
+}
+
+/* Bare field-name labels get the small uppercase treatment; labels that
+   wrap a radio/checkbox (Basin, Gage, Run NGIAB) keep normal casing. */
+.fieldset > .label:not(:has(input)) {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.input-type-options {
+  display: flex;
+  gap: 16px;
+}
+
+/* Run panel steps */
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+}
+
+/* Shared style for monospace command/path output boxes */
+.code-output {
   background: var(--code-bg);
   padding: 12px;
-  border-radius: var(--border-radius);
-  font-family: 'Monaco', 'Consolas', monospace;
+  border-radius: var(--radius-box);
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   margin: 12px 0;
   word-break: break-all;
-  color: var(--text-color);
+  color: var(--color-base-content);
 }
 
-#realization {
-  padding-bottom: 40px;
-}
-
-.loading {
+.code-output:empty {
   display: none;
-  width: 24px;
-  height: 24px;
-  vertical-align: middle;
 }
 
-.loading.visible {
-  display: inline-block;
-}
-
-#command-builder{
-    display: inline-block;
-    padding:16px ;
-}
-
-.command-container {
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  margin: 16px 0;
-}
-
+/* CLI command panel */
 .command-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
+  margin-bottom: 12px;
+}
+
+#command-builder {
   background: var(--code-bg);
-  border-bottom: 1px solid var(--border-color);
-  border-top-left-radius: var(--border-radius);
-  border-top-right-radius: var(--border-radius);
-}
-
-.command-header>span {
-  font-size: 0.875rem;
-  color: var(--secondary-text);
-  font-weight: 500;
-}
-
-.copy-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--secondary-text);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.copy-button:hover {
-  background: light-dark(#f1f5f9, #334155);
-  border-color: var(--border-color);
-  color: var(--text-color);
-}
-
-.copy-button:active {
-  background: light-dark(#e2e8f0, #475569);
+  display: block;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-base-content);
+  border-radius: var(--radius-box);
+  word-break: break-all;
 }
 
 .command-content {
-    display:inline;
-  padding: 0px !important;
-  background: var(--code-bg);
-  font-family: 'Monaco', 'Consolas', monospace;
-  font-size: 0.875rem;
+  display: inline;
+  padding: 0 !important;
+  font-family: var(--font-mono);
   line-height: 1.5;
-  overflow-x: auto;
-  border-bottom-left-radius: var(--border-radius);
-  border-bottom-right-radius: var(--border-radius);
-  color: var(--text-color);
-
+  color: var(--color-neutral-content);
 }
 
-#cli-prefix{
+#cli-prefix {
     opacity: 0;
 }
 
-.copy-button.copied {
+#copy-to-clip.copied {
   color: light-dark(#059669, #34d399);
   border-color: light-dark(#059669, #34d399);
 }
 
-#workflow-options,
-#manual-workflow {
-  background: var(--surface-color);
-  border-radius: var(--border-radius);
-  padding: 20px;
-  box-shadow: var(--shadow-md);
+#copy-to-clip:hover .copy-icon {
+  filter: invert(0%);
 }
 
-#manual-workflow summary {
-  cursor: pointer;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-color);
-  list-style: none;
+.copy-icon {
+  filter: invert(68%);
 }
 
-#manual-workflow summary::-webkit-details-marker {
-  display: none;
-}
-
-#manual-workflow summary::before {
-  content: "▶ ";
-}
-
-#manual-workflow[open] summary::before {
-  content: "▼ ";
-}
-
-.workflow-description {
-  margin-top: -8px;
-  margin-bottom: 18px;
-  color: var(--secondary-text);
-  font-size: 0.95rem;
-}
-
-.workflow-field {
-  display: flex;
-  flex-direction: column;
-  max-width: 360px;
-  margin-bottom: 16px;
-}
-
-.workflow-field label {
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.workflow-field input,
-.workflow-field select {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  background-color: var(--surface-color);
-  color: var(--text-color);
-}
-
-.checkbox-field label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-
-#run-cli-output {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: var(--border-radius);
-  background: var(--code-bg);
-  font-family: 'Monaco', 'Consolas', monospace;
-  font-size: 0.85rem;
-  word-break: break-all;
-}
-
-#manual-workflow hr {
-  border: none;
-  border-top: 1px solid var(--border-color);
-  margin: 20px 0;
-}
-
-/* Responsive adjustments */
-@media (max-width: 1750px) {
-  main {
-      width: 90vw;
-  }
-}
-
-@media (max-width: 768px) {
-  body {
-      padding: 16px;
-  }
-
-  main {
-      width: 90vw;
-  }
-
-  .time-input {
-      flex-direction: column;
-      align-items: flex-start;
-  }
-
-  input[type="datetime-local"] {
-      width: 100%;
-  }
-}
-
+/* Forcings progress bar (driven by data_processing.js) */
 #progress {
-  background-color: black;
+  background-color: var(--color-base-100);
   border-radius: 13px;
   height: 20px;
   padding: 3px;
@@ -398,7 +236,7 @@ input[type="datetime-local"] {
 }
 
 #bar {
-  background-color: rgb(49,96,153);
+  background-color: var(--color-primary);
   width: 100%;
   height: 20px;
   border-radius: 10px;
@@ -406,7 +244,6 @@ input[type="datetime-local"] {
   animation: none;
   transform-origin: 0% 50%;
 }
-
 
 @keyframes indeterminateAnimation {
   0% {
@@ -425,125 +262,341 @@ input[type="datetime-local"] {
   margin: auto;
   width: 100%;
   text-align: center;
+  mix-blend-mode: difference;
 }
 
-/* Menu code starts here */
+/* Responsive: stack sidebar below the map on small screens */
+@media (max-width: 768px) {
+  #app-layout {
+      flex-direction: column;
+      height: auto;
+      overflow: visible;
+  }
 
-#menuToggle
-{
+  #sidebar {
+      width: 100%;
+      border-right: none;
+  }
+
+  #map-area {
+      order: -1;
+      height: 55vh;
+      min-height: 350px;
+      flex: none;
+  }
+}
+
+/* Results viewer (styled after the t-route output viewer example) */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 12px;
+  background: var(--color-base-100);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-base-content);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.status-dot.loading {
+  background: #f0ad4e;
+  opacity: 1;
+  animation: status-pulse 1s infinite;
+}
+
+.status-dot.success {
+  background: #4ade80;
+  opacity: 1;
+}
+
+.status-dot.error {
+  background: #f87171;
+  opacity: 1;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.data-item {
+  background: var(--color-base-100);
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.data-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  opacity: 0.6;
+}
+
+.data-value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-top: 2px;
+}
+
+.variable-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.var-btn {
+  padding: 6px 12px;
+  background: var(--color-base-100);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--color-base-content);
+  opacity: 0.8;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.var-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  opacity: 1;
+}
+
+.var-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+  opacity: 1;
+}
+
+.results-legend {
+  margin-top: 12px;
+}
+
+.results-legend-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+.legend-gradient {
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    #0077b6,
+    #00b4d8,
+    #90e0ef,
+    #ffba08,
+    #ff6b35,
+    #d00000
+  );
+}
+
+.legend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  opacity: 0.6;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+
+.time-control {
+  margin-top: 12px;
+}
+
+.time-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.time-label {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.time-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-primary);
+}
+
+.time-overview {
   display: block;
-  /* You can also use relative/absolute here if you want to stay on the top */
+  width: 100%;
+  height: 48px;
+  margin-top: 8px;
+  background: var(--color-base-100);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#results-panel input[type="range"] {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-base-100);
+  border-radius: 4px;
+  outline: none;
+}
+
+#results-panel input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px light-dark(rgba(37, 99, 235, 0.4), rgba(0, 212, 255, 0.15));
+}
+
+#results-panel input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: var(--color-primary);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.play-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.play-btn {
+  flex: 1;
+  padding: 8px;
+  background: var(--color-base-100);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--color-base-content);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.play-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+.play-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.speed-control label {
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.speed-control input {
+  flex: 1;
+}
+
+.speed-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-primary);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Map settings legend */
+
+#map-legend {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  pointer-events: none;
+  top: 12px;
+  right: 12px;
   z-index: 1;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px 12px;
+  background: color-mix(in srgb, var(--color-base-200) 88%, transparent);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--color-neutral);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  font-size: 0.8rem;
   -webkit-user-select: none;
   user-select: none;
 }
 
-#menuToggle input
-{
-  display: block;
-  width: 45px;
-  height: 45px;
-  position: absolute;
-  top: -7px;
-  left: -7px;
-  pointer-events: auto;
-  cursor: pointer;
-  pointer-events: auto;
-  
-  opacity: 0; /* hide this */
-  z-index: 2; /* and place it over the hamburger */
-  
-  -webkit-touch-callout: none;
+#map-legend .legend-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-base-content);
+  opacity: 0.75;
 }
 
-#menu
-{
-  position: relative;
-  width: 300px;
-  height: 375px;
-  margin: -120px 0 0 -50px;
-  padding-left: 50px;
-  padding-top: 75px;
-  padding-bottom: 30px;
-  box-sizing: border-box;
-  /* overflow-y: auto; */
-  background: light-dark(rgba(237,237,237,0.85), rgba(102,102,102,0.85));
-  backdrop-filter: blur(1px);
-  border-radius: var(--border-radius);
-  list-style-type: none;
-  -webkit-font-smoothing: antialiased;
-  /* to stop flickering of text in safari */
-  transform-origin: 0% 0%;
-  transform: translate(-100%, 0);
-  
-  transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0);
+#map-legend .legend-title svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  fill: currentColor;
 }
 
-#menu li
-{
-  padding: 10px 0;
-  font-size: 22px;
+#map-legend .label {
+  padding: 3px 0;
+  font-size: 0.8rem;
 }
 
-#menu li label
-{
-  cursor: pointer;
-}
-
-/*
- * And let's slide it in from the left
- */
-#menuToggle input:checked ~ ul
-{
-  transform: none;
-  pointer-events: auto;
-}
-
-.icons {
-  position: relative;
-  width: 40px;
-  height: 40px;
-}
-
-.icons svg {
-
-  width: 100%;
-  height: 100%;
-  transition: opacity 0.3s ease, z-index 0.3s;
-  fill: light-dark(#1e293b, #f1f5f9);
-} 
-
-
-.icons .chevron-left {
-  position: absolute;
-  top: -45px;
-  left: 195px;
-  
-}
-
-#menuToggle input:checked ~ .icons .gear {
-  opacity: 0;
-  z-index: 0;
-}
-
-#menuToggle input:checked
-{
-  display: block;
-  width: 45px;
-  height: 45px;
-  position: absolute;
-  top: -7px;
-  left: 190px;
-  
-  cursor: pointer;
-  
-  opacity: 0; /* hide this */
-  z-index: 2; /* and place it over the hamburger */
-  
-  -webkit-touch-callout: none;
+#map-legend .legend-subtitle {
+  margin: 8px 0 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-base-content);
+  opacity: 0.7;
 }

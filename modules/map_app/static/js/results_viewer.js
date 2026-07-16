@@ -1,0 +1,419 @@
+// T-route results viewer: loads simulated output from the python server and
+// colors the flowpaths layer per timestep, entirely in the maplibre style.
+// Each feature's current value lives in maplibre feature-state; the paint
+// expressions are set once per variable and interpolate that value to a color
+// ramp, so a timestep change is just a batch of setFeatureState calls.
+// Loaded at the end of <body>; uses the global `map` created by main.js, so
+// all map wiring happens in the DOMContentLoaded handler at the bottom.
+
+const RESULT_VARIABLES = {
+  flow: { label: "Flow", units: "m³/s" },
+  velocity: { label: "Velocity", units: "m/s" },
+  depth: { label: "Depth", units: "m" },
+};
+
+const RESULT_COLOR_RAMP = ["#0077b6", "#00b4d8", "#90e0ef", "#ffba08", "#ff6b35", "#d00000"];
+const RESULT_NO_DATA_COLOR = "rgba(128, 128, 128, 0.35)";
+
+const resultsState = {
+  outputDir: null,
+  variable: "flow",
+  cache: {}, // variable -> {time, values, min, max, file}
+  timeIndex: 0,
+  isPlaying: false,
+  playInterval: null,
+  playSpeed: 5,
+  originalPaint: null, // flowpaths paint to restore on clear
+};
+
+let resultsHoverPopup;
+
+function resultsData() {
+  return resultsState.cache[resultsState.variable] || null;
+}
+
+function setResultsStatus(kind, message) {
+  document.getElementById("results-status-dot").className =
+    "status-dot" + (kind ? ` ${kind}` : "");
+  document.getElementById("results-status-text").textContent = message;
+}
+
+// ---------------------------------------------------------------------------
+// Loading
+// ---------------------------------------------------------------------------
+
+async function fetchResultsVariable(variable) {
+  const response = await fetch("/troute_output", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ output_dir: resultsState.outputDir, variable }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to load results");
+  return data;
+}
+
+async function loadResults() {
+  const outputDir = document.getElementById("results-dir").value.trim();
+  if (!outputDir) {
+    setResultsStatus("error", "Enter a run output directory first");
+    return;
+  }
+
+  if (outputDir !== resultsState.outputDir) {
+    resultsState.cache = {};
+    resultsState.timeIndex = 0;
+  }
+  resultsState.outputDir = outputDir;
+
+  const button = document.getElementById("load-results-button");
+  button.disabled = true;
+  setResultsStatus("loading", "Loading t-route output...");
+
+  try {
+    resultsState.cache[resultsState.variable] = await fetchResultsVariable(resultsState.variable);
+    showResults();
+  } catch (error) {
+    setResultsStatus("error", error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function showResults() {
+  const data = resultsData();
+
+  document.getElementById("results-controls").hidden = false;
+  document.getElementById("results-feature-count").textContent =
+    Object.keys(data.values).length;
+  document.getElementById("results-timestep-count").textContent = data.time.length;
+
+  const slider = document.getElementById("results-time-slider");
+  slider.max = Math.max(0, data.time.length - 1);
+  resultsState.timeIndex = Math.min(resultsState.timeIndex, data.time.length - 1);
+  slider.value = resultsState.timeIndex;
+
+  updateResultsLegend();
+  applyResultsPaint();
+  scheduleFeatureStateUpdate();
+  setResultsStatus("success", `Loaded ${data.file.split("/").pop()}`);
+}
+
+// ---------------------------------------------------------------------------
+// Map painting
+// ---------------------------------------------------------------------------
+
+const FLOWPATH_FEATURE = { source: "flowpaths", sourceLayer: "flowpaths" };
+
+// This feature's value at the current timestep; -9999 (the t-route fill value,
+// also used when no state is set) marks missing data.
+const RESULT_VALUE = ["coalesce", ["feature-state", "value"], -9999];
+
+function resultColorExpression(data) {
+  const span = data.max - data.min || 1;
+  const stops = RESULT_COLOR_RAMP.flatMap((color, i) => [
+    data.min + (span * i) / (RESULT_COLOR_RAMP.length - 1),
+    color,
+  ]);
+  return [
+    "case",
+    ["<=", RESULT_VALUE, -9998],
+    RESULT_NO_DATA_COLOR,
+    ["interpolate", ["linear"], RESULT_VALUE, ...stops],
+  ];
+}
+
+function resultWidthExpression(data) {
+  const max = data.max > data.min ? data.max : data.min + 1;
+  return [
+    "case",
+    ["<=", RESULT_VALUE, -9998],
+    1,
+    ["interpolate", ["linear"], RESULT_VALUE, data.min, 1.5, max, 7],
+  ];
+}
+
+// Set once per loaded variable; timestep changes only touch feature-state.
+function applyResultsPaint() {
+  const data = resultsData();
+
+  if (!resultsState.originalPaint) {
+    resultsState.originalPaint = {
+      "line-color": map.getPaintProperty("flowpaths", "line-color"),
+      "line-width": map.getPaintProperty("flowpaths", "line-width"),
+    };
+  }
+
+  map.setPaintProperty("flowpaths", "line-color", resultColorExpression(data));
+  map.setPaintProperty("flowpaths", "line-width", resultWidthExpression(data));
+}
+
+function updateFeatureStates() {
+  const data = resultsData();
+  if (!data) return;
+
+  const t = resultsState.timeIndex;
+  for (const [id, series] of Object.entries(data.values)) {
+    map.setFeatureState({ ...FLOWPATH_FEATURE, id: Number(id) }, { value: series[t] });
+  }
+  updateResultsTimeDisplay();
+}
+
+// Coalesce rapid slider/playback changes into at most one update per frame.
+let featureStateUpdateQueued = false;
+function scheduleFeatureStateUpdate() {
+  if (featureStateUpdateQueued) return;
+  featureStateUpdateQueued = true;
+  requestAnimationFrame(() => {
+    featureStateUpdateQueued = false;
+    updateFeatureStates();
+  });
+}
+
+function clearResults() {
+  stopResultsPlayback();
+
+  map.removeFeatureState(FLOWPATH_FEATURE);
+  if (resultsState.originalPaint) {
+    map.setPaintProperty("flowpaths", "line-color", resultsState.originalPaint["line-color"]);
+    map.setPaintProperty("flowpaths", "line-width", resultsState.originalPaint["line-width"]);
+    resultsState.originalPaint = null;
+  }
+
+  document.getElementById("results-controls").hidden = true;
+  setResultsStatus("", "Run a workflow, then load its output");
+}
+
+// ---------------------------------------------------------------------------
+// Legend and time display
+// ---------------------------------------------------------------------------
+
+function updateResultsLegend() {
+  const data = resultsData();
+  const { label, units } = RESULT_VARIABLES[resultsState.variable];
+
+  document.getElementById("results-legend-title").textContent = `${label} (${units})`;
+  document.getElementById("results-legend-min").textContent = data.min.toFixed(2);
+  document.getElementById("results-legend-max").textContent = data.max.toFixed(2);
+}
+
+function formatResultTime(t) {
+  // Numeric time is seconds since the run reference time; otherwise ISO dates.
+  if (typeof t === "number") return `T+${Math.floor(t / 3600)}h`;
+  return String(t).replace("T", " ");
+}
+
+function updateResultsTimeDisplay() {
+  const data = resultsData();
+  document.getElementById("results-current-time").textContent = formatResultTime(
+    data.time[resultsState.timeIndex]
+  );
+  drawResultsOverview();
+}
+
+// ---------------------------------------------------------------------------
+// Timeseries overview sparkline
+// ---------------------------------------------------------------------------
+
+// Sum across all flowpaths at each timestep, computed once per variable.
+function resultTotals(data) {
+  if (!data.totals) {
+    const steps = data.time.length;
+    const totals = new Float64Array(steps);
+    for (const series of Object.values(data.values)) {
+      for (let t = 0; t < steps; t++) {
+        if (series[t] > -9998) totals[t] += series[t];
+      }
+    }
+    data.totals = totals;
+  }
+  return data.totals;
+}
+
+// Draw the basin total under the slider (same width), with a marker at the
+// current timestep, to make high-flow periods findable in long timeseries.
+function drawResultsOverview() {
+  const data = resultsData();
+  const canvas = document.getElementById("results-overview");
+  if (!data || canvas.clientWidth === 0) return;
+
+  const totals = resultTotals(data);
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of totals) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  const range = max - min || 1;
+
+  const accent =
+    getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim() ||
+    "#00d4ff";
+  const pad = 3;
+  const x = (t) => (totals.length > 1 ? pad + (t / (totals.length - 1)) * (w - 2 * pad) : w / 2);
+  const y = (v) => h - pad - ((v - min) / range) * (h - 2 * pad);
+
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(totals[0]));
+  for (let t = 1; t < totals.length; t++) ctx.lineTo(x(t), y(totals[t]));
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.lineTo(x(totals.length - 1), h - pad);
+  ctx.lineTo(x(0), h - pad);
+  ctx.closePath();
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = accent;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  const markerX = x(resultsState.timeIndex);
+  ctx.strokeStyle = "#ffba08";
+  ctx.beginPath();
+  ctx.moveTo(markerX, pad);
+  ctx.lineTo(markerX, h - pad);
+  ctx.stroke();
+}
+
+function seekFromOverview(e) {
+  const data = resultsData();
+  if (!data) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const fraction = (e.clientX - rect.left) / rect.width;
+  resultsState.timeIndex = Math.max(
+    0,
+    Math.min(data.time.length - 1, Math.round(fraction * (data.time.length - 1)))
+  );
+  document.getElementById("results-time-slider").value = resultsState.timeIndex;
+  scheduleFeatureStateUpdate();
+}
+
+// ---------------------------------------------------------------------------
+// Playback
+// ---------------------------------------------------------------------------
+
+function stepResults(direction) {
+  const data = resultsData();
+  if (!data) return;
+  const steps = data.time.length;
+  resultsState.timeIndex = (resultsState.timeIndex + direction + steps) % steps;
+  document.getElementById("results-time-slider").value = resultsState.timeIndex;
+  scheduleFeatureStateUpdate();
+}
+
+const RESULTS_PLAY_ICON =
+  '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+const RESULTS_PAUSE_ICON =
+  '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+
+function startResultsPlayback() {
+  resultsState.isPlaying = true;
+  const button = document.getElementById("results-play-button");
+  button.classList.add("active");
+  button.innerHTML = RESULTS_PAUSE_ICON;
+  resultsState.playInterval = setInterval(() => stepResults(1), 2500 / resultsState.playSpeed);
+}
+
+function stopResultsPlayback() {
+  resultsState.isPlaying = false;
+  const button = document.getElementById("results-play-button");
+  button.classList.remove("active");
+  button.innerHTML = RESULTS_PLAY_ICON;
+  clearInterval(resultsState.playInterval);
+}
+
+function toggleResultsPlayback() {
+  if (resultsState.isPlaying) {
+    stopResultsPlayback();
+  } else {
+    startResultsPlayback();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hover tooltip
+// ---------------------------------------------------------------------------
+
+function onFlowpathHover(e) {
+  const data = resultsData();
+  if (!data || !e.features?.length) return;
+
+  const id = e.features[0].id;
+  const series = data.values[String(id)];
+  const value = series?.[resultsState.timeIndex];
+  const { label, units } = RESULT_VARIABLES[resultsState.variable];
+  const text =
+    value === undefined || value <= -9998 ? "no data" : `${value.toFixed(3)} ${units}`;
+
+  resultsHoverPopup
+    .setLngLat(e.lngLat)
+    .setHTML(`wb-${id}<br>${label}: ${text}`)
+    .addTo(map);
+}
+
+// ---------------------------------------------------------------------------
+// Wiring
+// ---------------------------------------------------------------------------
+
+async function selectResultsVariable(button) {
+  document.querySelectorAll("#results-panel .var-btn").forEach((b) =>
+    b.classList.remove("active")
+  );
+  button.classList.add("active");
+  resultsState.variable = button.dataset.var;
+
+  if (!resultsData()) {
+    setResultsStatus("loading", `Loading ${resultsState.variable}...`);
+    try {
+      resultsState.cache[resultsState.variable] = await fetchResultsVariable(
+        resultsState.variable
+      );
+    } catch (error) {
+      setResultsStatus("error", error.message);
+      return;
+    }
+  }
+  showResults();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("load-results-button").addEventListener("click", loadResults);
+  document.getElementById("clear-results-button").addEventListener("click", clearResults);
+  document.getElementById("results-play-button").addEventListener("click", toggleResultsPlayback);
+  document.getElementById("results-step-back").addEventListener("click", () => stepResults(-1));
+  document.getElementById("results-step-forward").addEventListener("click", () => stepResults(1));
+
+  document.getElementById("results-overview").addEventListener("click", seekFromOverview);
+
+  document.getElementById("results-time-slider").addEventListener("input", (e) => {
+    resultsState.timeIndex = parseInt(e.target.value, 10);
+    scheduleFeatureStateUpdate();
+  });
+
+  document.getElementById("results-speed-slider").addEventListener("input", (e) => {
+    resultsState.playSpeed = parseInt(e.target.value, 10);
+    document.getElementById("results-speed-value").textContent = `${resultsState.playSpeed}x`;
+    if (resultsState.isPlaying) {
+      stopResultsPlayback();
+      startResultsPlayback();
+    }
+  });
+
+  document.querySelectorAll("#results-panel .var-btn").forEach((button) => {
+    button.addEventListener("click", () => selectResultsVariable(button));
+  });
+
+  // main.js has created the map by now (its DOMContentLoaded handler runs first).
+  resultsHoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
+  map.on("mousemove", "flowpaths", onFlowpathHover);
+  map.on("mouseleave", "flowpaths", () => resultsHoverPopup.remove());
+});
