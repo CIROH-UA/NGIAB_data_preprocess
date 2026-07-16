@@ -121,6 +121,8 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable debug logging",
     )
+
+    # model flags, mutually exclusive
     models = parser.add_mutually_exclusive_group(required=False)
 
     models.add_argument(
@@ -157,6 +159,32 @@ def parse_arguments() -> argparse.Namespace:
         "--sacsma",
         action="store_true",
         help="enable SAC-SMA model realization and forcings",
+    )
+
+    # user can pass list of models to run to create custom coupling
+    models.add_argument(
+        "--models",
+        type=str,
+        nargs="+",
+        help="List of models to couple together in the order of execution, e.g. --models sloth nom cfe",
+        choices=[
+            "sloth",
+            "nom",
+            "cfe",
+            "lstm",
+            "lstm_rust",
+            "dhbv2",
+            "dhbv2_daily",
+            "snow17",
+            "sac-sma",
+            "casam",
+        ],
+    )
+
+    parser.add_argument(
+        "--routing",
+        action="store_true",
+        help="enable routing when running with custom coupled models. Note this this will not activate without --models",
     )
 
     parser.add_argument(

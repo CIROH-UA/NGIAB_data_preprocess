@@ -3,7 +3,6 @@
 import copy
 import json
 from datetime import datetime
-import subprocess
 from rich.prompt import Prompt
 
 from data_processing.file_paths import FilePaths
@@ -470,7 +469,7 @@ def _insert_sloth_module(
     modules.insert(sloth_position, sloth_realization)
 
 
-def create_modular_realization(  # pylint: disable=too-many-locals
+def create_modular_realization( # pylint: disable=too-many-locals
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
@@ -604,3 +603,5 @@ def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-bran
 
     if routing:
         configure_troute(output_folder, paths.config_dir, start_time, end_time)
+
+    paths.setup_run_folders()  # creates config, output, and log folders if they don't exist
