@@ -603,3 +603,5 @@ def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-bran
 
     if routing:
         configure_troute(output_folder, paths.config_dir, start_time, end_time)
+
+    paths.setup_run_folders()  # creates config, output, and log folders if they don't exist
