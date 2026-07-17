@@ -17,6 +17,7 @@ from data_processing.create_realization import (
     make_summa_trialParams,
     make_summa_coldState,
     make_summa_config,
+    make_summa_config_suite,
 )
 from data_processing.file_paths import FilePaths
 
@@ -702,3 +703,133 @@ def test_gage_summa_config_generation_produces_expected_artifacts(
         "TBL_VEGPARM.TBL",
     ):
         assert f"model_config/SUMMA/{name}" in produced
+
+
+# ---------------------------------------------------------------------------
+# Integration tests for make_summa_config_suite.
+#
+# The tests above exercise the SUMMA leaf functions (make_summa_attributes,
+# make_summa_coldState, make_summa_trialParams, make_summa_config) and compare
+# text config against the golden files, but they do so through the local
+# _generate_summa_config helper, which *reimplements* the orchestration. The
+# real modular entry point, make_summa_config_suite (create_realization.py),
+# is never invoked there -- so an orchestration bug in it (wrong glob, wrong
+# hydrofabric source, a dropped setup_run_folders, or fileManager templating
+# drift) would pass unnoticed. These tests call the real function so the
+# three copies of the assembly logic cannot silently diverge.
+# ---------------------------------------------------------------------------
+
+
+def _run_summa_config_suite(cat_id: str, gpkg: Path, monkeypatch) -> tuple[dict, FilePaths]:
+    """Invokes the real make_summa_config_suite and returns (produced, paths).
+
+    Assumes the caller's forcing fixture has already pointed get_working_dir at
+    the tmp working dir and written forcings.nc. conus_hydrofabric is redirected
+    to the subset geopackage fixture -- make_summa_config_suite reads attributes
+    straight off FilePaths.conus_hydrofabric, which is not shippable in tests.
+    """
+    monkeypatch.setattr(FilePaths, "conus_hydrofabric", gpkg)
+
+    make_summa_config_suite(cat_id, FIXED_START, FIXED_END)
+
+    paths = FilePaths(cat_id)
+    output_dir = paths.config_dir
+    produced = {}
+    for f in sorted(output_dir.rglob("*")):
+        if f.is_file() and f.suffix != ".nc":
+            produced[str(f.relative_to(output_dir))] = _normalize(
+                f.read_text(encoding="utf-8", errors="replace"), output_dir
+            )
+    return produced, paths
+
+
+def _assert_matches_golden(produced: dict, golden_file: Path, label: str) -> None:
+    """Shared golden-set comparison for the config-suite tests."""
+    assert golden_file.exists(), f"missing golden {golden_file}"
+    golden = json.loads(golden_file.read_text())
+
+    missing = sorted(set(golden) - set(produced))
+    extra = sorted(set(produced) - set(golden))
+    assert not missing and not extra, (
+        f"SUMMA config file set changed for {label}.\n  missing: {missing}\n  extra: {extra}"
+    )
+
+    changed = [p for p in sorted(golden) if golden[p] != produced[p]]
+    if changed:
+        first = changed[0]
+        diff = "\n".join(
+            difflib.unified_diff(
+                golden[first].splitlines(),
+                produced[first].splitlines(),
+                fromfile=f"golden/{first}",
+                tofile=f"produced/{first}",
+                lineterm="",
+            )
+        )
+        pytest.fail(
+            f"{len(changed)} SUMMA config file(s) changed for {label}: {changed}\n"
+            f"first diff ({first}):\n{diff}"
+        )
+
+
+def test_summa_config_suite_matches_golden(cat_1555522_forcing_output, monkeypatch):  # pylint: disable=unused-argument
+    """The suite produces the same non-netCDF config files as the local helper."""
+    produced, _ = _run_summa_config_suite(
+        "cat-1555522", GEOPACKAGE_FIXTURES["cat-1555522"], monkeypatch
+    )
+    _assert_matches_golden(produced, GOLDEN_SUMMA_FILE, "cat-1555522")
+
+
+def test_summa_config_suite_writes_expected_netcdf(cat_1555522_forcing_output, monkeypatch):  # pylint: disable=unused-argument
+    """The suite wires the netCDF writers to summa_model_config with correct inputs."""
+    _, paths = _run_summa_config_suite(
+        "cat-1555522", GEOPACKAGE_FIXTURES["cat-1555522"], monkeypatch
+    )
+    model_config = paths.summa_model_config
+
+    with xr.open_dataset(model_config / "attributes.nc") as ds:
+        _assert_dataset_matches_expected(ds, EXPECTED_SUMMA_ATTRIBUTES)
+    with xr.open_dataset(model_config / "coldState.nc") as ds:
+        _assert_dataset_matches_expected(ds, EXPECTED_SUMMA_COLD_STATE)
+    with xr.open_dataset(model_config / "trialParams.nc") as ds:
+        _assert_dataset_matches_expected(ds, EXPECTED_SUMMA_TRIAL_PARAMS)
+
+
+def test_summa_config_suite_sets_up_run_folders(cat_1555522_forcing_output, monkeypatch):  # pylint: disable=unused-argument
+    """The suite must call setup_run_folders(['outputs/summa']); the helper never did."""
+    _, paths = _run_summa_config_suite(
+        "cat-1555522", GEOPACKAGE_FIXTURES["cat-1555522"], monkeypatch
+    )
+    for folder in ("outputs/summa", "outputs/ngen", "outputs/troute", "metadata"):
+        assert (paths.subset_dir / folder).is_dir(), f"missing run folder: {folder}"
+
+
+def test_summa_config_suite_templates_file_manager(cat_1555522_forcing_output, monkeypatch):  # pylint: disable=unused-argument
+    """fileManager.txt is templated with the run dates and no placeholders remain.
+
+    make_summa_config_suite formats the template with raw datetime objects, so
+    this also pins the str(datetime) rendering the golden was generated against.
+    """
+    produced, _ = _run_summa_config_suite(
+        "cat-1555522", GEOPACKAGE_FIXTURES["cat-1555522"], monkeypatch
+    )
+    file_manager = produced["model_config/SUMMA/fileManager.txt"]
+    assert "{start_time}" not in file_manager
+    assert "{end_time}" not in file_manager
+    assert f"simStartTime         '{FIXED_START}'" in file_manager
+    assert f"simEndTime           '{FIXED_END}'" in file_manager
+
+
+def test_gage_summa_config_suite_matches_golden(gage_10109001_forcing_output, monkeypatch):  # pylint: disable=unused-argument
+    """The multi-catchment gage config assembled by the real suite matches golden."""
+    produced, paths = _run_summa_config_suite(
+        "gage-10109001", GEOPACKAGE_FIXTURES["gage-10109001"], monkeypatch
+    )
+    _assert_matches_golden(produced, GOLDEN_GAGE_SUMMA_FILE, "gage-10109001")
+
+    cat_inputs = [k for k in produced if k.startswith("cat_config/SUMMA/") and k.endswith(".input")]
+    assert len(cat_inputs) == len(GAGE_HRU_IDS)
+    with xr.open_dataset(paths.summa_model_config / "attributes.nc") as ds:
+        assert ds.sizes["hru"] == len(GAGE_HRU_IDS)
+        assert int(ds["hruId"].values[0]) == GAGE_HRU_IDS[0]
+        assert int(ds["hruId"].values[-1]) == GAGE_HRU_IDS[-1]
