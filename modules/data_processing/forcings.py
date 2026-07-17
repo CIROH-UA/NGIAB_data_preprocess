@@ -567,7 +567,7 @@ def setup_directories(cat_id: str) -> FilePaths:
     forcing_paths = FilePaths(cat_id)
     # delete everything in the forcing folder except the cached nc file
     for file in forcing_paths.forcings_dir.glob("*.*"):
-        if file != forcing_paths.cached_nc_file:
+        if file != forcing_paths.cached_zarr_file:
             file.unlink()
 
     os.makedirs(forcing_paths.forcings_dir / "temp", exist_ok=True)

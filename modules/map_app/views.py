@@ -1,18 +1,16 @@
 import json
 import logging
+import os
+import subprocess
+import sys
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
-import os
-import threading
-import subprocess
-import sys
-
 
 import geopandas as gpd
 import numpy as np
 import xarray as xr
-from flask_sock import Sock
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -20,6 +18,7 @@ from data_processing.file_paths import FilePaths
 from data_processing.forcings import create_forcings
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
+from flask_sock import Sock
 
 main = Blueprint("main", __name__)
 sock = Sock()
@@ -126,7 +125,7 @@ def download_forcings(data_source, start_time, end_time, paths):
     else:
         raise ValueError(f"Unknown data source: {data_source}")
     gdf = gpd.read_file(paths.geopackage_path, layer="divides")
-    cached_data = save_and_clip_dataset(raw_data, gdf, start_time, end_time, paths.cached_nc_file)
+    cached_data = save_and_clip_dataset(raw_data, gdf, start_time, end_time, paths.cached_zarr_file)
     return cached_data
 
 
@@ -334,9 +333,7 @@ def troute_output():
 
             da = ds[variable]
             if set(da.dims) != {"feature_id", "time"}:
-                return jsonify(
-                    {"error": f"Unexpected dimensions {da.dims} for '{variable}'"}
-                ), 500
+                return jsonify({"error": f"Unexpected dimensions {da.dims} for '{variable}'"}), 500
             values = da.transpose("feature_id", "time").values.astype(float)
 
             finite = values[np.isfinite(values)]
