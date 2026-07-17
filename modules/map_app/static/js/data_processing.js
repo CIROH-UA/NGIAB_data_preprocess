@@ -130,6 +130,8 @@ async function forcings() {
 
     setStepButtonsDisabled(true);
     setStepOutput("Generating forcings...");
+    document.getElementById("progress").classList.add("active");
+    updateProgressBar(0);
     try {
         const progressResponse = await fetch("/make_forcings_progress_file", {
             method: "POST",

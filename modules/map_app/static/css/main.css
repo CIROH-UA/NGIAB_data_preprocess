@@ -234,16 +234,20 @@ body {
   filter: invert(68%);
 }
 
-/* Forcings progress bar (driven by data_processing.js) */
+/* Forcings progress bar (driven by data_processing.js, shown while running) */
 #progress {
+  display: none;
   background-color: var(--color-base-100);
   border-radius: 13px;
   height: 20px;
   padding: 3px;
   position: relative;
-  display: grid;
   align-items: center;
   overflow: hidden;
+}
+
+#progress.active {
+  display: grid;
 }
 
 #bar {
