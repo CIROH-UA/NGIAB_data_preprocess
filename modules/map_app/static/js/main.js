@@ -152,6 +152,8 @@ function queryFlowpath(flowpathId) {
 }
 
 function onDivideClick(e) {
+  // Selection is disabled while t-route results are painted on the flowpaths.
+  if (resultsState.originalPaint) return;
   if (!e.features?.length) return;
   const divide = e.features[0];
 
@@ -237,6 +239,19 @@ function onGageMouseLeave() {
   gageHoverPopup.remove();
 }
 
+// Zoom to the loaded results, the selected gage, or the last clicked divide.
+function zoomToSelection() {
+  const resultsBounds = resultsState.originalPaint && resultsData()?.bounds;
+  if (resultsBounds) {
+    const [minX, minY, maxX, maxY] = resultsBounds;
+    map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60 });
+  } else if (selectedGageMarker) {
+    map.flyTo({ center: selectedGageMarker.getLngLat(), zoom: 10, essential: true });
+  } else if (lastClickedDivide) {
+    map.flyTo({ center: lastClickedDivide.lngLat, zoom: 10, essential: true });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // DOM wiring
 // ---------------------------------------------------------------------------
@@ -297,6 +312,8 @@ function initWorkflowForm() {
   // Recompute the upstream highlight when the subset type changes.
   on("radio-nexus", "change", updateUpstreamHighlight);
   on("radio-catchment", "change", updateUpstreamHighlight);
+
+  on("zoom-selection", "click", zoomToSelection);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

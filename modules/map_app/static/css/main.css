@@ -606,6 +606,10 @@ body {
   font-size: 0.8rem;
 }
 
+#zoom-selection {
+  margin-top: 10px;
+}
+
 #map-legend .legend-subtitle {
   margin: 8px 0 4px;
   font-size: 0.72rem;

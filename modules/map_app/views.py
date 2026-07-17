@@ -369,6 +369,25 @@ def run_cli():
     ), 200
 
 
+# List run directories in the configured output root that contain t-route
+# output, newest first, for the results viewer's folder picker.
+@main.route("/output_dirs", methods=["GET"])
+def output_dirs():
+    root = FilePaths.root_output_dir()
+    runs = [d for d in root.glob("*/outputs/troute") if any(d.glob("*.nc"))]
+    runs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+    return jsonify([str(d.parent.parent) for d in runs]), 200
+
+
+# WGS84 bounds of a run's subset so the map can zoom to it, or None.
+def subset_bounds(output_dir: Path):
+    gpkgs = sorted((output_dir / "config").glob("*.gpkg"))
+    if not gpkgs:
+        return None
+    bounds = gpd.read_file(gpkgs[0], layer="divides").to_crs(4326).total_bounds
+    return [float(b) for b in bounds]
+
+
 # Serve one variable of the newest t-route output in a run's output directory,
 # keyed by numeric flowpath id so the map can color flowpaths client-side.
 @main.route("/troute_output", methods=["POST"])
@@ -414,6 +433,11 @@ def troute_output():
         logger.exception("Failed to read t-route output")
         return jsonify({"error": f"Failed to read {nc_file.name}: {exc}"}), 500
 
+    try:
+        bounds = subset_bounds(output_dir)
+    except Exception:
+        bounds = None
+
     return jsonify(
         {
             "file": str(nc_file),
@@ -421,6 +445,7 @@ def troute_output():
             "time": time_list,
             "min": vmin,
             "max": vmax,
+            "bounds": bounds,
             "values": {str(int(fid)): row.tolist() for fid, row in zip(feature_ids, values)},
         }
     ), 200

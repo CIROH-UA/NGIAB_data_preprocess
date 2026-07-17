@@ -160,7 +160,9 @@
                     type="text"
                     id="results-dir"
                     class="input w-full"
+                    list="output-dir-options"
                     placeholder="e.g. ~/ngiab_output/cat-2739307">
+                <datalist id="output-dir-options"></datalist>
 
                 <button id="load-results-button" class="btn btn-primary btn-block" style="margin-top:10px">Load T-Route Output</button>
 
@@ -323,6 +325,8 @@
                     <input id="radio-nexus" type="radio" name="radio-1" class="join-item btn btn-xs" aria-label="nexus" checked/>
                     <input id="radio-catchment" type="radio" name="radio-1" class="join-item btn btn-xs" aria-label="catchment"/>
                 </div>
+
+                <button id="zoom-selection" class="btn btn-xs btn-block">Zoom to selection</button>
             </div>
         </div>
     </main>

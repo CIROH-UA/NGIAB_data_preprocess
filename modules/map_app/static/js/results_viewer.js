@@ -74,10 +74,28 @@ async function loadResults() {
   try {
     resultsState.cache[resultsState.variable] = await fetchResultsVariable(resultsState.variable);
     showResults();
+
+    const bounds = resultsData().bounds;
+    if (bounds) {
+      const [minX, minY, maxX, maxY] = bounds;
+      map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60 });
+    }
   } catch (error) {
     setResultsStatus("error", error.message);
   } finally {
     button.disabled = false;
+  }
+}
+
+// Offer known run directories as suggestions in the output directory input.
+async function populateOutputDirOptions() {
+  try {
+    const dirs = await (await fetch("/output_dirs")).json();
+    document.getElementById("output-dir-options").innerHTML = dirs
+      .map((dir) => `<option value="${dir}"></option>`)
+      .join("");
+  } catch (error) {
+    console.error("Failed to list output directories:", error);
   }
 }
 
@@ -387,6 +405,7 @@ async function selectResultsVariable(button) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  populateOutputDirOptions();
   document.getElementById("load-results-button").addEventListener("click", loadResults);
   document.getElementById("clear-results-button").addEventListener("click", clearResults);
   document.getElementById("results-play-button").addEventListener("click", toggleResultsPlayback);

@@ -240,6 +240,11 @@ async function runNgiab() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Run failed");
         setStepOutput(`NGIAB run complete<br><code>${data.output_dir}</code>`);
+
+        // Show this run's t-route results on the map right away.
+        document.getElementById("results-dir").value = data.output_dir;
+        populateOutputDirOptions();
+        loadResults();
     } catch (error) {
         setStepOutput(`Run failed: ${error.message}`);
     } finally {
@@ -357,10 +362,10 @@ async function runWorkflow() {
             </details>
         `;
 
-        // Point the results viewer at this run's output so its t-route
-        // results can be loaded onto the map with one click.
+        // Show this run's t-route results on the map right away.
         document.getElementById("results-dir").value = outputPath;
-        setResultsStatus("", "Run complete — load its t-route output");
+        populateOutputDirOptions();
+        loadResults();
     })
     .catch(error => {
         outputBox.innerHTML =
