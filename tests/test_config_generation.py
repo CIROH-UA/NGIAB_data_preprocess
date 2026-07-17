@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from data_processing.create_realization import (
+from data_processing.create_configs import (
     get_model_attributes,
     make_cfe_config,
     make_noahowp_config,

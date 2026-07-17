@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from data_processing.create_realization import (
+from data_processing.create_configs import (
     get_hru_order,
     make_summa_attributes,
     make_summa_trialParams,

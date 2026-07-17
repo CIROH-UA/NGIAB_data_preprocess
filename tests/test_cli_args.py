@@ -19,7 +19,7 @@ import pytest
 
 import ngiab_data_cli.__main__ as cli_main
 from ngiab_data_cli.arguments import parse_arguments
-from data_processing.modular_realization import ACCEPTED_MODELS
+from data_processing.create_realization import ACCEPTED_MODELS
 
 # The models --models is documented to accept, in declared order. This is the
 # CLI's public contract; test_models_choices_are_all_builder_accepted guards it

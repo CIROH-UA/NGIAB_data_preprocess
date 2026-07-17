@@ -26,8 +26,8 @@ from pathlib import Path
 import pytest
 
 from data_processing.file_paths import FilePaths
-import data_processing.modular_realization as mr
-from data_processing.modular_realization import (
+import data_processing.create_realization as mr
+from data_processing.create_realization import (
     ACCEPTED_MODELS,
     ALL_SLOTH_MODEL_PARAMS,
     ALL_VARIABLES_NAMES_MAPS,

@@ -20,11 +20,11 @@ with rich.status.Status("loading") as status:
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
-    from data_processing.modular_realization import (
+    from data_processing.create_realization import (
         validate_models,
         create_modular_realization,
-        create_modular_configs
     )
+    from data_processing.create_configs import create_modular_configs
     from data_processing.subset import subset, subset_vpu
     from data_sources.source_validation import validate_hydrofabric, validate_output_dir
     from ngiab_data_cli.arguments import parse_arguments

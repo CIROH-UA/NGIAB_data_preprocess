@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 from data_processing.file_paths import FilePaths
-from data_processing.modular_realization import create_modular_configs
+from data_processing.create_realization import create_modular_configs
 
 from test_config_generation import (
     GEOPACKAGE_FIXTURES,
