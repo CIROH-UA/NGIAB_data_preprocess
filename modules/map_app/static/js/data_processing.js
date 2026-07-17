@@ -156,7 +156,6 @@ async function forcings() {
             const end_time = document.getElementById('end-time').value;
             if (forcing_dir === '' || start_time === '' || end_time === '') {
                 alert('Please enter a valid output path, start time, and end time');
-                document.getElementById('time-warning').style.color = 'red';
                 return;
             }
 
@@ -205,7 +204,6 @@ async function realization() {
     const end_time = document.getElementById('end-time').value;
     if (forcing_dir === '' || start_time === '' || end_time === '') {
         alert('Please enter a valid output path, start time, and end time');
-        document.getElementById('time-warning').style.color = 'red';
         return;
     }
     document.getElementById('realization-output-path').textContent = "Generating realization...";
@@ -226,13 +224,11 @@ async function realization() {
 
 // Collect workflow options from the UI and run the complete CLI workflow.
 async function runWorkflow() {
-    const inputType = document.querySelector('input[name="input-type"]:checked').value;
+    const inputType = document.getElementById("gage-checkbox").checked ? "gage" : "basin";
     const inputFeature = document.getElementById("workflow-input").value.trim();
 
     const startTime = document.getElementById("start-time").value;
     const endTime = document.getElementById("end-time").value;
-    const runNgiab = document.getElementById("run-ngiab").checked;
-    const outputRoot = document.getElementById("output-root").value.trim();
 
     const runButton = document.getElementById("run-cli-button");
     const outputBox = document.getElementById("run-cli-output");
@@ -267,8 +263,7 @@ async function runWorkflow() {
 
         <div style="margin-top:10px; color: var(--secondary-text);">
             <strong>Workflow steps:</strong><br>
-            Subset hydrofabric → Generate forcings → Create realization
-            ${runNgiab ? " → Run NextGen simulation" : ""}
+            Subset hydrofabric → Generate forcings → Create realization → Run NextGen simulation
         </div>
 
         <div style="margin-top:12px;">
@@ -289,7 +284,7 @@ async function runWorkflow() {
         }
     }, 1000);
 
-    // Send the selected input, forcing source, model, output directory, and run option to Flask.
+    // Send the selected input, forcing source, and model to Flask.
     fetch("/run_cli", {
         method: "POST",
         headers: {
@@ -300,10 +295,8 @@ async function runWorkflow() {
             input_type: inputType,
             start_time: startTime,
             end_time: endTime,
-            output_root: outputRoot,
             source: document.getElementById("datasource-toggle").checked ? "aorc" : "nwm",
-            model: document.getElementById("model-select").value,
-            run_ngiab: runNgiab
+            model: document.getElementById("model-select").value
         })
     })
     .then(async response => {
@@ -318,18 +311,10 @@ async function runWorkflow() {
 
     // Display the output folder and generated command after the workflow completes.
     .then(data => {
-        const outputPath =
-            data.output_dir ||
-            (outputRoot
-                ? `${outputRoot}/${inputType}-${inputFeature}`
-                : `~/ngiab_data_preprocess/${inputFeature}`);
-
-        const successMessage = runNgiab
-            ? "✅ Preprocessing and NextGen simulation completed successfully."
-            : "✅ Preprocessing completed successfully.";
+        const outputPath = data.output_dir;
 
         outputBox.innerHTML = `
-            <div><strong>${successMessage}</strong></div>
+            <div><strong>✅ Preprocessing and NextGen simulation completed successfully.</strong></div>
 
             <div style="margin-top:12px;">
                 <strong>Output</strong><br>
@@ -360,9 +345,7 @@ async function runWorkflow() {
         // Point the results viewer at this run's output so its t-route
         // results can be loaded onto the map with one click.
         document.getElementById("results-dir").value = outputPath;
-        if (runNgiab) {
-            setResultsStatus("", "Run complete — load its t-route output");
-        }
+        setResultsStatus("", "Run complete — load its t-route output");
     })
     .catch(error => {
         outputBox.innerHTML =

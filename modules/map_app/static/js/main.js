@@ -17,21 +17,22 @@ let lastClickedDivide = null;
 // Workflow form
 // ---------------------------------------------------------------------------
 
-function getWorkflowInputType() {
-  return document.querySelector('input[name="input-type"]:checked').value;
+function isGageInput() {
+  return document.getElementById("gage-checkbox").checked;
 }
 
 // Select the given input type (basin or gage) and fill in the id, as when a
 // feature is picked on the map.
 function setWorkflowInput(inputType, value) {
-  document.querySelector(`input[name="input-type"][value="${inputType}"]`).checked = true;
+  document.getElementById("gage-checkbox").checked = inputType === "gage";
   document.getElementById("workflow-input").value = value;
   updateWorkflowInputPlaceholder();
 }
 
 function updateWorkflowInputPlaceholder() {
-  document.getElementById("workflow-input").placeholder =
-    getWorkflowInputType() === "gage" ? "e.g. 01646500" : "e.g. cat-2739307";
+  document.getElementById("workflow-input").placeholder = isGageInput()
+    ? "e.g. 01646500"
+    : "e.g. cat-2739307";
   updateCliCommand();
 }
 
@@ -56,15 +57,13 @@ function updateCliCommand() {
 
   const startDate = document.getElementById("start-time").value.split("T")[0];
   const endDate = document.getElementById("end-time").value.split("T")[0];
-  const outputRoot = document.getElementById("output-root").value.trim();
   const model = document.getElementById("model-select").value;
 
   let command = `-i ${workflowInput}`;
-  if (getWorkflowInputType() === "gage") command += " --gage";
+  if (isGageInput()) command += " --gage";
   command += ` -sfr --start ${startDate} --end ${endDate}`;
-  if (outputRoot) command += ` --output_root ${outputRoot}`;
   if (model) command += ` --${model}`;
-  if (document.getElementById("run-ngiab").checked) command += " --run";
+  command += " --run";
 
   document.getElementById("cli-command").textContent = command;
 }
@@ -287,17 +286,12 @@ function initWorkflowForm() {
 
   on("start-time", "change", updateCliCommand);
   on("end-time", "change", updateCliCommand);
-  on("output-root", "input", updateCliCommand);
   on("model-select", "change", updateCliCommand);
-  on("run-ngiab", "change", updateCliCommand);
+  on("gage-checkbox", "change", updateWorkflowInputPlaceholder);
 
   on("workflow-input", "input", updateCliCommand);
   on("workflow-input", "change", () => {
-    if (getWorkflowInputType() === "gage") zoomToGage();
-  });
-
-  document.querySelectorAll('input[name="input-type"]').forEach((radio) => {
-    radio.addEventListener("change", updateWorkflowInputPlaceholder);
+    if (isGageInput()) zoomToGage();
   });
 
   // Recompute the upstream highlight when the subset type changes.

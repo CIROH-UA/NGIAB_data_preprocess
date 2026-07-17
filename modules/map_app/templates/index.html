@@ -46,31 +46,18 @@
                     Domain
                 </legend>
 
-                <div class="input-type-options">
-                    <label class="label cursor-pointer gap-2">
-                        <input type="radio" name="input-type" value="basin" class="radio radio-sm" checked>
-                        Basin
-                    </label>
-
-                    <label class="label cursor-pointer gap-2">
-                        <input type="radio" name="input-type" value="gage" class="radio radio-sm">
+                <label class="label" for="workflow-input">Id</label>
+                <div class="join w-full">
+                    <input
+                        type="text"
+                        id="workflow-input"
+                        class="input join-item w-full"
+                        placeholder="e.g. cat-2739307">
+                    <label class="join-item gage-toggle" for="gage-checkbox">
+                        <input type="checkbox" id="gage-checkbox" class="checkbox checkbox-sm">
                         Gage
                     </label>
                 </div>
-
-                <label class="label" for="workflow-input">Id</label>
-                <input
-                    type="text"
-                    id="workflow-input"
-                    class="input w-full"
-                    placeholder="e.g. cat-2739307">
-
-                <label class="label" for="output-root">Output Directory</label>
-                <input
-                    type="text"
-                    id="output-root"
-                    class="input w-full"
-                    placeholder="e.g. ~/ngiab_output">
             </fieldset>
 
             <!-- Forcing period and data source -->
@@ -96,8 +83,6 @@
                     class="input w-full"
                     value="2010-01-02T00:00">
 
-                <p id="time-warning" class="panel-hint">End time must be after the start time.</p>
-
                 <label class="label">Forcing Dataset</label>
                 <div class="toggle-switch" id="forcing-source">
                     <input
@@ -120,7 +105,6 @@
                     Model
                 </legend>
 
-                <label class="label" for="model-select">Model</label>
                 <select id="model-select" class="select w-full">
                     <option value="" selected>NOAH + CFE (Default)</option>
                     <option value="lstm">LSTM Python</option>
@@ -131,11 +115,6 @@
                     <option value="snow17">SNOW17</option>
                     <option value="sacsma">SAC-SMA</option>
                 </select>
-
-                <label class="label cursor-pointer justify-start gap-2">
-                    <input type="checkbox" id="run-ngiab" class="checkbox checkbox-sm">
-                    Run NGIAB after preprocessing
-                </label>
             </fieldset>
 
             <!-- Run: complete workflow, or one step at a time -->
@@ -147,7 +126,7 @@
 
                 <p class="panel-hint">
                     Runs subsetting, forcings, and realization for the selected basin
-                    or gage, then optionally runs NGIAB.
+                    or gage, then runs NGIAB.
                 </p>
 
                 <button id="run-cli-button" class="btn btn-primary btn-block">Run Complete Workflow</button>
@@ -194,11 +173,6 @@
                     Results Viewer
                 </legend>
 
-                <p class="panel-hint">
-                    Color each flowpath on the map by its simulated t-route
-                    value at the selected timestep.
-                </p>
-
                 <label class="label" for="results-dir">Run Output Directory</label>
                 <input
                     type="text"
@@ -208,9 +182,9 @@
 
                 <button id="load-results-button" class="btn btn-primary btn-block" style="margin-top:10px">Load T-Route Output</button>
 
-                <div class="status">
+                <div class="status" id="results-status" hidden>
                     <span class="status-dot" id="results-status-dot"></span>
-                    <span id="results-status-text">Run a workflow, then load its output</span>
+                    <span id="results-status-text"></span>
                 </div>
 
                 <div id="results-controls" hidden>

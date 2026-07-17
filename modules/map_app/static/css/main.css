@@ -150,9 +150,16 @@ body {
   opacity: 0.7;
 }
 
-.input-type-options {
+/* Gage checkbox joined to the id input */
+.gage-toggle {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  background: var(--color-base-100);
+  border: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
 /* Run panel steps */
@@ -287,6 +294,10 @@ body {
 }
 
 /* Results viewer (styled after the t-route output viewer example) */
+
+.status[hidden] {
+  display: none;
+}
 
 .status {
   display: flex;

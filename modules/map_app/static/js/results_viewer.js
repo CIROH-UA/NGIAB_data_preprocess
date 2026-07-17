@@ -33,6 +33,7 @@ function resultsData() {
 }
 
 function setResultsStatus(kind, message) {
+  document.getElementById("results-status").hidden = !message;
   document.getElementById("results-status-dot").className =
     "status-dot" + (kind ? ` ${kind}` : "");
   document.getElementById("results-status-text").textContent = message;
@@ -181,7 +182,7 @@ function clearResults() {
   }
 
   document.getElementById("results-controls").hidden = true;
-  setResultsStatus("", "Run a workflow, then load its output");
+  setResultsStatus("", "");
 }
 
 // ---------------------------------------------------------------------------

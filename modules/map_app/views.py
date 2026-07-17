@@ -300,14 +300,8 @@ def run_cli():
     if data.get("input_type") == "gage":
         cmd.append("--gage")
 
-    cmd.append("-sfr")
-
     cmd += ["--start", data["start_time"].split("T")[0]]
     cmd += ["--end", data["end_time"].split("T")[0]]
-
-    output_root = data.get("output_root")
-    if output_root:
-        cmd += ["--output_root", os.path.expanduser(output_root)]
 
     # Pass the selected forcing dataset through to the CLI.
     source = data.get("source")
@@ -319,9 +313,7 @@ def run_cli():
     if model:
         cmd.append(f"--{model}")
 
-    # Optionally run NextGen/NGIAB after preprocessing completes.
-    if data.get("run_ngiab"):
-        cmd.append("--run")
+    cmd += ["-sfr", "--run"]
 
     logger.info("Running workflow command: %s", " ".join(cmd))
 
@@ -360,11 +352,7 @@ def run_cli():
         else input_feature
     )
 
-    if output_root:
-        base_output = Path(os.path.expanduser(output_root))
-        output_dir = base_output / output_name
-    else:
-        output_dir = FilePaths(output_name).output_dir
+    output_dir = FilePaths(output_name).output_dir
 
     return jsonify(
         {
