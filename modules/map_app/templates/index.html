@@ -140,6 +140,27 @@
                 </details>
             </fieldset>
 
+            <!-- Shared run output directory -->
+            <fieldset class="fieldset panel" id="output-dir-panel">
+                <legend class="fieldset-legend">
+                    <svg viewBox="0 0 24 24"><path d="M10 4H2v16h20V6H12l-2-2z"/></svg>
+                    Output Directory
+                </legend>
+
+                <p class="panel-hint">
+                    When set, the Forcings, Configure and Run steps above act on this
+                    folder, and the results below load from it.
+                </p>
+
+                <input
+                    type="text"
+                    id="output-dir"
+                    class="input w-full"
+                    list="output-dir-options"
+                    placeholder="e.g. ~/ngiab_output/cat-2739307">
+                <datalist id="output-dir-options"></datalist>
+            </fieldset>
+
             <!-- T-Route results viewer -->
             <fieldset class="fieldset panel" id="results-panel">
                 <legend class="fieldset-legend">
@@ -147,16 +168,7 @@
                     Results Viewer
                 </legend>
 
-                <label class="label" for="results-dir">Run Output Directory</label>
-                <input
-                    type="text"
-                    id="results-dir"
-                    class="input w-full"
-                    list="output-dir-options"
-                    placeholder="e.g. ~/ngiab_output/cat-2739307">
-                <datalist id="output-dir-options"></datalist>
-
-                <button id="load-results-button" class="btn btn-primary btn-block" style="margin-top:10px">Load T-Route Output</button>
+                <button id="load-results-button" class="btn btn-primary btn-block">Load T-Route Output</button>
 
                 <div class="status" id="results-status" hidden>
                     <span class="status-dot" id="results-status-dot"></span>

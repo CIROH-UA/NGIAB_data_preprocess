@@ -3,6 +3,20 @@ function getSelectedIdentifier() {
     return document.getElementById("workflow-input").value.trim();
 }
 
+// The shared run output directory. When set, the forcings/configure/run steps
+// act on this folder instead of deriving one from the selected basin id.
+function getOutputDir() {
+    return document.getElementById("output-dir").value.trim();
+}
+
+// The subset geopackage inside a run output directory, following the
+// <dir>/config/<name>_subset.gpkg convention used by FilePaths.
+function gpkgForOutputDir(dir) {
+    const clean = dir.replace(/\/+$/, "");
+    const name = clean.split("/").pop();
+    return `${clean}/config/${name}_subset.gpkg`;
+}
+
 // Validation shared by the step buttons; each returns null after alerting.
 function requireBasinId(action) {
     const catId = getSelectedIdentifier();
@@ -39,6 +53,24 @@ async function existingSubsetPath(catId) {
 
 function setStepOutput(html) {
     document.getElementById("step-output").innerHTML = html;
+}
+
+// Resolve the subset geopackage for the forcings/configure steps: from the
+// output directory when one is set, otherwise from the selected basin id.
+// Alerts and returns null if neither yields a usable geopackage.
+async function resolveGpkg(action) {
+    const outputDir = getOutputDir();
+    if (outputDir) {
+        return gpkgForOutputDir(outputDir);
+    }
+    const catId = requireBasinId(action);
+    if (!catId) return null;
+    const gpkg = await existingSubsetPath(catId);
+    if (!gpkg) {
+        alert("No existing geopackage found. Create a subset first.");
+        return null;
+    }
+    return gpkg;
 }
 
 function setStepButtonsDisabled(disabled) {
@@ -115,16 +147,11 @@ function pollForcingsProgress(progressFile) {
 }
 
 async function forcings() {
-    const catId = requireBasinId("generating forcings");
-    if (!catId) return;
     const times = requireTimes();
     if (!times) return;
 
-    const gpkg = await existingSubsetPath(catId);
-    if (!gpkg) {
-        alert("No existing geopackage found. Create a subset first.");
-        return;
-    }
+    const gpkg = await resolveGpkg("generating forcings");
+    if (!gpkg) return;
 
     const source = document.getElementById("datasource-toggle").checked ? "aorc" : "nwm";
 
@@ -159,16 +186,11 @@ async function forcings() {
 
 // Create the realization/model configuration for an existing subset.
 async function configure() {
-    const catId = requireBasinId("creating a realization");
-    if (!catId) return;
     const times = requireTimes();
     if (!times) return;
 
-    const gpkg = await existingSubsetPath(catId);
-    if (!gpkg) {
-        alert("No existing geopackage found. Create a subset first.");
-        return;
-    }
+    const gpkg = await resolveGpkg("creating a realization");
+    if (!gpkg) return;
 
     setStepButtonsDisabled(true);
     setStepOutput("Creating realization...");
@@ -193,13 +215,31 @@ async function configure() {
 // Run NGIAB against the already-preprocessed output folder. The CLI's --run
 // flag validates the folder and runs any missing steps first.
 async function runNgiab() {
-    const inputFeature = getSelectedIdentifier();
-    if (!inputFeature) {
-        alert("Please select or enter an ID first.");
-        return;
-    }
     const times = requireTimes();
     if (!times) return;
+
+    // Prefer the shared output directory; fall back to the selected id. The
+    // run folders are named cat-<id> or gage-<id>, so the input feature and
+    // type can be recovered from a folder name.
+    let inputFeature, inputType;
+    const outputDir = getOutputDir();
+    if (outputDir) {
+        const name = outputDir.replace(/\/+$/, "").split("/").pop();
+        if (name.startsWith("gage-")) {
+            inputType = "gage";
+            inputFeature = name.slice("gage-".length);
+        } else {
+            inputType = "basin";
+            inputFeature = name;
+        }
+    } else {
+        inputFeature = getSelectedIdentifier();
+        if (!inputFeature) {
+            alert("Please select or enter an ID first.");
+            return;
+        }
+        inputType = document.getElementById("gage-checkbox").checked ? "gage" : "basin";
+    }
 
     setStepButtonsDisabled(true);
     setStepOutput("Running NGIAB... this can take a while.");
@@ -209,7 +249,7 @@ async function runNgiab() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 input_feature: inputFeature,
-                input_type: document.getElementById("gage-checkbox").checked ? "gage" : "basin",
+                input_type: inputType,
                 start_time: times.startTime,
                 end_time: times.endTime,
                 steps: ["run"],
@@ -220,7 +260,7 @@ async function runNgiab() {
         setStepOutput(`NGIAB run complete<br><code>${data.output_dir}</code>`);
 
         // Show this run's t-route results on the map right away.
-        document.getElementById("results-dir").value = data.output_dir;
+        document.getElementById("output-dir").value = data.output_dir;
         populateOutputDirOptions();
         loadResults();
     } catch (error) {
@@ -341,7 +381,7 @@ async function runWorkflow() {
         `;
 
         // Show this run's t-route results on the map right away.
-        document.getElementById("results-dir").value = outputPath;
+        document.getElementById("output-dir").value = outputPath;
         populateOutputDirOptions();
         loadResults();
     })

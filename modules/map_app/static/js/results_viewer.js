@@ -68,7 +68,7 @@ async function fetchResultsVariable(variable) {
 }
 
 async function loadResults() {
-  const outputDir = document.getElementById("results-dir").value.trim();
+  const outputDir = document.getElementById("output-dir").value.trim();
   if (!outputDir) {
     setResultsStatus("error", "Enter a run output directory first");
     return;
