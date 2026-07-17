@@ -571,7 +571,7 @@ def _make_summa_attributes(hru_ids, hydrofabric):
     return ds
 
 
-def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:
+def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset: # pylint: disable=invalid-name
     ds = xr.Dataset(
         {
             "hruId": xr.DataArray(
@@ -593,10 +593,10 @@ def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:
     return ds
 
 
-def _make_summa_coldState(hru_ids):
+def _make_summa_coldState(hru_ids): # pylint: disable=invalid-name
     n_hru = len(hru_ids)
-    n_midToto = 3
-    n_ifcToto = 4
+    n_midToto = 3 # pylint: disable=invalid-name
+    n_ifcToto = 4 # pylint: disable=invalid-name
 
     def scalar_var(fill_val, dtype=np.float64):
         return xr.DataArray(
@@ -610,12 +610,12 @@ def _make_summa_coldState(hru_ids):
             dims=[dim_name, "hru"],
         )
 
-    iLayerHeight_data = np.broadcast_to(
+    iLayerHeight_data = np.broadcast_to( # pylint: disable=invalid-name
         np.array([0.0, 0.2, 0.5, 1.0])[:, np.newaxis],
         (n_ifcToto, n_hru),
     ).copy()
 
-    mLayerDepth_data = np.broadcast_to(
+    mLayerDepth_data = np.broadcast_to( # pylint: disable=invalid-name
         np.array([0.2, 0.3, 0.5])[:, np.newaxis],
         (n_midToto, n_hru),
     ).copy()

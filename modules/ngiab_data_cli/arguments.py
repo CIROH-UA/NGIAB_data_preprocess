@@ -178,6 +178,7 @@ def parse_arguments() -> argparse.Namespace:
             "snow17",
             "sac-sma",
             "casam",
+            "summa"
         ],
     )
 

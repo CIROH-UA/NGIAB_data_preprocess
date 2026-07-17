@@ -11,13 +11,16 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from data_processing.create_configs import (
-    get_hru_order,
-    make_summa_attributes,
-    make_summa_trialParams,
-    make_summa_coldState,
-    make_summa_config,
-    make_summa_config_suite,
+# The "reorganize functions" refactor privatized these SUMMA builders (leading
+# underscore). They remain the unique entry points for the netCDF structural
+# assertions below, so we alias them back to the public names used in this suite.
+from data_processing.create_configs import (  # pylint: disable=no-name-in-module
+    _get_hru_order as get_hru_order,
+    _make_summa_attributes as make_summa_attributes,
+    _make_summa_trialParams as make_summa_trialParams,
+    _make_summa_coldState as make_summa_coldState,
+    _make_summa_config as make_summa_config,
+    _make_summa_config_suite as make_summa_config_suite,
 )
 from data_processing.file_paths import FilePaths
 
@@ -531,8 +534,7 @@ def test_summa_config_generation_matches_golden(cat_1555522_forcing_output, tmp_
         "cat-1555522", cat_1555522_forcing_output["forcings_nc"], tmp_path, monkeypatch
     )
     assert GOLDEN_SUMMA_FILE.exists(), (
-        f"missing golden {GOLDEN_SUMMA_FILE}. Generate it with: "
-        "UPDATE_GOLDEN=1 uv run pytest tests/test_summa_config_generation.py"
+        f"missing golden {GOLDEN_SUMMA_FILE}."
     )
 
     golden = json.loads(GOLDEN_SUMMA_FILE.read_text())
@@ -649,6 +651,7 @@ def test_gage_summa_config_generation_matches_golden(
     produced = _generate_summa_config(
         "gage-10109001", gage_10109001_forcing_output["forcings_nc"], tmp_path, monkeypatch
     )
+
     assert GOLDEN_GAGE_SUMMA_FILE.exists(), (
         f"missing golden {GOLDEN_GAGE_SUMMA_FILE}. Save the gage golden there."
     )
@@ -706,13 +709,13 @@ def test_gage_summa_config_generation_produces_expected_artifacts(
 
 
 # ---------------------------------------------------------------------------
-# Integration tests for make_summa_config_suite.
+# Integration tests for _make_summa_config_suite.
 #
 # The tests above exercise the SUMMA leaf functions (make_summa_attributes,
 # make_summa_coldState, make_summa_trialParams, make_summa_config) and compare
 # text config against the golden files, but they do so through the local
 # _generate_summa_config helper, which *reimplements* the orchestration. The
-# real modular entry point, make_summa_config_suite (create_realization.py),
+# real modular entry point, _make_summa_config_suite (create_configs.py),
 # is never invoked there -- so an orchestration bug in it (wrong glob, wrong
 # hydrofabric source, a dropped setup_run_folders, or fileManager templating
 # drift) would pass unnoticed. These tests call the real function so the

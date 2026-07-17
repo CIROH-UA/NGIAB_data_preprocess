@@ -1,0 +1,264 @@
+"""One-off: regenerate realization and config goldens from the modular builder.
+
+Mirrors the test fixtures in tests/test_modular_realization.py and
+tests/test_modular_config.py exactly (same fixed START/END, routing on, Prompt.ask
+stubbed, get_working_dir pointed at a temp dir). Writes a golden only when its
+parsed content actually changed, so existing multi-model goldens remain byte-
+untouched unless the produced content truly moved.
+"""
+
+import json
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+sys.path.insert(0, "modules")
+
+from data_processing.create_configs import (  # pylint: disable=wrong-import-position
+    create_modular_configs,
+)
+from data_processing.file_paths import FilePaths  # pylint: disable=wrong-import-position
+import data_processing.create_realization as mr  # pylint: disable=wrong-import-position
+from data_processing.create_realization import (  # pylint: disable=wrong-import-position
+    create_modular_realization,
+)
+from golden_utils import (  # pylint: disable=wrong-import-position
+    END,
+    GEOPACKAGE_FIXTURES,
+    GOLDEN_CONFIG_DIR,
+    START,
+    normalize,
+    write_golden_json,
+)
+
+GOLDEN_DIR = Path("tests/golden/realization")
+
+# Must match GOLDEN_CASES in test_modular_realization.py.
+GOLDEN_CASES = [
+    (["sloth", "nom", "cfe"], "cfe-nom.json"),
+    (["dhbv2"], "dhbv2.json"),
+    (["dhbv2_daily"], "dhbv2-daily.json"),
+    (["lstm"], "lstm-py.json"),
+    (["lstm_rust"], "lstm-rs.json"),
+    (["nom", "sac-sma"], "sacsma-nom.json"),
+    (["sloth", "snow17", "nom", "cfe"], "snow17-nom-cfe.json"),
+    (["summa"], "summa.json"),
+]
+
+CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily", "casam"]
+
+# Stub the interactive overwrite prompt to always accept.
+mr.Prompt.ask = staticmethod(lambda *a, **k: "y")  # type: ignore
+
+
+def _write_summa_forcing_fixture(forcing_path: Path, cat_id: str) -> None:
+    forcing_path.parent.mkdir(parents=True, exist_ok=True)
+
+    time = pd.date_range(START.strftime("%Y-%m-%d"), END.strftime("%Y-%m-%d"), freq="h")
+    if cat_id == "cat-1555522":
+        ids = ["cat-1555522"]
+    else:
+        ids = [
+            "cat-2861379",
+            "cat-2861380",
+            "cat-2861387",
+            "cat-2861414",
+            "cat-2861421",
+            "cat-2861429",
+            "cat-2861431",
+            "cat-2861436",
+            "cat-2861438",
+            "cat-2861442",
+            "cat-2861446",
+            "cat-2861447",
+            "cat-2861449",
+            "cat-2861452",
+            "cat-2861453",
+            "cat-2861471",
+            "cat-2861472",
+            "cat-2861475",
+            "cat-2861488",
+            "cat-2861382",
+            "cat-2861383",
+            "cat-2861384",
+            "cat-2861385",
+            "cat-2861388",
+            "cat-2861389",
+            "cat-2861391",
+            "cat-2861419",
+            "cat-2861420",
+            "cat-2861423",
+            "cat-2861427",
+            "cat-2861430",
+            "cat-2861433",
+            "cat-2861439",
+            "cat-2861457",
+            "cat-2861458",
+            "cat-2861468",
+            "cat-2861477",
+            "cat-2861478",
+            "cat-2861485",
+            "cat-2861474",
+            "cat-2861487",
+            "cat-2861476",
+            "cat-2861486",
+            "cat-2861484",
+            "cat-2861480",
+            "cat-2861482",
+            "cat-2861481",
+            "cat-2861483",
+            "cat-2861479",
+            "cat-2861473",
+            "cat-2861470",
+            "cat-2861469",
+            "cat-2861467",
+            "cat-2861466",
+            "cat-2861381",
+            "cat-2861462",
+            "cat-2861464",
+            "cat-2861463",
+            "cat-2861465",
+            "cat-2861461",
+            "cat-2861459",
+            "cat-2861460",
+            "cat-2861455",
+            "cat-2861456",
+            "cat-2861454",
+            "cat-2861451",
+            "cat-2861450",
+            "cat-2861448",
+            "cat-2861445",
+            "cat-2861444",
+            "cat-2861441",
+            "cat-2861443",
+            "cat-2861440",
+            "cat-2861437",
+            "cat-2861435",
+            "cat-2861434",
+            "cat-2861432",
+            "cat-2861386",
+            "cat-2861428",
+            "cat-2861426",
+            "cat-2861425",
+            "cat-2861424",
+            "cat-2861390",
+            "cat-2861422",
+            "cat-2861415",
+            "cat-2861417",
+            "cat-2861418",
+            "cat-2861416",
+        ]
+
+    ds = xr.Dataset(
+        {
+            "APCP_surface": (
+                ("catchment-id", "time"),
+                np.zeros((len(ids), len(time)), dtype=np.float32),
+            ),
+            "DSWRF_surface": (
+                ("catchment-id", "time"),
+                np.zeros((len(ids), len(time)), dtype=np.float32),
+            ),
+        },
+        coords={
+            "catchment-id": ids,
+            "time": time,
+            "ids": (("catchment-id",), np.array(ids, dtype="U11")),
+        },
+    )
+    ds.to_netcdf(forcing_path)
+
+
+def _generate_config_golden(cat_id: str, tmp_root: str) -> dict:
+    FilePaths.get_working_dir = classmethod(lambda cls, _tmp=tmp_root: Path(_tmp))  # type: ignore
+
+    paths = FilePaths(cat_id)
+    paths.config_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(GEOPACKAGE_FIXTURES[cat_id], paths.geopackage_path)
+
+    create_modular_configs(cat_id, START, END, CONFIG_MODELS, routing=True)
+
+    produced = {}
+    for f in sorted(paths.config_dir.rglob("*")):
+        if f.is_file() and f.suffix != ".gpkg" and f.name != "realization.json":
+            rel = str(f.relative_to(paths.config_dir))
+            produced[rel] = normalize(
+                f.read_text(errors="replace"), paths.output_dir  # type: ignore[arg-type]
+            )
+    return produced
+
+
+def _generate_summa_golden(cat_id: str, tmp_root: str) -> dict:
+    FilePaths.get_working_dir = classmethod(lambda cls, _tmp=tmp_root: Path(_tmp))  # type: ignore
+
+    paths = FilePaths(cat_id)
+    paths.config_dir.mkdir(parents=True, exist_ok=True)
+    paths.forcings_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(GEOPACKAGE_FIXTURES[cat_id], paths.geopackage_path)
+    _write_summa_forcing_fixture(paths.forcings_file, cat_id)
+    FilePaths.conus_hydrofabric = GEOPACKAGE_FIXTURES[cat_id]  # type: ignore[attr-defined]
+
+    create_modular_configs(cat_id, START, END, ["summa"], routing=False)
+
+    produced = {}
+    for f in sorted(paths.config_dir.rglob("*")):
+        if (
+            f.is_file()
+            and f.suffix != ".nc"
+            and f.name != "realization.json"
+            and f.suffix != ".gpkg"
+        ):
+            rel = str(f.relative_to(paths.config_dir))
+            produced[rel] = normalize(f.read_text(errors="replace"), paths.config_dir)
+    return produced
+
+
+for models, golden_name in GOLDEN_CASES:
+    with tempfile.TemporaryDirectory() as tmp:
+        FilePaths.get_working_dir = classmethod(lambda cls, _tmp=tmp: Path(_tmp))  # type: ignore
+        cat_test_paths = FilePaths("cat-test")
+        cat_test_paths.config_dir.mkdir(parents=True, exist_ok=True)
+        create_modular_realization("cat-test", START, END, models, routing=True)
+        produced_realizations = json.loads(
+            (cat_test_paths.config_dir / "realization.json").read_text()
+        )
+
+    golden_path = GOLDEN_DIR / golden_name
+    old = json.loads(golden_path.read_text()) if golden_path.exists() else None
+    if old == produced_realizations:
+        print(f"  unchanged  {golden_name}")
+        continue
+    # Match the committed golden serialization (2-space indent, trailing newline).
+    write_golden_json(golden_path, produced_realizations)
+    print(f"  UPDATED    {golden_name}")
+
+for cat_id_gpkg in GEOPACKAGE_FIXTURES:
+    with tempfile.TemporaryDirectory() as tmp:
+        produced_configs = _generate_config_golden(cat_id_gpkg, tmp)
+
+    golden_path = GOLDEN_CONFIG_DIR / f"{cat_id_gpkg}.json"
+    old = json.loads(golden_path.read_text()) if golden_path.exists() else None
+    if old == produced_configs:
+        print(f"  unchanged  {golden_path.name}")
+        continue
+    write_golden_json(golden_path, produced_configs)
+    print(f"  UPDATED    {golden_path.name}")
+
+for cat_id_gpkg in GEOPACKAGE_FIXTURES:
+    with tempfile.TemporaryDirectory() as tmp:
+        produced_summa = _generate_summa_golden(cat_id_gpkg, tmp)
+
+    golden_path = GOLDEN_CONFIG_DIR / f"{cat_id_gpkg}-summa.json"
+    old = json.loads(golden_path.read_text()) if golden_path.exists() else None
+    if old == produced_summa:
+        print(f"  unchanged  {golden_path.name}")
+        continue
+    write_golden_json(golden_path, produced_summa)
+    print(f"  UPDATED    {golden_path.name}")
+
+print("done")

@@ -1,20 +1,4 @@
-"""Tests for ``data_processing.modular_realization``.
-
-The headline test is ``TestGoldenEquivalence`` -- it builds a sloth->nom->cfe
-modular realization and asserts it is identical to the committed
-``tests/golden/realization/cfe-nom.json`` (the hand-authored realization the
-legacy builder produces). That golden is the contract: the modular pipeline
-should reconstruct it exactly.
-
-The remaining classes characterize the individual pieces (validation rules, the
-per-model append/insert helpers, and the integration wiring) so a refactor can't
-drift silently.
-
-Hermeticity: tests that touch output paths monkeypatch ``FilePaths.get_working_dir``
-to a ``tmp_path`` (same pattern as ``test_config_generation.py``) and ``Prompt.ask``
-is always stubbed so nothing blocks on stdin. ``create_modular_realization`` now
-stamps time with ``datetime.strftime`` and therefore expects ``datetime`` inputs,
-so START/END are datetimes (matching ``test_realization_templates.py``).
+"""Tests for ``data_processing.create_realization``.
 """
 
 import copy
@@ -87,7 +71,7 @@ def make_realization_fixture(tmp_path, monkeypatch, answer_prompt):
         paths = FilePaths(folder)
         if make_config:
             paths.config_dir.mkdir(parents=True, exist_ok=True)
-        create_modular_realization(folder, start, end, models, routing)
+        create_modular_realization(folder, start, end, models, routing=routing)
         return json.loads((paths.config_dir / "realization.json").read_text())
 
     return _run

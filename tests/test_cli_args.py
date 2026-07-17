@@ -35,6 +35,7 @@ EXPECTED_MODELS_CHOICES = [
     "snow17",
     "sac-sma",
     "casam",
+    "summa"
 ]
 
 
