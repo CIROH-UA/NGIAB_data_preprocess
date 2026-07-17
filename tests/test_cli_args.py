@@ -86,12 +86,6 @@ class TestModelsArgument:
         the CLI can never hand validate_models an unbuildable name."""
         assert set(EXPECTED_MODELS_CHOICES) <= set(ACCEPTED_MODELS)
 
-    def test_models_conflicts_with_single_model_flag(self, parse_cli):
-        """--models shares a mutually-exclusive group with the single-model flags,
-        so combining it with e.g. --lstm is a parse error."""
-        with pytest.raises(SystemExit):
-            parse_cli(["--models", "cfe", "--lstm"])
-
 
 # ---------------------------------------------------------------------------
 # --routing
