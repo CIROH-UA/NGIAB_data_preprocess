@@ -13,14 +13,6 @@ with rich.status.Status("loading") as status:
     from pathlib import Path
 
     import geopandas as gpd
-    from data_processing.create_realization import (
-        create_dhbv2_realization,
-        create_lstm_realization,
-        create_realization,
-        create_summa_realization,
-        create_snow17_realization,
-        create_sacsma_realization,
-    )
     from data_processing.dask_utils import set_n_workers, shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -230,42 +222,9 @@ def main() -> None:
                 gage_id = args.input_feature
                 if not gage_id.startswith("gage-"):
                     gage_id = "gage-" + gage_id
-            if args.lstm or args.lstm_rust:
-                create_lstm_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    use_rust=args.lstm_rust,
-                )
-            elif args.dhbv2 or args.dhbv2_daily:
-                create_dhbv2_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    daily=args.dhbv2_daily,
-                )
-            elif args.summa:
-                create_summa_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                )
-            elif args.snow17:
-                create_snow17_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    use_nwm_gw=args.nwm_gw,
-                    gage_id=gage_id,
-                )
-            elif args.sacsma:
-                create_sacsma_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    gage_id=gage_id,
-                )
-            elif args.models:
+
+            # TODO: handle calibrated params
+            if args.models:
                 create_modular_realization(
                     output_folder,
                     start_time=args.start_date,
@@ -281,12 +240,13 @@ def main() -> None:
                     routing=args.routing,
                 )
             else:
-                create_realization(
+                # default to SLoTH + NOM + CFE + t-route
+                create_modular_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
-                    use_nwm_gw=args.nwm_gw,
-                    gage_id=gage_id,
+                    models=["sloth", "nom", "cfe"],
+                    routing=args.routing,
                 )
             logging.info("Realization creation complete.")
 

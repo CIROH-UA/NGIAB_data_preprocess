@@ -460,62 +460,6 @@ def make_ngen_realization_json(
         json.dump(realization, file, indent=4)
 
 
-def create_lstm_realization(
-    cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False
-):
-    paths = FilePaths(cat_id)
-    realization_path = paths.config_dir / "realization.json"
-    configure_troute(cat_id, paths.config_dir, start_time, end_time)
-    # python version of the lstm
-    python_template_path = FilePaths.template_lstm_realization_config
-    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time)
-    realization_path.rename(paths.config_dir / "python_lstm_real.json")
-    # rust version of the lstm
-    rust_template_path = FilePaths.template_lstm_rust_realization_config
-    make_ngen_realization_json(paths.config_dir, rust_template_path, start_time, end_time)
-    realization_path.rename(paths.config_dir / "rust_lstm_real.json")
-
-    if use_rust:
-        (paths.config_dir / "rust_lstm_real.json").rename(realization_path)
-    else:
-        (paths.config_dir / "python_lstm_real.json").rename(realization_path)
-
-    make_lstm_config(paths.geopackage_path, paths.config_dir)
-    paths.setup_run_folders()
-
-
-def create_dhbv2_realization(
-    cat_id: str, start_time: datetime, end_time: datetime, daily: bool = False
-):
-    paths = FilePaths(cat_id)
-    configure_troute(cat_id, paths.config_dir, start_time, end_time)
-
-    if daily:
-        make_ngen_realization_json(
-            paths.config_dir,
-            FilePaths.template_dhbv2_daily_realization_config,
-            start_time,
-            end_time,
-        )
-        make_dhbv2_config(
-            paths.geopackage_path,
-            paths.config_dir,
-            start_time,
-            end_time,
-            template_path=FilePaths.template_dhbv2_daily_config,
-        )
-    else:
-        make_ngen_realization_json(
-            paths.config_dir,
-            FilePaths.template_dhbv2_realization_config,
-            start_time,
-            end_time,
-        )
-        make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
-
-    paths.setup_run_folders()
-
-
 def get_hru_order(forcing_path: Path) -> list[int]:
     # the SUMMA hru (hydrologic response unit) is like a nextgen hydrofabric catchment
     # to correctly format the input data we need the order of these ids to be consistent
@@ -726,47 +670,6 @@ def make_summa_coldState(hru_ids):
     return ds, encoding
 
 
-# TODO: Refactor this function to use the same code as make_summa_config_suite, which is a duplicate
-# of this function
-def create_summa_realization(cat_id: str, start_time: datetime, end_time: datetime):
-    paths = FilePaths(cat_id)
-    configure_troute(cat_id, paths.config_dir, start_time, end_time)
-    make_ngen_realization_json(
-        paths.config_dir,
-        FilePaths.template_summa_realization_config,
-        start_time,
-        end_time,
-    )
-    paths.summa_model_config.mkdir(parents=True, exist_ok=True)
-
-    files = chain(
-        FilePaths.summa_file_dir.glob("*.txt"),
-        FilePaths.summa_file_dir.glob("*.TBL"),
-        FilePaths.summa_file_dir.glob("*.md"),
-    )
-    for file in files:
-        if file.name == "fileManager.txt":
-            with open(file, "r") as f:
-                template = f.read()
-            with open(paths.summa_model_config / file.name, "w") as f:
-                f.write(template.format(start_time=start_time, end_time=end_time))
-        else:
-            shutil.copy(file, paths.summa_model_config)
-
-    max_timesteps = int((end_time - start_time).total_seconds() / 3600)
-    hru_ids = get_hru_order(paths.forcings_file)
-    make_summa_attributes(hru_ids, FilePaths.conus_hydrofabric).to_netcdf(
-        paths.summa_model_config / "attributes.nc"
-    )
-    make_summa_trialParams(hru_ids, max_timesteps).to_netcdf(
-        paths.summa_model_config / "trialParams.nc"
-    )
-    ds, encoding = make_summa_coldState(hru_ids)
-    ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
-    make_summa_config(hru_ids, paths.config_dir)
-    paths.setup_run_folders(["outputs/summa"])
-
-
 def make_summa_config_suite(cat_id: str, start_time: datetime, end_time: datetime):
     """Makes SUMMA configuration files. Much of this code is duplicated from
     create_summa_realization, which will be the task of a future refactor to clean up
@@ -807,54 +710,7 @@ def make_summa_config_suite(cat_id: str, start_time: datetime, end_time: datetim
     paths.setup_run_folders(["outputs/summa"])
 
 
-def create_snow17_realization(
-    cat_id: str,
-    start_time: datetime,
-    end_time: datetime,
-    use_nwm_gw: bool = False,
-    gage_id: Optional[str] = None,
-):
-    paths = FilePaths(cat_id)
-
-    conf_df = get_model_attributes(paths.geopackage_path)
-    if use_nwm_gw:
-        gw_levels = get_approximate_gw_storage(paths, start_time)
-    else:
-        gw_levels = dict()
-
-    make_cfe_config(conf_df, paths, gw_levels)
-    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
-    configure_troute(cat_id, paths.config_dir, start_time, end_time)
-    make_snow17_config(paths.config_dir, conf_df, start_time, end_time)
-
-    make_ngen_realization_json(
-        paths.config_dir,
-        FilePaths.template_snow17_realization_config,
-        start_time,
-        end_time,
-    )
-    paths.setup_run_folders()
-
-
-def create_sacsma_realization(
-    cat_id: str, start_time: datetime, end_time: datetime, gage_id: Optional[str] = None
-):
-    paths = FilePaths(cat_id)
-
-    conf_df = get_model_attributes(paths.geopackage_path)
-
-    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
-    make_sacsma_config(paths.config_dir, conf_df, start_time, end_time)
-    configure_troute(cat_id, paths.config_dir, start_time, end_time)
-    make_ngen_realization_json(
-        paths.config_dir,
-        FilePaths.template_sac_realization_config,
-        start_time,
-        end_time,
-    )
-    paths.setup_run_folders()
-
-
+# TODO: Get rid of this function but pull out the calibration part
 def create_realization(
     cat_id: str,
     start_time: datetime,
