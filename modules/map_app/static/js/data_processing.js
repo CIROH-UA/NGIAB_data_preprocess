@@ -77,7 +77,44 @@ function updateProgressBar(percent) {
     barText.textContent = percent + "%";
 }
 
+// Update the forcings UI from one progress message ("NaN" while downloading,
+// otherwise a percentage). Calls done() when the run completes.
+function handleForcingsProgress(data, done) {
+    if (data == "NaN") {
+        document.getElementById('forcings-output-path').textContent = "Downloading data...";
+        document.getElementById('bar-text').textContent = "Downloading...";
+        document.getElementById('bar').style.animation = "indeterminateAnimation 1s infinite linear";
+    } else {
+        const percent = parseInt(data, 10);
+        updateProgressBar(percent);
+        if (percent > 0 && percent < 100) {
+            document.getElementById('bar').style.animation = "none"; // stop the indeterminate animation
+            document.getElementById('forcings-output-path').textContent = "Calculating zonal statistics. See progress below.";
+        } else if (percent >= 100) {
+            updateProgressBar(100); // Ensure the progress bar is full
+            done();
+            document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
+        }
+    }
+}
+
+// Progress is pushed over a websocket; fall back to polling if that fails.
 function pollForcingsProgress(progressFile) {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${location.host}/ws/forcings_progress`);
+    let receivedAnything = false;
+
+    ws.onopen = () => ws.send(JSON.stringify(progressFile));
+    ws.onmessage = (event) => {
+        receivedAnything = true;
+        handleForcingsProgress(event.data, () => ws.close());
+    };
+    ws.onerror = () => {
+        if (!receivedAnything) pollForcingsProgressHttp(progressFile);
+    };
+}
+
+function pollForcingsProgressHttp(progressFile) {
     const interval = setInterval(() => {
         fetch('/forcings_progress', {
             method: 'POST',
@@ -85,24 +122,7 @@ function pollForcingsProgress(progressFile) {
             body: JSON.stringify(progressFile),
         })
             .then(response => response.text())
-            .then(data => {
-                if (data == "NaN") {
-                    document.getElementById('forcings-output-path').textContent = "Downloading data...";
-                    document.getElementById('bar-text').textContent = "Downloading...";
-                    document.getElementById('bar').style.animation = "indeterminateAnimation 1s infinite linear";
-                } else {
-                    const percent = parseInt(data, 10);
-                    updateProgressBar(percent);
-                    if (percent > 0 && percent < 100) {
-                        document.getElementById('bar').style.animation = "none"; // stop the indeterminate animation
-                        document.getElementById('forcings-output-path').textContent = "Calculating zonal statistics. See progress below.";
-                    } else if (percent >= 100) {
-                        updateProgressBar(100); // Ensure the progress bar is full
-                        clearInterval(interval);
-                        document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
-                    }
-                }
-            })
+            .then(data => handleForcingsProgress(data, () => clearInterval(interval)))
             .catch(error => {
                 console.error('Progress polling error:', error);
                 clearInterval(interval);

@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 import os
@@ -11,6 +12,7 @@ import sys
 import geopandas as gpd
 import numpy as np
 import xarray as xr
+from flask_sock import Sock
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -21,9 +23,12 @@ from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
 
 main = Blueprint("main", __name__)
+sock = Sock()
 intra_module_db = {}
 
 logger = logging.getLogger(__name__)
+
+LOG_FILE = Path.home() / ".ngiab" / "app.log"
 
 
 @main.route("/")
@@ -124,18 +129,48 @@ def make_forcings_progress_file():
     return str(paths.forcing_progress_file), 200
 
 
+# Returns the forcings completion percentage, or None while the total is unknown
+# (still downloading).
+def read_forcings_percent(progress_file: Path):
+    with open(progress_file, "r") as f:
+        forcings_progress = json.load(f)
+    try:
+        return int((forcings_progress["steps_completed"] / forcings_progress["total_steps"]) * 100)
+    except ZeroDivisionError:
+        return None
+
+
 @main.route("/forcings_progress", methods=["POST"])
 def forcings_progress_endpoint():
     progress_file = Path(json.loads(request.data.decode("utf-8")))
-    with open(progress_file, "r") as f:
-        forcings_progress = json.load(f)
-    forcings_progress_all = forcings_progress["total_steps"]
-    forcings_progress_completed = forcings_progress["steps_completed"]
-    try:
-        percent = int((forcings_progress_completed / forcings_progress_all) * 100)
-    except ZeroDivisionError:
-        percent = "NaN"
-    return str(percent), 200
+    percent = read_forcings_percent(progress_file)
+    return str("NaN" if percent is None else percent), 200
+
+
+# Push forcings progress to the client instead of being polled. The client
+# sends the progress file path, then receives a percentage (or "NaN" while
+# downloading) a few times a second until the run completes.
+@sock.route("/ws/forcings_progress")
+def forcings_progress_ws(ws):
+    progress_file = Path(json.loads(ws.receive()))
+    last_sent = None
+    idle_ticks = 0
+    while True:
+        try:
+            percent = read_forcings_percent(progress_file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            percent = None
+        message = "NaN" if percent is None else str(percent)
+        # Resend unchanged progress occasionally so a vanished client is
+        # detected (send raises) and this thread exits.
+        if message != last_sent or idle_ticks >= 20:
+            ws.send(message)
+            last_sent = message
+            idle_ticks = 0
+        if percent is not None and percent >= 100:
+            return
+        idle_ticks += 1
+        time.sleep(0.25)
 
 
 def download_forcings(data_source, start_time, end_time, paths):
@@ -396,6 +431,41 @@ def troute_output():
             "values": {str(int(fid)): row.tolist() for fid, row in zip(feature_ids, values)},
         }
     ), 200
+
+
+# Stream app log lines: a tail of recent history on connect, then each new
+# line as it is written, so the console updates live instead of polling.
+@sock.route("/ws/logs")
+def logs_ws(ws):
+    def keep(line):
+        return "werkzeug" not in line
+
+    with open(LOG_FILE, "r") as f:
+        history = [line.rstrip("\n") for line in f.readlines() if keep(line)]
+        ws.send(json.dumps({"lines": history[-100:]}))
+
+        partial = ""
+        idle_ticks = 0
+        while True:
+            chunk = f.readline()
+            if not chunk:
+                idle_ticks += 1
+                # Occasional keepalive so a vanished client is detected
+                # (send raises) and this thread exits.
+                if idle_ticks >= 40:
+                    ws.send(json.dumps({"lines": []}))
+                    idle_ticks = 0
+                time.sleep(0.25)
+                continue
+            # readline can return a partial line if the writer is mid-write;
+            # hold it until the newline arrives.
+            partial += chunk
+            if not partial.endswith("\n"):
+                continue
+            line, partial = partial.rstrip("\n"), ""
+            idle_ticks = 0
+            if keep(line):
+                ws.send(json.dumps({"lines": [line]}))
 
 
 @main.route("/logs", methods=["GET"])

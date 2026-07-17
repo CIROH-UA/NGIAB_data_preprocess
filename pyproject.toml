@@ -57,6 +57,7 @@ dependencies = [
     "numcodecs<0.16.0",
     "scipy>=1.15.3",
     "duckdb>=1.5.2",
+    "flask-sock>=0.7.0",
 ]
 
 [project.optional-dependencies]

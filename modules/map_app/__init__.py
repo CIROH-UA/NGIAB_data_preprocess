@@ -1,7 +1,7 @@
 from flask import Flask
 import logging
 from pathlib import Path
-from map_app.views import main, intra_module_db
+from map_app.views import main, intra_module_db, sock
 from data_sources.source_validation import validate_all
 
 LOG_PATH = Path.home() / ".ngiab" / "app.log"
@@ -28,5 +28,6 @@ validate_all()
 
 app = Flask(__name__)
 app.register_blueprint(main)
+sock.init_app(app)
 
 intra_module_db["app"] = app
