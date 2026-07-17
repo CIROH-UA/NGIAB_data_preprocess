@@ -726,6 +726,8 @@ def make_summa_coldState(hru_ids):
     return ds, encoding
 
 
+# TODO: Refactor this function to use the same code as make_summa_config_suite, which is a duplicate
+# of this function
 def create_summa_realization(cat_id: str, start_time: datetime, end_time: datetime):
     paths = FilePaths(cat_id)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
@@ -735,6 +737,46 @@ def create_summa_realization(cat_id: str, start_time: datetime, end_time: dateti
         start_time,
         end_time,
     )
+    paths.summa_model_config.mkdir(parents=True, exist_ok=True)
+
+    files = chain(
+        FilePaths.summa_file_dir.glob("*.txt"),
+        FilePaths.summa_file_dir.glob("*.TBL"),
+        FilePaths.summa_file_dir.glob("*.md"),
+    )
+    for file in files:
+        if file.name == "fileManager.txt":
+            with open(file, "r") as f:
+                template = f.read()
+            with open(paths.summa_model_config / file.name, "w") as f:
+                f.write(template.format(start_time=start_time, end_time=end_time))
+        else:
+            shutil.copy(file, paths.summa_model_config)
+
+    max_timesteps = int((end_time - start_time).total_seconds() / 3600)
+    hru_ids = get_hru_order(paths.forcings_file)
+    make_summa_attributes(hru_ids, FilePaths.conus_hydrofabric).to_netcdf(
+        paths.summa_model_config / "attributes.nc"
+    )
+    make_summa_trialParams(hru_ids, max_timesteps).to_netcdf(
+        paths.summa_model_config / "trialParams.nc"
+    )
+    ds, encoding = make_summa_coldState(hru_ids)
+    ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
+    make_summa_config(hru_ids, paths.config_dir)
+    paths.setup_run_folders(["outputs/summa"])
+
+
+def make_summa_config_suite(cat_id: str, start_time: datetime, end_time: datetime):
+    """Makes SUMMA configuration files. Much of this code is duplicated from
+    create_summa_realization, which will be the task of a future refactor to clean up
+
+    Args:
+        cat_id (str): Catchment ID
+        start_time (datetime): Start time of simulation
+        end_time (datetime): End time of simulation
+    """
+    paths = FilePaths(cat_id)
     paths.summa_model_config.mkdir(parents=True, exist_ok=True)
 
     files = chain(

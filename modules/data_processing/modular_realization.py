@@ -15,6 +15,7 @@ from data_processing.create_realization import (
     make_lstm_config,
     make_dhbv2_config,
     make_casam_config,
+    make_summa_config_suite,
     configure_troute,
 )
 
@@ -469,7 +470,7 @@ def _insert_sloth_module(
     modules.insert(sloth_position, sloth_realization)
 
 
-def create_modular_realization( # pylint: disable=too-many-locals
+def create_modular_realization(  # pylint: disable=too-many-locals
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
@@ -595,10 +596,10 @@ def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-bran
             else:
                 sft_coupled = False
             make_casam_config(paths.config_dir, conf_df, start_time, end_time, sft_coupled)
+        elif model == "summa":
+            make_summa_config_suite(output_folder, start_time, end_time)
         else:
             # config generation not supported for PET, SFT, SMP, TOPMODEL yet
-            # SUMMA also needs forcings for config generation, this will get added as a separate
-            # PR
             raise NotImplementedError(f"Config generation not yet supported for '{model}'")
 
     if routing:
