@@ -1,6 +1,7 @@
 from typing import Tuple
 
 import rich.status
+from rich.prompt import Prompt
 
 # add a status bar for these imports so the cli feels more responsive
 with rich.status.Status("loading") as status:
@@ -38,7 +39,20 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     output_folder = None
 
     if args.models:
-        validate_models(args.models, args.routing)
+        warnings = validate_models(args.models, args.routing)
+
+        if len(warnings) > 0:
+            warning_message = "Model configuration warnings:\n" + "\n".join(warnings)
+            logging.warning(warning_message)
+
+            response = Prompt.ask(
+                "Run anyway? (y/n)",
+                default="n",
+                choices=["y", "n"],
+            )
+            if response == "n":
+                raise ValueError("Model configuration invalid: " + warning_message)
+            print("Proceeding with data preprocessing despite warnings: " + warning_message)
 
     if args.vpu:
         if not args.output_name:

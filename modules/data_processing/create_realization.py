@@ -4,7 +4,6 @@ import copy
 import json
 from datetime import datetime
 import logging
-from rich.prompt import Prompt
 import requests
 
 from data_processing.file_paths import FilePaths
@@ -372,7 +371,7 @@ MODEL_PATHS = {
 
 
 # This function would get called to use the above rules to validate a passed list of models
-def validate_models(models: list[str], routing: bool):
+def validate_models(models: list[str], routing: bool) -> list:
     """Check that the specified models are valid and that any dependencies are met. If there are any
     issues, print a warning message and ask the user if they want to proceed anyway.
 
@@ -419,18 +418,7 @@ def validate_models(models: list[str], routing: bool):
     ):
         warnings.append("Routing is on but no rainfall-runoff model is used")
 
-    if len(warnings) > 0:
-        warning_message = "Model configuration warnings:\n" + "\n".join(warnings)
-        print(warning_message)
-
-        response = Prompt.ask(
-            "Run anyway? (y/n)",
-            default="n",
-            choices=["y", "n"],
-        )
-        if response == "n":
-            raise ValueError("Model configuration invalid: " + warning_message)
-        print("Proceeding with data preprocessing despite warnings: " + warning_message)
+    return warnings
 
 
 def _insert_sloth_module(

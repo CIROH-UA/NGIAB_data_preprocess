@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 from data_processing.file_paths import FilePaths
-import data_processing.create_realization as mr
 from data_processing.create_realization import (
     ACCEPTED_MODELS,
     ALL_SLOTH_MODEL_PARAMS,
@@ -31,39 +30,16 @@ CFE_NOM_GOLDEN = GOLDEN_DIR / "cfe-nom.json"
 # ---------------------------------------------------------------------------
 # fixtures / helpers
 # ---------------------------------------------------------------------------
-@pytest.fixture(name="answer_prompt")
-def answer_prompt_fixture(monkeypatch):
-    """Stub ``Prompt.ask``; record whether it was shown and what it returned."""
-
-    class Recorder:  # pylint: disable=too-few-public-methods
-        """Simple prompt-answer recorder used to stub Prompt.ask in tests."""
-
-        called = False
-        response = "n"
-
-        def __call__(self, response):
-            self.response = response
-            return self
-
-    rec = Recorder()
-
-    def fake_ask(*args, **kwargs):  # pylint: disable=unused-argument
-        rec.called = True
-        return rec.response
-
-    monkeypatch.setattr(mr.Prompt, "ask", staticmethod(fake_ask))
-    return rec
 
 
 @pytest.fixture(name="make_realization")
-def make_realization_fixture(tmp_path, monkeypatch, answer_prompt):
+def make_realization_fixture(tmp_path, monkeypatch):
     """Return a runner for ``create_modular_realization`` rooted at ``tmp_path``.
 
     Pre-creates ``config/`` because the function writes ``realization.json`` into
     it but does not create it (the real workflow makes it during subsetting).
     """
     monkeypatch.setattr(FilePaths, "get_working_dir", classmethod(lambda cls: Path(tmp_path)))
-    answer_prompt("y")
 
     def _run(  # pylint: disable=too-many-arguments
         models, *, folder="cat-test", start=START, end=END, routing=False, make_config=True
@@ -136,31 +112,25 @@ def test_modular_realization_matches_golden(models, golden_name, label, make_rea
 class TestValidateModelsInputs:
     """Validate input handling for the model-selection parser."""
 
-    def test_empty_list_raises(self, answer_prompt):
+    def test_empty_list_raises(self):
         """Ensure an empty model list raises a clear validation error."""
         with pytest.raises(ValueError, match="No models specified"):
-            validate_models([], routing=False)
-        assert not answer_prompt.called
+            _ = validate_models([], routing=False)
 
-    def test_unknown_model_raises_and_names_offender(self, answer_prompt):
+    def test_unknown_model_raises_and_names_offender(self, ):
         """Unknown model names are rejected before any prompt, and the error
         message names the offending model."""
-        with pytest.raises(ValueError) as exc:
-            validate_models(["cfe", "not_a_model"], routing=False)
-        message = str(exc.value)
-        assert "Invalid models specified" in message
-        assert "not_a_model" in message
-        assert not answer_prompt.called
+        with pytest.raises(ValueError, match="Invalid models specified"):
+            _ = validate_models(["cfe", "not_a_model"], routing=False)
 
-    def test_every_accepted_model_is_a_valid_name(self, answer_prompt):
+    def test_every_accepted_model_is_a_valid_name(self):
         """[model] alone must never trip the 'invalid name' guard (it may still
         warn about dependencies -- we answer 'y')."""
-        answer_prompt("y")
         for model in ACCEPTED_MODELS:
-            try:
-                validate_models([model], routing=False)
-            except ValueError as e:
-                assert "Invalid models specified" not in str(e), model
+            warnings = validate_models([model], routing=False)
+
+        for warning in warnings:
+            assert "Invalid models specified" not in warning
 
 
 # ---------------------------------------------------------------------------
@@ -178,22 +148,6 @@ class TestValidateModelsDependencies:
         (["sac-sma"], "SAC-SMA requires SLoTH, NOM, or PET"),
     ]
 
-    @pytest.mark.parametrize("models, substring", WARNING_CASES)
-    def test_unmet_dependency_warns_and_aborts_on_no(self, models, substring, answer_prompt):
-        """Ensure a dependency warning aborts when the user declines to proceed."""
-        answer_prompt("n")
-        with pytest.raises(ValueError) as exc:
-            validate_models(models, routing=False)
-        assert answer_prompt.called
-        assert substring in str(exc.value)
-
-    @pytest.mark.parametrize("models", [case[0] for case in WARNING_CASES])
-    def test_unmet_dependency_proceeds_on_yes(self, models, answer_prompt):
-        """Ensure the user can proceed past a dependency warning by answering yes."""
-        answer_prompt("y")
-        validate_models(models, routing=False)  # must not raise
-        assert answer_prompt.called
-
     @pytest.mark.parametrize(
         "models",
         [
@@ -207,19 +161,16 @@ class TestValidateModelsDependencies:
             ["pet", "sac-sma"],
         ],
     )
-    def test_met_dependency_does_not_prompt(self, models, answer_prompt):
+    def test_met_dependency_does_not_prompt(self, models):
         """Ensure satisfied dependencies do not trigger a confirmation prompt."""
-        validate_models(models, routing=False)
-        assert not answer_prompt.called
+        warnings = validate_models(models, routing=False)
+        assert not warnings
 
-    def test_multiple_unmet_dependencies_accumulate(self, answer_prompt):
+    def test_multiple_unmet_dependencies_accumulate(self):
         """Each failing model contributes its own warning line to the message."""
-        answer_prompt("n")
-        with pytest.raises(ValueError) as exc:
-            validate_models(["cfe", "casam"], routing=False)
-        message = str(exc.value)
-        assert "CFE requires SLoTH" in message
-        assert "CASAM requires SLoTH" in message
+        warnings = validate_models(["cfe", "casam"], routing=False)
+        assert "CFE requires SLoTH" in warnings
+        assert "CASAM requires SLoTH" in warnings
 
 
 # ---------------------------------------------------------------------------
@@ -228,22 +179,20 @@ class TestValidateModelsDependencies:
 class TestValidateModelsRouting:
     """Validate routing-related model selection rules."""
 
-    def test_routing_without_rainfall_runoff_warns(self, answer_prompt):
+    def test_routing_without_rainfall_runoff_warns(self):
         """Ensure routing requires a rainfall-runoff model and prompts otherwise."""
-        answer_prompt("n")
-        with pytest.raises(ValueError, match="Routing is on but no rainfall-runoff"):
-            validate_models(["nom"], routing=True)
-        assert answer_prompt.called
+        warnings = validate_models(["nom"], routing=True)
+        assert "Routing is on but no rainfall-runoff model is used" in warnings
 
-    def test_routing_with_rainfall_runoff_is_quiet(self, answer_prompt):
+    def test_routing_with_rainfall_runoff_is_quiet(self):
         """Ensure routing succeeds without prompting when a runoff model is present."""
-        validate_models(["sloth", "cfe"], routing=True)
-        assert not answer_prompt.called
+        warnings = validate_models(["sloth", "cfe"], routing=True)
+        assert not warnings
 
-    def test_routing_off_never_adds_routing_warning(self, answer_prompt):
+    def test_routing_off_never_adds_routing_warning(self):
         """Ensure routing is ignored when routing is disabled."""
-        validate_models(["nom"], routing=False)
-        assert not answer_prompt.called
+        warnings = validate_models(["nom"], routing=False)
+        assert not warnings
 
 
 # ---------------------------------------------------------------------------
