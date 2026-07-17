@@ -450,7 +450,7 @@ def _handle_calibrated_params(paths: FilePaths, gage_id: str) -> bool:
     response = requests.get(url, timeout=10)
 
     if response.status_code == 200:
-        new_template = requests.get(url, timeout=10).json()
+        new_template = response.json()
         template_path = paths.config_dir / "downloaded_params.json"
         with open(template_path, "w", encoding="utf-8") as f:
             json.dump(new_template, f)
@@ -471,6 +471,8 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
     gage_id: str | None = None,
 ):
     """Creates a realization file based on the specified models.
+    Note: This function automatically fetches calibrated parameters. Calibrated params are only
+    available at certain gages for the SLoTH, NOM, and CFE model combination.
 
     Args:
         output_folder (str): Name of the output folder, usually the cat-id
@@ -483,6 +485,7 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
 
     paths = FilePaths(output_folder)
 
+    # calibrated parameter fetching
     if gage_id is not None and models == ["sloth", "nom", "cfe"]:
         if _handle_calibrated_params(paths, gage_id):
             return
