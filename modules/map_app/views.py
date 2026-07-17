@@ -313,7 +313,12 @@ def run_cli():
     if model:
         cmd.append(f"--{model}")
 
-    cmd += ["-sfr", "--run"]
+    # Run the requested steps (the complete workflow by default).
+    step_flags = {"subset": "-s", "forcings": "-f", "realization": "-r", "run": "--run"}
+    steps = data.get("steps") or list(step_flags)
+    if any(step not in step_flags for step in steps):
+        return jsonify({"error": f"Unknown steps: {steps}"}), 400
+    cmd += [step_flags[step] for step in steps]
 
     logger.info("Running workflow command: %s", " ".join(cmd))
 

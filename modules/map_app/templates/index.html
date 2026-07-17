@@ -132,38 +132,20 @@
                 <button id="run-cli-button" class="btn btn-primary btn-block">Run Complete Workflow</button>
                 <div id="run-cli-output" class="code-output"></div>
 
-                <div class="divider">or one step at a time</div>
-
-                <p id="output-info" class="panel-hint">
-                    Output folder is configured in the ~/.ngiab/preprocessor file.
-                </p>
-
-                <div class="step-row">
-                    <button id="subset-button" class="btn btn-sm">Create Subset</button>
-                    <span id="subset-loading" class="loading loading-spinner loading-md text-primary" style="visibility:hidden"></span>
-                </div>
-                <div id="output-path" class="code-output"></div>
-
-                <p id="forcings-warning" class="panel-hint">
-                    Forcing generation may take a while.
-                    Use the CLI for progress bars and additional information.
-                </p>
-
-                <div class="step-row">
-                    <button id="forcings-button" class="btn btn-sm">Generate Forcings</button>
-                    <span id="forcings-loading" class="loading loading-spinner loading-md text-primary" style="visibility:hidden"></span>
-                </div>
-                <div id="forcings-output-path" class="code-output"></div>
-
-                <div id="progress">
-                    <div id="bar"></div>
-                    <div id="bar-text"></div>
-                </div>
-
-                <div class="step-row">
-                    <button id="realization-button" class="btn btn-sm">Create Realization</button>
-                </div>
-                <div id="realization-output-path" class="code-output"></div>
+                <details id="step-details">
+                    <summary class="divider">or one step at a time</summary>
+                    <div class="step-grid">
+                        <button id="subset-button" class="btn btn-sm">Subset</button>
+                        <button id="forcings-button" class="btn btn-sm">Forcings</button>
+                        <button id="configure-button" class="btn btn-sm">Configure</button>
+                        <button id="run-button" class="btn btn-sm">Run</button>
+                    </div>
+                    <div id="step-output" class="code-output"></div>
+                    <div id="progress">
+                        <div id="bar"></div>
+                        <div id="bar-text"></div>
+                    </div>
+                </details>
             </fieldset>
 
             <!-- T-Route results viewer -->

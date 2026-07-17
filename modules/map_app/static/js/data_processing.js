@@ -3,71 +3,79 @@ function getSelectedIdentifier() {
     return document.getElementById("workflow-input").value.trim();
 }
 
-async function subset() {
-    var cat_id = getSelectedIdentifier();
+// Validation shared by the step buttons; each returns null after alerting.
+function requireBasinId(action) {
+    const catId = getSelectedIdentifier();
+    if (!catId || !catId.startsWith("cat-")) {
+        alert(`Please select or enter a basin ID, like cat-2739307, before ${action}.`);
+        return null;
+    }
+    return catId;
+}
 
-    if (!cat_id || !cat_id.startsWith("cat-")) {
-        alert("Please select or enter a basin ID, like cat-2739307, before subsetting.");
+function requireTimes() {
+    const startTime = document.getElementById("start-time").value;
+    const endTime = document.getElementById("end-time").value;
+    if (!startTime || !endTime) {
+        alert("Please select both start and end times.");
+        return null;
+    }
+    if (new Date(startTime) >= new Date(endTime)) {
+        alert("Start time must be before end time.");
+        return null;
+    }
+    return { startTime, endTime };
+}
+
+// Return the existing subset geopackage path for a basin, or null.
+async function existingSubsetPath(catId) {
+    const response = await fetch("/subset_check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([catId]),
+    });
+    return response.status == 409 ? await response.text() : null;
+}
+
+function setStepOutput(html) {
+    document.getElementById("step-output").innerHTML = html;
+}
+
+function setStepButtonsDisabled(disabled) {
+    for (const id of ["subset-button", "forcings-button", "configure-button", "run-button"]) {
+        document.getElementById(id).disabled = disabled;
+    }
+}
+
+async function subset() {
+    const catId = requireBasinId("subsetting");
+    if (!catId) return;
+
+    const existing = await existingSubsetPath(catId);
+    if (existing && !confirm("A geopackage already exists for that catchment. Overwrite?")) {
+        setStepOutput(`Subset canceled. Geopackage located at <code>${existing}</code>`);
         return;
     }
 
-    fetch('/subset_check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([cat_id]),
-    })
-    .then(async response => {
-        // 409 if that subset gpkg path already exists
-        if (response.status == 409) {
-            const filename = await response.text();
-            if (!confirm('A geopackage already exists with that catchment name. Overwrite?')) {
-                alert("Subset canceled.");
-                document.getElementById('output-path').innerHTML =
-                    "Subset canceled. Geopackage located at " + filename;
-                return;
-            }
-        }
+    const subsetType = document.getElementById("radio-nexus").checked ? "nexus" : "catchment";
+    const started = performance.now();
 
-        // check what kind of subset
-        var subset_type = document.getElementById('radio-nexus').checked
-            ? 'nexus'
-            : 'catchment';
-
-        const startTime = performance.now(); //Start the timer
-
-        fetch('/subset', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            // body: JSON.stringify([cat_id])
-            body: JSON.stringify({ 'cat_id': [cat_id], 'subset_type': subset_type }),
-        })
-        .then(response => response.text())
-        .then(filename => {
-            const endTime = performance.now();
-            const duration = endTime - startTime;
-            document.getElementById('output-path').innerHTML = `
-                Done in ${(duration / 1000).toFixed(2)} s<br><br>
-                <code>${filename}</code>
-                <span
-                    title="Copy path"
-                    style="cursor:pointer; margin-left:8px;"
-                    onclick="
-                        navigator.clipboard.writeText('${filename}');
-                        this.textContent='✔';
-                        setTimeout(() => this.textContent='📋', 1200);
-                    ">
-                    📋
-                </span>
-            `;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        })
-        .finally(() => {
-            document.getElementById('subset-button').disabled = false;
-            document.getElementById('subset-loading').style.visibility = "hidden";
+    setStepButtonsDisabled(true);
+    setStepOutput("Creating subset...");
+    try {
+        const response = await fetch("/subset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cat_id: [catId], subset_type: subsetType }),
         });
-    });
+        const filename = await response.text();
+        const seconds = ((performance.now() - started) / 1000).toFixed(2);
+        setStepOutput(`Done in ${seconds} s<br><code>${filename}</code>`);
+    } catch (error) {
+        setStepOutput(`Subset failed: ${error.message}`);
+    } finally {
+        setStepButtonsDisabled(false);
+    }
 }
 
 function updateProgressBar(percent) {
@@ -81,7 +89,7 @@ function updateProgressBar(percent) {
 // otherwise a percentage). Calls done() when the run completes.
 function handleForcingsProgress(data, done) {
     if (data == "NaN") {
-        document.getElementById('forcings-output-path').textContent = "Downloading data...";
+        setStepOutput("Downloading data...");
         document.getElementById('bar-text').textContent = "Downloading...";
         document.getElementById('bar').style.animation = "indeterminateAnimation 1s infinite linear";
     } else {
@@ -89,11 +97,11 @@ function handleForcingsProgress(data, done) {
         updateProgressBar(percent);
         if (percent > 0 && percent < 100) {
             document.getElementById('bar').style.animation = "none"; // stop the indeterminate animation
-            document.getElementById('forcings-output-path').textContent = "Calculating zonal statistics. See progress below.";
+            setStepOutput("Calculating zonal statistics. See progress below.");
         } else if (percent >= 100) {
             updateProgressBar(100); // Ensure the progress bar is full
             done();
-            document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
+            setStepOutput("Forcings generated successfully");
         }
     }
 }
@@ -131,104 +139,118 @@ function pollForcingsProgressHttp(progressFile) {
 }
 
 async function forcings() {
-    var cat_id = getSelectedIdentifier();
+    const catId = requireBasinId("generating forcings");
+    if (!catId) return;
+    const times = requireTimes();
+    if (!times) return;
 
-    if (!cat_id || !cat_id.startsWith("cat-")) {
-        alert("Please select or enter a basin ID, like cat-2739307, before generating forcings.");
+    const gpkg = await existingSubsetPath(catId);
+    if (!gpkg) {
+        alert("No existing geopackage found. Create a subset first.");
         return;
     }
-    fetch('/subset_check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([cat_id]),
-    })
-    .then(async response => {
-        // 409 if that subset gpkg path already exists
-        if (response.status == 409) {
-            const filename = await response.text();
-            console.log('getting forcings');
-            document.getElementById('forcings-button').disabled = true;
-            document.getElementById('forcings-loading').style.visibility = "visible";
 
-            const forcing_dir = filename;
-            console.log('forcing_dir:', forcing_dir);
-            const start_time = document.getElementById('start-time').value;
-            const end_time = document.getElementById('end-time').value;
-            if (forcing_dir === '' || start_time === '' || end_time === '') {
-                alert('Please enter a valid output path, start time, and end time');
-                return;
-            }
+    const source = document.getElementById("datasource-toggle").checked ? "aorc" : "nwm";
 
-            // get the position of the nwm aorc forcing toggle
-            // false means nwm forcing, true means aorc forcing
-            var nwm_aorc = document.getElementById('datasource-toggle').checked;
-            var source = nwm_aorc ? 'aorc' : 'nwm';
-            console.log('source:', source);
+    setStepButtonsDisabled(true);
+    setStepOutput("Generating forcings...");
+    try {
+        const progressResponse = await fetch("/make_forcings_progress_file", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(gpkg),
+        });
+        pollForcingsProgress(await progressResponse.text());
 
-            fetch('/make_forcings_progress_file', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(forcing_dir),
-            })
-            .then(async (response) => response.text())
-            .then(progressFile => {
-                pollForcingsProgress(progressFile); // Start polling for progress
-            })
-            fetch('/forcings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source}),
-            })
-            .then(response => response.text())
-            .catch(error => {
-                console.error('Error:', error);
-            }).finally(() => {
-                document.getElementById('forcings-button').disabled = false;
-            });
-        } else {
-            alert('No existing geopackage found. Please subset the data before getting forcings');
-            return;
-        }
-    })
+        await fetch("/forcings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                forcing_dir: gpkg,
+                start_time: times.startTime,
+                end_time: times.endTime,
+                source: source,
+            }),
+        });
+    } catch (error) {
+        setStepOutput(`Forcings failed: ${error.message}`);
+    } finally {
+        setStepButtonsDisabled(false);
+    }
 }
 
-async function realization() {
-    if (document.getElementById('output-path').textContent === '') {
-        alert('Please subset the data before getting a realization');
+// Create the realization/model configuration for an existing subset.
+async function configure() {
+    const catId = requireBasinId("creating a realization");
+    if (!catId) return;
+    const times = requireTimes();
+    if (!times) return;
+
+    const gpkg = await existingSubsetPath(catId);
+    if (!gpkg) {
+        alert("No existing geopackage found. Create a subset first.");
         return;
     }
-    console.log('getting realization');
-    document.getElementById('realization-button').disabled = true;
-    const forcing_dir = document.getElementById('output-path').textContent;
-    const start_time = document.getElementById('start-time').value;
-    const end_time = document.getElementById('end-time').value;
-    if (forcing_dir === '' || start_time === '' || end_time === '') {
-        alert('Please enter a valid output path, start time, and end time');
-        return;
-    }
-    document.getElementById('realization-output-path').textContent = "Generating realization...";
-    fetch('/realization', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time }),
-    }).then(response => response.text())
-        .then(response_code => {
-            document.getElementById('realization-output-path').textContent = "Realization generated";
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        }).finally(() => {
-            document.getElementById('realization-button').disabled = false;
+
+    setStepButtonsDisabled(true);
+    setStepOutput("Creating realization...");
+    try {
+        await fetch("/realization", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                forcing_dir: gpkg,
+                start_time: times.startTime,
+                end_time: times.endTime,
+            }),
         });
+        setStepOutput("Realization created");
+    } catch (error) {
+        setStepOutput(`Configure failed: ${error.message}`);
+    } finally {
+        setStepButtonsDisabled(false);
+    }
+}
+
+// Run NGIAB against the already-preprocessed output folder. The CLI's --run
+// flag validates the folder and runs any missing steps first.
+async function runNgiab() {
+    const inputFeature = getSelectedIdentifier();
+    if (!inputFeature) {
+        alert("Please select or enter an ID first.");
+        return;
+    }
+    const times = requireTimes();
+    if (!times) return;
+
+    setStepButtonsDisabled(true);
+    setStepOutput("Running NGIAB... this can take a while.");
+    try {
+        const response = await fetch("/run_cli", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                input_feature: inputFeature,
+                input_type: document.getElementById("gage-checkbox").checked ? "gage" : "basin",
+                start_time: times.startTime,
+                end_time: times.endTime,
+                steps: ["run"],
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Run failed");
+        setStepOutput(`NGIAB run complete<br><code>${data.output_dir}</code>`);
+    } catch (error) {
+        setStepOutput(`Run failed: ${error.message}`);
+    } finally {
+        setStepButtonsDisabled(false);
+    }
 }
 
 // Collect workflow options from the UI and run the complete CLI workflow.
 async function runWorkflow() {
     const inputType = document.getElementById("gage-checkbox").checked ? "gage" : "basin";
-    const inputFeature = document.getElementById("workflow-input").value.trim();
-
-    const startTime = document.getElementById("start-time").value;
-    const endTime = document.getElementById("end-time").value;
+    const inputFeature = getSelectedIdentifier();
 
     const runButton = document.getElementById("run-cli-button");
     const outputBox = document.getElementById("run-cli-output");
@@ -238,15 +260,8 @@ async function runWorkflow() {
         return;
     }
 
-    if (!startTime || !endTime) {
-        alert("Please select both start and end times.");
-        return;
-    }
-
-    if (new Date(startTime) >= new Date(endTime)) {
-        alert("Start time must be before end time.");
-        return;
-    }
+    const times = requireTimes();
+    if (!times) return;
 
     runButton.disabled = true;
     runButton.textContent = "Running...";
@@ -293,8 +308,8 @@ async function runWorkflow() {
         body: JSON.stringify({
             input_feature: inputFeature,
             input_type: inputType,
-            start_time: startTime,
-            end_time: endTime,
+            start_time: times.startTime,
+            end_time: times.endTime,
             source: document.getElementById("datasource-toggle").checked ? "aorc" : "nwm",
             model: document.getElementById("model-select").value
         })
@@ -358,8 +373,8 @@ async function runWorkflow() {
     });
 }
 
-// These functions are exported by data_processing.js
 document.getElementById('subset-button').addEventListener('click', subset);
 document.getElementById('forcings-button').addEventListener('click', forcings);
-document.getElementById('realization-button').addEventListener('click', realization);
+document.getElementById('configure-button').addEventListener('click', configure);
+document.getElementById('run-button').addEventListener('click', runNgiab);
 document.getElementById('run-cli-button').addEventListener('click', runWorkflow);

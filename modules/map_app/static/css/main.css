@@ -163,11 +163,15 @@ body {
 }
 
 /* Run panel steps */
-.step-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 10px 0;
+#step-details summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
 /* Shared style for monospace command/path output boxes */
