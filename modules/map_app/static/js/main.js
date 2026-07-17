@@ -68,6 +68,27 @@ function updateCliCommand() {
   document.getElementById("cli-command").textContent = command;
 }
 
+// Copy the full CLI command (prefix + arguments) to the clipboard.
+async function copyCliCommand() {
+  let prefix = document.getElementById("cli-prefix").textContent;
+  if (prefix && !prefix.endsWith(" ")) prefix += " ";
+  const fullCommand = prefix + document.getElementById("cli-command").textContent;
+
+  const button = document.getElementById("copy-to-clip");
+  const copyText = button.querySelector(".copy-text");
+  try {
+    await navigator.clipboard.writeText(fullCommand);
+    button.classList.add("copied");
+    copyText.textContent = "Copied!";
+    setTimeout(() => {
+      button.classList.remove("copied");
+      copyText.textContent = "Copy";
+    }, 2000);
+  } catch (error) {
+    console.error("Failed to copy text:", error);
+  }
+}
+
 // Zoom to the gage id in the workflow input and drop a marker on it.
 async function zoomToGage() {
   const gageId = document.getElementById("workflow-input").value.trim();
@@ -314,6 +335,7 @@ function initWorkflowForm() {
   on("radio-catchment", "change", updateUpstreamHighlight);
 
   on("zoom-selection", "click", zoomToSelection);
+  on("copy-to-clip", "click", copyCliCommand);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

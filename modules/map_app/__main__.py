@@ -3,14 +3,13 @@
 import logging
 import webbrowser
 from threading import Timer
-from pathlib import Path
 
 from data_processing.file_paths import FilePaths
 from data_processing.graph_utils import get_graph
 
 from map_app import app, console_handler
+from map_app.views import LOG_FILE as LOG_PATH
 
-LOG_PATH = Path.home() / ".ngiab" / "app.log"
 
 def open_browser():
     # find the last line in the log file that contains the port number

@@ -106,36 +106,12 @@ function handleForcingsProgress(data, done) {
     }
 }
 
-// Progress is pushed over a websocket; fall back to polling if that fails.
+// Progress is pushed over a websocket until the run completes.
 function pollForcingsProgress(progressFile) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${location.host}/ws/forcings_progress`);
-    let receivedAnything = false;
-
     ws.onopen = () => ws.send(JSON.stringify(progressFile));
-    ws.onmessage = (event) => {
-        receivedAnything = true;
-        handleForcingsProgress(event.data, () => ws.close());
-    };
-    ws.onerror = () => {
-        if (!receivedAnything) pollForcingsProgressHttp(progressFile);
-    };
-}
-
-function pollForcingsProgressHttp(progressFile) {
-    const interval = setInterval(() => {
-        fetch('/forcings_progress', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(progressFile),
-        })
-            .then(response => response.text())
-            .then(data => handleForcingsProgress(data, () => clearInterval(interval)))
-            .catch(error => {
-                console.error('Progress polling error:', error);
-                clearInterval(interval);
-            });
-    }, 1000); // Poll every second
+    ws.onmessage = (event) => handleForcingsProgress(event.data, () => ws.close());
 }
 
 async function forcings() {

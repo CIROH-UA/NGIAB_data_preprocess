@@ -18,7 +18,6 @@ from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import FilePaths
 from data_processing.forcings import create_forcings
-from data_processing.graph_utils import get_upstream_ids
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
 
@@ -34,38 +33,6 @@ LOG_FILE = Path.home() / ".ngiab" / "app.log"
 @main.route("/")
 def index():
     return render_template("index.html")
-
-
-# this subset does not include the downstream nexus
-@main.route("/get_upstream_catids", methods=["POST"])
-def get_upstream_catids():
-    cat_id = json.loads(request.data.decode("utf-8"))
-    # give wb_id to get_upstream_cats because the graph search is 1000x faster
-    wb_id = "wb-" + cat_id.split("-")[-1]
-    upstream_cats = get_upstream_ids(wb_id, include_outlet=False)
-    cleaned_upstreams = set()
-    for id in upstream_cats:
-        if id.startswith("wb-"):
-            cleaned_upstreams.add("cat-" + id.split("-")[-1])
-    if cat_id in cleaned_upstreams:
-        cleaned_upstreams.remove(cat_id)
-    return list(cleaned_upstreams), 200
-
-
-# this subset includes the downstream nexus
-@main.route("/get_upstream_wbids", methods=["POST"])
-def get_upstream_wbids():
-    cat_id = json.loads(request.data.decode("utf-8"))
-    # give wb_id to get_upstream_cats because the graph search is 1000x faster
-    wb_id = "wb-" + cat_id.split("-")[-1]
-    upstream_cats = get_upstream_ids(wb_id)
-    cleaned_upstreams = set()
-    for id in upstream_cats:
-        if id.startswith("wb-"):
-            cleaned_upstreams.add("cat-" + id.split("-")[-1])
-    if cat_id in cleaned_upstreams:
-        cleaned_upstreams.remove(cat_id)
-    return list(cleaned_upstreams), 200
 
 
 @main.route("/subset_check", methods=["POST"])
@@ -103,21 +70,6 @@ def subset_selection():
     return str(run_paths.geopackage_path), 200
 
 
-@main.route("/subset_to_file", methods=["POST"])
-def subset_to_file():
-    raise NotImplementedError
-    cat_ids = list(json.loads(request.data.decode("utf-8")).keys())
-    logger.info(cat_ids)
-    subset_name = cat_ids[0]
-    total_subset = get_upstream_ids(cat_ids)
-    subset_paths = FilePaths(subset_name)
-    output_file = subset_paths.subset_dir / "subset.txt"
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_file, "w") as f:
-        f.write("\n".join(total_subset))
-    return str(subset_paths.subset_dir), 200
-
-
 @main.route("/make_forcings_progress_file", methods=["POST"])
 def make_forcings_progress_file():
     data = json.loads(request.data.decode("utf-8"))
@@ -138,13 +90,6 @@ def read_forcings_percent(progress_file: Path):
         return int((forcings_progress["steps_completed"] / forcings_progress["total_steps"]) * 100)
     except ZeroDivisionError:
         return None
-
-
-@main.route("/forcings_progress", methods=["POST"])
-def forcings_progress_endpoint():
-    progress_file = Path(json.loads(request.data.decode("utf-8")))
-    percent = read_forcings_percent(progress_file)
-    return str("NaN" if percent is None else percent), 200
 
 
 # Push forcings progress to the client instead of being polled. The client
@@ -193,25 +138,12 @@ def compute_forcings(cached_data, paths):
 def get_forcings():
     # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time}),
     data = json.loads(request.data.decode("utf-8"))
-    subset_gpkg = Path(data.get("forcing_dir").split("subset to ")[-1])
-    output_folder = Path(subset_gpkg.parent.parent)
-    paths = FilePaths(output_dir=output_folder)
+    subset_gpkg = Path(data["forcing_dir"])
+    paths = FilePaths(output_dir=subset_gpkg.parent.parent)
 
-    start_time = data.get("start_time")
-    end_time = data.get("end_time")
-
-    # get the selected data source
     data_source = data.get("source")
-    # get the forcings
-    start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
-    end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
-    # logger.info(intra_module_db)
-    app = intra_module_db["app"]
-    debug_enabled = app.debug
-    app.debug = False
-    logger.debug(f"get_forcings() disabled debug mode at {datetime.now()}")
-    logger.debug(f"forcing_dir: {output_folder}")
-    app.debug = debug_enabled
+    start_time = datetime.strptime(data["start_time"], "%Y-%m-%dT%H:%M")
+    end_time = datetime.strptime(data["end_time"], "%Y-%m-%dT%H:%M")
 
     cached_data = download_forcings(data_source, start_time, end_time, paths)
     # threading implemented so that main process can periodically poll progress file
@@ -224,20 +156,12 @@ def get_forcings():
 def get_realization():
     # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time}),
     data = json.loads(request.data.decode("utf-8"))
-    subset_gpkg = Path(data.get("forcing_dir").split("subset to ")[-1])
+    subset_gpkg = Path(data["forcing_dir"])
     output_folder = subset_gpkg.parent.parent.stem
-    start_time = data.get("start_time")
-    end_time = data.get("end_time")
-    # get the forcings
-    start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
-    end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
+    start_time = datetime.strptime(data["start_time"], "%Y-%m-%dT%H:%M")
+    end_time = datetime.strptime(data["end_time"], "%Y-%m-%dT%H:%M")
     create_realization(output_folder, start_time, end_time)
     return "success", 200
-
-
-@main.route("/get_catids_from_vpu", methods=["POST"])
-def get_catids_from_vpu():
-    raise NotImplementedError
 
 
 @main.route("/gage_location", methods=["POST"])
@@ -348,8 +272,6 @@ def run_cli():
                 "command": " ".join(cmd),
             }
         ), 500
-
-    input_feature = data.get("input_feature", "")
 
     output_name = (
         f"gage-{input_feature}"
@@ -484,20 +406,3 @@ def logs_ws(ws):
             idle_ticks = 0
             if keep(line):
                 ws.send(json.dumps({"lines": [line]}))
-
-
-@main.route("/logs", methods=["GET"])
-def get_logs():
-    log_file_path = Path.home() / ".ngiab" / "app.log"
-    try:
-        with open(log_file_path, "r") as file:
-            lines = file.readlines()
-            reversed_lines = []
-            for line in reversed(lines):
-                if "werkzeug" not in line:
-                    reversed_lines.append(line)
-                if len(reversed_lines) > 100:
-                    break
-            return jsonify({"logs": reversed_lines}), 200
-    except Exception:
-        return jsonify({"error": "unable to fetch logs"})

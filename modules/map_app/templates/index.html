@@ -259,36 +259,6 @@
                     <span id="cli-command" class="command-content"></span>
                 </div>
             </fieldset>
-            <script>
-                document.getElementById('copy-to-clip').addEventListener('click', async function() {
-                    let commandPrefix = document.getElementById('cli-prefix').textContent;
-                    const commandText = document.getElementById('cli-command').textContent;
-                    if (commandPrefix && !commandPrefix.endsWith(' ')) {
-                        // Ensure there's a space after the prefix
-                        commandPrefix += ' ';
-                    }
-                    const full_command = commandPrefix + commandText;
-                    const button = this;
-
-                    try {
-                        await navigator.clipboard.writeText(full_command);
-
-                        // Update button state
-                        button.classList.add('copied');
-                        const copyText = button.querySelector('.copy-text');
-                        const originalText = copyText.textContent;
-                        copyText.textContent = 'Copied!';
-
-                        // Reset button state after 2 seconds
-                        setTimeout(() => {
-                            button.classList.remove('copied');
-                            copyText.textContent = originalText;
-                        }, 2000);
-                    } catch (err) {
-                        console.error('Failed to copy text:', err);
-                    }
-                });
-            </script>
         </aside>
 
         <div id="map-area">

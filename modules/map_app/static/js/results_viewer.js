@@ -74,12 +74,7 @@ async function loadResults() {
   try {
     resultsState.cache[resultsState.variable] = await fetchResultsVariable(resultsState.variable);
     showResults();
-
-    const bounds = resultsData().bounds;
-    if (bounds) {
-      const [minX, minY, maxX, maxY] = bounds;
-      map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60 });
-    }
+    zoomToSelection();
   } catch (error) {
     setResultsStatus("error", error.message);
   } finally {

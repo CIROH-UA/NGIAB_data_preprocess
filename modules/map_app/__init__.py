@@ -1,20 +1,16 @@
 from flask import Flask
 import logging
-from pathlib import Path
-from map_app.views import main, intra_module_db, sock
+from map_app.views import main, sock, LOG_FILE
 from data_sources.source_validation import validate_all
 
-LOG_PATH = Path.home() / ".ngiab" / "app.log"
-
-LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-with open(LOG_PATH, "w") as f:
-    f.write("")
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+with open(LOG_FILE, "w") as f:
     f.write("Starting Application!\n")
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(name)-12s: %(levelname)s - %(message)s",
-    filename=LOG_PATH,
+    filename=LOG_FILE,
     filemode="a",
 )  # Append mode
 # Example: Adding a console handler to root logger (optional)
@@ -29,5 +25,3 @@ validate_all()
 app = Flask(__name__)
 app.register_blueprint(main)
 sock.init_app(app)
-
-intra_module_db["app"] = app
