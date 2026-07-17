@@ -645,6 +645,40 @@ body {
   opacity: 0.75;
 }
 
+/* The title doubles as the collapse toggle. */
+#map-legend-toggle {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#map-legend-toggle:hover {
+  opacity: 1;
+}
+
+.map-legend-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Collapsed: just the gear icon. */
+#map-legend.collapsed {
+  padding: 8px;
+}
+
+#map-legend.collapsed #map-legend-toggle {
+  margin: 0;
+}
+
+#map-legend.collapsed .legend-title-text,
+#map-legend.collapsed .map-legend-content {
+  display: none;
+}
+
 #map-legend .legend-title svg {
   width: 13px;
   height: 13px;

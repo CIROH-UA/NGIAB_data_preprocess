@@ -311,6 +311,26 @@ function initToggleSwitches() {
   });
 }
 
+// The map settings panel collapses to just its gear icon. Start collapsed on
+// small screens (where map space is scarce) and open on large ones.
+function initMapLegend() {
+  const legend = document.getElementById("map-legend");
+  const toggle = document.getElementById("map-legend-toggle");
+
+  if (window.matchMedia("(max-width: 768px)").matches) {
+    legend.classList.add("collapsed");
+  }
+
+  const syncAria = () =>
+    toggle.setAttribute("aria-expanded", String(!legend.classList.contains("collapsed")));
+  syncAria();
+
+  toggle.addEventListener("click", () => {
+    legend.classList.toggle("collapsed");
+    syncAria();
+  });
+}
+
 function initWorkflowForm() {
   const on = (id, event, handler) =>
     document.getElementById(id).addEventListener(event, handler);
@@ -343,6 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initWorkflowForm();
   initLayerToggles();
   initToggleSwitches();
+  initMapLegend();
   updateCliPrefix();
   updateWorkflowInputPlaceholder();
 });
