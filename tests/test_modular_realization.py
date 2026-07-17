@@ -1,5 +1,4 @@
-"""Tests for ``data_processing.create_realization``.
-"""
+"""Tests for ``data_processing.create_realization``."""
 
 import copy
 import difflib
@@ -13,8 +12,7 @@ from data_processing.file_paths import FilePaths
 from data_processing.create_realization import (
     ACCEPTED_MODELS,
     ALL_SLOTH_MODEL_PARAMS,
-    ALL_VARIABLES_NAMES_MAPS,
-    MAIN_OUTPUT_VARIABLES,
+    MODEL_REGISTRY,
     _insert_sloth_module,
     create_modular_realization,
     validate_models,
@@ -117,7 +115,9 @@ class TestValidateModelsInputs:
         with pytest.raises(ValueError, match="No models specified"):
             _ = validate_models([], routing=False)
 
-    def test_unknown_model_raises_and_names_offender(self, ):
+    def test_unknown_model_raises_and_names_offender(
+        self,
+    ):
         """Unknown model names are rejected before any prompt, and the error
         message names the offending model."""
         with pytest.raises(ValueError, match="Invalid models specified"):
@@ -213,7 +213,7 @@ class TestInsertSlothModule:
     def test_builds_model_params_from_sloth_prefixed_vars(self):
         """Ensure SLOTH parameters are derived from sloth-prefixed variable names."""
         modules = []
-        target = {"cfe": copy.deepcopy(ALL_VARIABLES_NAMES_MAPS["cfe"])}
+        target = {"cfe": copy.deepcopy(MODEL_REGISTRY["cfe"].variables_names_map)}
         _insert_sloth_module(["sloth"], target, modules)
         params = modules[0]["params"]["model_params"]
         assert set(params.keys()) == {
@@ -258,7 +258,9 @@ class TestCreateModularRealization:
         """Ensure the main output variable follows the last model in the chain."""
         r = make_realization(["sloth", "cfe"])
         params = r["global"]["formulations"][0]["params"]
-        assert params["main_output_variable"] == MAIN_OUTPUT_VARIABLES["cfe"] == "Q_OUT"
+        assert (
+            params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable == "Q_OUT"
+        )
 
     def test_sloth_inserted_before_cfe_by_position(self, make_realization):
         """Ensure the SLOTH module appears before the CFE module in the chain."""
@@ -280,7 +282,11 @@ class TestCreateModularRealization:
         r = make_realization(["sloth", "nom", "casam"])
         assert "CASAM" in _model_type_names(r)
         params = r["global"]["formulations"][0]["params"]
-        assert params["main_output_variable"] == MAIN_OUTPUT_VARIABLES["casam"] == "total_discharge"
+        assert (
+            params["main_output_variable"]
+            == MODEL_REGISTRY["casam"].main_output_variable
+            == "total_discharge"
+        )
 
     def test_nom_override_rewrites_casam_pet_source(self, make_realization):
         """nom seen before casam -> casam's PET source switches to the Noah-OWP
@@ -295,9 +301,8 @@ class TestCreateModularRealization:
         """cfe before nom -> cfe keeps its default (sloth/forcing) sources."""
         r = make_realization(["sloth", "cfe", "nom"])
         vmap = _cfe_module(r)["params"]["variables_names_map"]
-        assert (
-            vmap["water_potential_evaporation_flux"]
-            == (ALL_VARIABLES_NAMES_MAPS["cfe"]["water_potential_evaporation_flux"])
+        assert vmap["water_potential_evaporation_flux"] == (
+            MODEL_REGISTRY["cfe"].variables_names_map["water_potential_evaporation_flux"]
         )
 
     def test_routing_on_adds_troute_block(self, make_realization):
