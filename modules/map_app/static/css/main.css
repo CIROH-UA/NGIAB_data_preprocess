@@ -410,6 +410,52 @@ body {
   opacity: 1;
 }
 
+/* Scale toggle + palette picker row */
+.scale-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.scale-selector {
+  display: flex;
+  gap: 6px;
+}
+
+.scale-btn {
+  padding: 6px 12px;
+  background: var(--color-base-100);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--color-base-content);
+  opacity: 0.8;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.scale-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  opacity: 1;
+}
+
+.scale-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+  opacity: 1;
+}
+
+#results-palette {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  font-size: 12px;
+}
+
 .results-legend {
   margin-top: 12px;
 }

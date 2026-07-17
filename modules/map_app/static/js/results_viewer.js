@@ -12,7 +12,13 @@ const RESULT_VARIABLES = {
   depth: { label: "Depth", units: "m" },
 };
 
-const RESULT_COLOR_RAMP = ["#0077b6", "#00b4d8", "#90e0ef", "#ffba08", "#ff6b35", "#d00000"];
+// Sequential color ramps offered in the palette picker. "ice-fire" is the
+// original ramp; the others are borrowed from kepler.gl.
+const RESULT_PALETTES = {
+  "ice-fire": ["#0077b6", "#00b4d8", "#90e0ef", "#ffba08", "#ff6b35", "#d00000"],
+  "viridis": ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"],
+  "warming": ["#5a1846", "#900c3f", "#c70039", "#e3611c", "#f1920e", "#ffc300"],
+};
 const RESULT_NO_DATA_COLOR = "rgba(128, 128, 128, 0.35)";
 
 const resultsState = {
@@ -25,7 +31,13 @@ const resultsState = {
   playSpeed: 5,
   originalPaint: null, // flowpaths paint to restore on clear
   hoveredId: null, // flowpath under the cursor, for live tooltip updates
+  scale: "linear", // "linear" | "log" color scale
+  palette: "ice-fire",
 };
+
+function currentPalette() {
+  return RESULT_PALETTES[resultsState.palette] || RESULT_PALETTES["ice-fire"];
+}
 
 let resultsHoverPopup;
 
@@ -124,17 +136,38 @@ const FLOWPATH_FEATURE = { source: "flowpaths", sourceLayer: "flowpaths" };
 // also used when no state is set) marks missing data.
 const RESULT_VALUE = ["coalesce", ["feature-state", "value"], -9999];
 
-function resultColorExpression(data) {
-  const span = data.max - data.min || 1;
-  const stops = RESULT_COLOR_RAMP.flatMap((color, i) => [
-    data.min + (span * i) / (RESULT_COLOR_RAMP.length - 1),
+// Evenly spaced color stops across the data range, in linear or log10 space.
+// In log mode values are floored to a small positive number before the log so
+// zeros and the min don't blow up.
+function resultColorStops(data) {
+  const colors = currentPalette();
+  const log = resultsState.scale === "log";
+
+  let lo = data.min;
+  let hi = data.max;
+  if (log) {
+    lo = Math.max(data.min, 1e-6);
+    hi = Math.max(data.max, lo * 10);
+  }
+  if (hi <= lo) hi = lo + 1;
+
+  const input = log ? ["log10", ["max", RESULT_VALUE, lo]] : RESULT_VALUE;
+  const a = log ? Math.log10(lo) : lo;
+  const b = log ? Math.log10(hi) : hi;
+
+  const stops = colors.flatMap((color, i) => [
+    a + ((b - a) * i) / (colors.length - 1),
     color,
   ]);
+  return ["interpolate", ["linear"], input, ...stops];
+}
+
+function resultColorExpression(data) {
   return [
     "case",
     ["<=", RESULT_VALUE, -9998],
     RESULT_NO_DATA_COLOR,
-    ["interpolate", ["linear"], RESULT_VALUE, ...stops],
+    resultColorStops(data),
   ];
 }
 
@@ -207,10 +240,21 @@ function clearResults() {
 function updateResultsLegend() {
   const data = resultsData();
   const { label, units } = RESULT_VARIABLES[resultsState.variable];
+  const scaleNote = resultsState.scale === "log" ? " · log" : "";
 
-  document.getElementById("results-legend-title").textContent = `${label} (${units})`;
+  document.getElementById("results-legend-title").textContent = `${label} (${units})${scaleNote}`;
   document.getElementById("results-legend-min").textContent = data.min.toFixed(2);
   document.getElementById("results-legend-max").textContent = data.max.toFixed(2);
+
+  document.querySelector("#results-panel .legend-gradient").style.background =
+    `linear-gradient(to right, ${currentPalette().join(", ")})`;
+}
+
+// Re-derive the flowpath paint and legend after a scale or palette change.
+function refreshResultsStyle() {
+  if (!resultsData()) return;
+  applyResultsPaint();
+  updateResultsLegend();
 }
 
 function formatResultTime(t) {
@@ -437,6 +481,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.querySelectorAll("#results-panel .var-btn").forEach((button) => {
     button.addEventListener("click", () => selectResultsVariable(button));
+  });
+
+  document.querySelectorAll("#results-panel .scale-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("#results-panel .scale-btn").forEach((b) =>
+        b.classList.remove("active")
+      );
+      button.classList.add("active");
+      resultsState.scale = button.dataset.scale;
+      refreshResultsStyle();
+    });
+  });
+
+  document.getElementById("results-palette").addEventListener("change", (e) => {
+    resultsState.palette = e.target.value;
+    refreshResultsStyle();
   });
 
   // main.js has created the map by now (its DOMContentLoaded handler runs first).
