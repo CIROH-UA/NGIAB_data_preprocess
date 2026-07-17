@@ -3,9 +3,9 @@
 import copy
 import json
 from datetime import datetime
+import logging
 from rich.prompt import Prompt
 import requests
-import logging
 
 from data_processing.file_paths import FilePaths
 from data_processing.create_realization import (
@@ -62,16 +62,6 @@ MAIN_OUTPUT_VARIABLES = {
     "smp": "soil_storage",  # Scalar (CFE/TOPMODEL) or wetting fronts (CASAM)
     "nom": "EVAPOTRANS",  # ET → CFE/CASAM/TOPMODEL; also outputs QINSUR
     "snow17": "raim",  # Rain + snowmelt (mm/s) → CFE/CASAM/SAC-SMA
-}
-
-# TODO: Unclear if this field even affects ngen whatsoever, but I included it to keep our tests
-# from failing. Need to decide if it should be ignored.
-MODEL_TYPE_NAMES = {
-    "dhbv2": "dhbv2",
-    "dhbv2_daily": "dhbv2",
-    "lstm": "lstm",
-    "lstm_rust": "lstm",
-    "summa": "bmi_multi_summa",
 }
 
 # ---------------------------------------------------------------------------
@@ -500,8 +490,9 @@ def create_modular_realization(  # pylint: disable=too-many-locals
     start_time: datetime,
     end_time: datetime,
     models: list[str],
-    routing: bool = False,
-    gage_id: str | None = None,
+    *,
+    routing: bool,
+    gage_id: str | None,
 ):
     """Creates a realization file based on the specified models.
 
@@ -521,10 +512,6 @@ def create_modular_realization(  # pylint: disable=too-many-locals
             return
 
     main_output_variable = MAIN_OUTPUT_VARIABLES[models[-1]]
-    if models[-1] in MODEL_TYPE_NAMES:
-        model_type_name = MODEL_TYPE_NAMES[models[-1]]
-    else:
-        model_type_name = "bmi_multi"
 
     target_variable_names = {}
     for model in models:
@@ -558,7 +545,6 @@ def create_modular_realization(  # pylint: disable=too-many-locals
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
 
-    realization["global"]["formulations"][0]["params"]["model_type_name"] = model_type_name
     realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
         main_output_variable
     )
@@ -573,13 +559,13 @@ def create_modular_realization(  # pylint: disable=too-many-locals
         json.dump(realization, f, indent=4)
 
 
-def create_modular_configs(  # pylint: disable=too-many-arguments, too-many-branches
+def create_modular_configs(  # pylint: disable=too-many-branches
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
     models: list[str],
     *,
-    routing: bool = False,
+    routing: bool,
 ):
     """Creates a BMI configuration files based on the specified models.
 
