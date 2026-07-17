@@ -45,8 +45,6 @@
                     <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
                     Domain
                 </legend>
-
-                <label class="label" for="workflow-input">Id</label>
                 <div class="join w-full">
                     <input
                         type="text"
@@ -123,16 +121,10 @@
                     <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 5.5 7 4.5-7 4.5v-9z"/></svg>
                     Run
                 </legend>
-
-                <p class="panel-hint">
-                    Runs subsetting, forcings, and realization for the selected basin
-                    or gage, then runs NGIAB.
-                </p>
-
                 <button id="run-cli-button" class="btn btn-primary btn-block">Run Complete Workflow</button>
                 <div id="run-cli-output" class="code-output"></div>
 
-                <details id="step-details">
+                <details id="step-details" open>
                     <summary class="divider">or one step at a time</summary>
                     <div class="step-grid">
                         <button id="subset-button" class="btn btn-sm">Subset</button>
