@@ -4,6 +4,8 @@ import copy
 import json
 from datetime import datetime
 from rich.prompt import Prompt
+import requests
+import logging
 
 from data_processing.file_paths import FilePaths
 from data_processing.create_realization import (
@@ -18,6 +20,8 @@ from data_processing.create_realization import (
     make_summa_config_suite,
     configure_troute,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # ACCEPTED MODELS
@@ -470,12 +474,34 @@ def _insert_sloth_module(
     modules.insert(sloth_position, sloth_realization)
 
 
+def _handle_calibrated_params(paths: FilePaths, gage_id: str) -> bool:
+    # try and download s3:communityhydrofabric/hydrofabrics/community/gage_parameters/gage_id
+    # if it doesn't exist, use the default
+    url = (
+        "https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/"
+        + f"gage_parameters/{gage_id}.json"
+        )
+    response = requests.get(url, timeout=10)
+
+    if response.status_code == 200:
+        new_template = requests.get(url, timeout=10).json()
+        template_path = paths.config_dir / "downloaded_params.json"
+        with open(template_path, "w", encoding="utf-8") as f:
+            json.dump(new_template, f)
+
+        logger.info("downloaded calibrated parameters for %s", gage_id)
+        return True
+
+    logger.warning("could not download parameters for %s, using default template", gage_id)
+    return False
+
 def create_modular_realization(  # pylint: disable=too-many-locals
     output_folder: str,
     start_time: datetime,
     end_time: datetime,
     models: list[str],
     routing: bool = False,
+    gage_id: str | None = None,
 ):
     """Creates a realization file based on the specified models.
 
@@ -485,9 +511,15 @@ def create_modular_realization(  # pylint: disable=too-many-locals
         end_time (str): End time of simulation in YYYY-MM-DD HH:MM:SS
         models (list[str]): List of models to be coupled together
         routing (bool, optional): True if t-route is coupled. Defaults to False.
+        gage_id (str | None, optional): Gage ID for the simulation. Defaults to None.
     """
 
     paths = FilePaths(output_folder)
+
+    if gage_id is not None and models == ["sloth", "nom", "cfe"]:
+        if _handle_calibrated_params(paths, gage_id):
+            return
+
     main_output_variable = MAIN_OUTPUT_VARIABLES[models[-1]]
     if models[-1] in MODEL_TYPE_NAMES:
         model_type_name = MODEL_TYPE_NAMES[models[-1]]

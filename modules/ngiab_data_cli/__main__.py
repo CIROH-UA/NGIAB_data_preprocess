@@ -223,7 +223,6 @@ def main() -> None:
                 if not gage_id.startswith("gage-"):
                     gage_id = "gage-" + gage_id
 
-            # TODO: handle calibrated params
             if args.models:
                 create_modular_realization(
                     output_folder,
@@ -231,6 +230,7 @@ def main() -> None:
                     end_time=args.end_date,
                     models=args.models,
                     routing=args.routing,
+                    gage_id=gage_id
                 )
                 create_modular_configs(
                     output_folder,
@@ -247,6 +247,7 @@ def main() -> None:
                     end_time=args.end_date,
                     models=["sloth", "nom", "cfe"],
                     routing=args.routing,
+                    gage_id=gage_id
                 )
             logging.info("Realization creation complete.")
 
