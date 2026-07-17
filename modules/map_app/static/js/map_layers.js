@@ -72,6 +72,22 @@ function updateIncomingStyle(previousStyle, nextStyle) {
         },
       },
       {
+        // Invisible fat overlay of the flowpaths, so hovering thin lines is
+        // forgiving. Mouse events for the results tooltip bind to this layer.
+        id: "flowpaths-hover",
+        type: "line",
+        source: "flowpaths",
+        "source-layer": "flowpaths",
+        layout: {
+          "line-cap": "round",
+        },
+        paint: {
+          "line-width": 14,
+          "line-color": "#000000",
+          "line-opacity": 0,
+        },
+      },
+      {
         id: "divides",
         type: "fill",
         source: "divides",

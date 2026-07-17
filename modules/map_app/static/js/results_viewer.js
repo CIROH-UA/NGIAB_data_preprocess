@@ -24,6 +24,7 @@ const resultsState = {
   playInterval: null,
   playSpeed: 5,
   originalPaint: null, // flowpaths paint to restore on clear
+  hoveredId: null, // flowpath under the cursor, for live tooltip updates
 };
 
 let resultsHoverPopup;
@@ -171,6 +172,7 @@ function updateFeatureStates() {
     map.setFeatureState({ ...FLOWPATH_FEATURE, id: Number(id) }, { value: series[t] });
   }
   updateResultsTimeDisplay();
+  refreshHoverPopup();
 }
 
 // Coalesce rapid slider/playback changes into at most one update per frame.
@@ -357,21 +359,31 @@ function toggleResultsPlayback() {
 // Hover tooltip
 // ---------------------------------------------------------------------------
 
-function onFlowpathHover(e) {
+// Popup HTML for one flowpath at the current timestep.
+function flowpathHoverHtml(id) {
   const data = resultsData();
-  if (!data || !e.features?.length) return;
-
-  const id = e.features[0].id;
   const series = data.values[String(id)];
   const value = series?.[resultsState.timeIndex];
   const { label, units } = RESULT_VARIABLES[resultsState.variable];
   const text =
     value === undefined || value <= -9998 ? "no data" : `${value.toFixed(3)} ${units}`;
+  return `wb-${id}<br>${label}: ${text}`;
+}
 
-  resultsHoverPopup
-    .setLngLat(e.lngLat)
-    .setHTML(`wb-${id}<br>${label}: ${text}`)
-    .addTo(map);
+function onFlowpathHover(e) {
+  const data = resultsData();
+  if (!data || !e.features?.length) return;
+
+  const id = e.features[0].id;
+  resultsState.hoveredId = id;
+  resultsHoverPopup.setLngLat(e.lngLat).setHTML(flowpathHoverHtml(id)).addTo(map);
+}
+
+// Keep the open tooltip in sync when the value under it changes (playback,
+// slider, variable switch) without needing the mouse to move.
+function refreshHoverPopup() {
+  if (resultsState.hoveredId == null || !resultsHoverPopup.isOpen()) return;
+  resultsHoverPopup.setHTML(flowpathHoverHtml(resultsState.hoveredId));
 }
 
 // ---------------------------------------------------------------------------
@@ -429,6 +441,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // main.js has created the map by now (its DOMContentLoaded handler runs first).
   resultsHoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
-  map.on("mousemove", "flowpaths", onFlowpathHover);
-  map.on("mouseleave", "flowpaths", () => resultsHoverPopup.remove());
+  // Bound to the invisible fat overlay so thin flowpaths are easy to hover.
+  map.on("mousemove", "flowpaths-hover", onFlowpathHover);
+  map.on("mouseleave", "flowpaths-hover", () => {
+    resultsState.hoveredId = null;
+    resultsHoverPopup.remove();
+  });
 });
