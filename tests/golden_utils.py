@@ -5,13 +5,9 @@ Nothing in this file collects as a test (no ``test_*`` names).
 
 import json
 import math
-import os
 import re
 from datetime import datetime
 from pathlib import Path
-
-# Set UPDATE_GOLDEN=1 to rewrite goldens instead of asserting against them.
-UPDATE_GOLDEN = os.environ.get("UPDATE_GOLDEN") == "1"
 
 GOLDEN_GPKG_DIR = Path(__file__).parent / "golden" / "geopackage"
 GOLDEN_CONFIG_DIR = Path(__file__).parent / "golden" / "config"
@@ -28,6 +24,96 @@ END = datetime(2020, 1, 2, 0, 0, 0)
 
 NUMERIC_RE = re.compile(r"(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?)")
 
+SUMMA_GAGE_FORCING_IDS = [
+    "cat-2861379",
+    "cat-2861380",
+    "cat-2861387",
+    "cat-2861414",
+    "cat-2861421",
+    "cat-2861429",
+    "cat-2861431",
+    "cat-2861436",
+    "cat-2861438",
+    "cat-2861442",
+    "cat-2861446",
+    "cat-2861447",
+    "cat-2861449",
+    "cat-2861452",
+    "cat-2861453",
+    "cat-2861471",
+    "cat-2861472",
+    "cat-2861475",
+    "cat-2861488",
+    "cat-2861382",
+    "cat-2861383",
+    "cat-2861384",
+    "cat-2861385",
+    "cat-2861388",
+    "cat-2861389",
+    "cat-2861391",
+    "cat-2861419",
+    "cat-2861420",
+    "cat-2861423",
+    "cat-2861427",
+    "cat-2861430",
+    "cat-2861433",
+    "cat-2861439",
+    "cat-2861457",
+    "cat-2861458",
+    "cat-2861468",
+    "cat-2861477",
+    "cat-2861478",
+    "cat-2861485",
+    "cat-2861474",
+    "cat-2861487",
+    "cat-2861476",
+    "cat-2861486",
+    "cat-2861484",
+    "cat-2861480",
+    "cat-2861482",
+    "cat-2861481",
+    "cat-2861483",
+    "cat-2861479",
+    "cat-2861473",
+    "cat-2861470",
+    "cat-2861469",
+    "cat-2861467",
+    "cat-2861466",
+    "cat-2861381",
+    "cat-2861462",
+    "cat-2861464",
+    "cat-2861463",
+    "cat-2861465",
+    "cat-2861461",
+    "cat-2861459",
+    "cat-2861460",
+    "cat-2861455",
+    "cat-2861456",
+    "cat-2861454",
+    "cat-2861451",
+    "cat-2861450",
+    "cat-2861448",
+    "cat-2861445",
+    "cat-2861444",
+    "cat-2861441",
+    "cat-2861443",
+    "cat-2861440",
+    "cat-2861437",
+    "cat-2861435",
+    "cat-2861434",
+    "cat-2861432",
+    "cat-2861386",
+    "cat-2861428",
+    "cat-2861426",
+    "cat-2861425",
+    "cat-2861424",
+    "cat-2861390",
+    "cat-2861422",
+    "cat-2861415",
+    "cat-2861417",
+    "cat-2861418",
+    "cat-2861416",
+]
 
 def normalize(text: str, output_dir: Path) -> str:
     """Strip the few non-deterministic / machine-specific bits.
