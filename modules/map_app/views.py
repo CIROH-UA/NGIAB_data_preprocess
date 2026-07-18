@@ -10,6 +10,8 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pyarrow as pa
+import pyarrow.ipc as ipc
 import xarray as xr
 from data_processing.create_realization import create_realization
 from data_processing.dataset_utils import save_and_clip_dataset
@@ -17,7 +19,7 @@ from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import FilePaths
 from data_processing.forcings import create_forcings
 from data_processing.subset import subset
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, Response, jsonify, render_template, request
 from flask_sock import Sock
 
 main = Blueprint("main", __name__)
@@ -309,8 +311,36 @@ def subset_bounds(output_dir: Path):
     return [float(b) for b in bounds]
 
 
-# Serve one variable of the newest t-route output in a run's output directory,
-# keyed by numeric flowpath id so the map can color flowpaths client-side.
+# Pack a variable's (feature x time) matrix into an Arrow IPC stream. The
+# per-feature series live in a single FixedSizeList<float32> column so the whole
+# matrix travels as one binary buffer, with no per-value Python/JSON objects to
+# blow up memory; the scalars ride along in the schema metadata.
+def troute_arrow_payload(nc_file, variable, values, feature_ids, time_list, vmin, vmax, bounds):
+    n_times = values.shape[1]
+    flat = pa.array(values.reshape(-1))  # zero-copy view of the float32 matrix
+    series = pa.FixedSizeListArray.from_arrays(flat, n_times)
+    table = pa.table({"feature_id": pa.array(feature_ids), "values": series})
+    table = table.replace_schema_metadata(
+        {
+            "file": str(nc_file),
+            "variable": variable,
+            "time": json.dumps(time_list),
+            "min": repr(vmin),
+            "max": repr(vmax),
+            "bounds": json.dumps(bounds),
+            "n_times": str(n_times),
+        }
+    )
+    sink = pa.BufferOutputStream()
+    with ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    return sink.getvalue().to_pybytes()
+
+
+# Serve one variable of the newest t-route output in a run's output directory as
+# an Arrow IPC stream keyed by numeric flowpath id, so the map can color
+# flowpaths client-side. Arrow keeps the matrix as typed binary end to end; the
+# old JSON encoding expanded a few-GB netcdf into tens of GB of Python floats.
 @main.route("/troute_output", methods=["POST"])
 def troute_output():
     data = json.loads(request.data.decode("utf-8"))
@@ -334,15 +364,23 @@ def troute_output():
             da = ds[variable]
             if set(da.dims) != {"feature_id", "time"}:
                 return jsonify({"error": f"Unexpected dimensions {da.dims} for '{variable}'"}), 500
-            values = da.transpose("feature_id", "time").values.astype(float)
 
-            finite = values[np.isfinite(values)]
+            # Read straight to a contiguous float32 matrix so the working set is
+            # half of the usual float64 and reshape below stays zero-copy.
+            values = np.ascontiguousarray(
+                da.transpose("feature_id", "time").values, dtype=np.float32
+            )
+
+            finite_mask = np.isfinite(values)
+            finite = values[finite_mask]
             vmin = float(finite.min()) if finite.size else 0.0
             vmax = float(finite.max()) if finite.size else 1.0
-            # JSON has no NaN; use the t-route fill value convention instead.
-            values = np.where(np.isfinite(values), values.round(3), -9999.0)
+            del finite
+            # No NaN over the wire; use the t-route fill value convention. In
+            # place, to avoid a second full-size copy of the matrix.
+            np.copyto(values, np.float32(-9999.0), where=~finite_mask)
 
-            feature_ids = ds["feature_id"].values
+            feature_ids = np.ascontiguousarray(ds["feature_id"].values, dtype=np.int64)
             times = ds["time"].values
             if np.issubdtype(times.dtype, np.datetime64):
                 time_list = np.datetime_as_string(times, unit="m").tolist()
@@ -357,17 +395,10 @@ def troute_output():
     except Exception:
         bounds = None
 
-    return jsonify(
-        {
-            "file": str(nc_file),
-            "variable": variable,
-            "time": time_list,
-            "min": vmin,
-            "max": vmax,
-            "bounds": bounds,
-            "values": {str(int(fid)): row.tolist() for fid, row in zip(feature_ids, values)},
-        }
-    ), 200
+    payload = troute_arrow_payload(
+        nc_file, variable, values, feature_ids, time_list, vmin, vmax, bounds
+    )
+    return Response(payload, mimetype="application/vnd.apache.arrow.stream")
 
 
 # Stream app log lines: a tail of recent history on connect, then each new

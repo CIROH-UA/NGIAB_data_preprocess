@@ -56,15 +56,49 @@ function setResultsStatus(kind, message) {
 // Loading
 // ---------------------------------------------------------------------------
 
+// Decode the Arrow IPC stream returned by /troute_output into a compact,
+// typed-array result. The whole feature x time matrix stays as one Float32Array
+// (no per-value JS objects), which is what keeps large runs from blowing up
+// browser memory the way the old JSON payload did.
+function parseArrowResults(buffer) {
+  const table = Arrow.tableFromIPC(new Uint8Array(buffer));
+  const meta = table.schema.metadata;
+
+  const idValues = table.getChild("feature_id").data[0].values; // BigInt64Array
+  const featureIds = new Float64Array(idValues.length);
+  const index = new Map();
+  for (let f = 0; f < idValues.length; f++) {
+    const id = Number(idValues[f]);
+    featureIds[f] = id;
+    index.set(id, f);
+  }
+
+  const time = JSON.parse(meta.get("time"));
+  return {
+    file: meta.get("file"),
+    variable: meta.get("variable"),
+    time,
+    nTimes: time.length,
+    min: parseFloat(meta.get("min")),
+    max: parseFloat(meta.get("max")),
+    bounds: JSON.parse(meta.get("bounds")),
+    featureIds,
+    index,
+    matrix: table.getChild("values").data[0].children[0].values, // Float32Array, feature-major
+  };
+}
+
 async function fetchResultsVariable(variable) {
   const response = await fetch("/troute_output", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ output_dir: resultsState.outputDir, variable }),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Failed to load results");
-  return data;
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || "Failed to load results");
+  }
+  return parseArrowResults(await response.arrayBuffer());
 }
 
 async function loadResults() {
@@ -111,8 +145,7 @@ function showResults() {
   const data = resultsData();
 
   document.getElementById("results-controls").hidden = false;
-  document.getElementById("results-feature-count").textContent =
-    Object.keys(data.values).length;
+  document.getElementById("results-feature-count").textContent = data.featureIds.length;
   document.getElementById("results-timestep-count").textContent = data.time.length;
 
   const slider = document.getElementById("results-time-slider");
@@ -200,9 +233,13 @@ function updateFeatureStates() {
   const data = resultsData();
   if (!data) return;
 
+  const { featureIds, matrix, nTimes } = data;
   const t = resultsState.timeIndex;
-  for (const [id, series] of Object.entries(data.values)) {
-    map.setFeatureState({ ...FLOWPATH_FEATURE, id: Number(id) }, { value: series[t] });
+  for (let f = 0; f < featureIds.length; f++) {
+    map.setFeatureState(
+      { ...FLOWPATH_FEATURE, id: featureIds[f] },
+      { value: matrix[f * nTimes + t] }
+    );
   }
   updateResultsTimeDisplay();
   refreshHoverPopup();
@@ -278,11 +315,13 @@ function updateResultsTimeDisplay() {
 // Sum across all flowpaths at each timestep, computed once per variable.
 function resultTotals(data) {
   if (!data.totals) {
-    const steps = data.time.length;
-    const totals = new Float64Array(steps);
-    for (const series of Object.values(data.values)) {
-      for (let t = 0; t < steps; t++) {
-        if (series[t] > -9998) totals[t] += series[t];
+    const { matrix, featureIds, nTimes } = data;
+    const totals = new Float64Array(nTimes);
+    for (let f = 0; f < featureIds.length; f++) {
+      const base = f * nTimes;
+      for (let t = 0; t < nTimes; t++) {
+        const v = matrix[base + t];
+        if (v > -9998) totals[t] += v;
       }
     }
     data.totals = totals;
@@ -406,8 +445,8 @@ function toggleResultsPlayback() {
 // Popup HTML for one flowpath at the current timestep.
 function flowpathHoverHtml(id) {
   const data = resultsData();
-  const series = data.values[String(id)];
-  const value = series?.[resultsState.timeIndex];
+  const row = data.index.get(id);
+  const value = row === undefined ? undefined : data.matrix[row * data.nTimes + resultsState.timeIndex];
   const { label, units } = RESULT_VARIABLES[resultsState.variable];
   const text =
     value === undefined || value <= -9998 ? "no data" : `${value.toFixed(3)} ${units}`;
