@@ -8,7 +8,9 @@ from typing import Tuple, Union
 import geopandas as gpd
 import numpy as np
 import xarray as xr
-from dask.distributed import Client, Future, progress
+from dask.distributed import Client, progress, wait
+from distributed import Future
+
 from data_processing.dask_utils import no_cluster, temp_cluster
 
 logger = logging.getLogger(__name__)
@@ -80,6 +82,64 @@ def validate_time_range(dataset: xr.Dataset, start_time: str, end_time: str) -> 
     return start_time, end_time
 
 
+def clip_dataset_to_zarr_bounds(
+    dataset: xr.Dataset,
+    bounds: Tuple[float, float, float, float] | np.ndarray[tuple[int], np.dtype[np.float64]],
+    start_time: str,
+    end_time: str,
+) -> xr.Dataset:
+    """
+    Clip the dataset to zarr chunk boundaries which fit the specified geographical bounds.
+    Useful for reducing rechunking and dask operations while downloading to improve performance.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Dataset to be clipped.
+    bounds : tuple[float, float, float, float] | np.ndarray[tuple[int], np.dtype[np.float64]]
+        Corners of bounding box. bounds[0] is x_min, bounds[1] is y_min,
+        bounds[2] is x_max, bounds[3] is y_max.
+    start_time : str
+        Desired start time in YYYY/MM/DD HH:MM:SS format.
+    end_time : str
+        Desired end time in YYYY/MM/DD HH:MM:SS format.
+
+    Returns
+    -------
+    xr.Dataset
+        Clipped dataset.
+    """
+    # check time range here in case just this function is imported and not the whole module
+    start_time, end_time = validate_time_range(dataset, start_time, end_time)
+    sampletime = dataset.time.values[:2]
+    intervaltime = sampletime[1] - sampletime[0]
+    samplex = dataset.x.values[:2]
+    intervalx = samplex[1] - samplex[0]
+    sampley = dataset.y.values[:2]
+    intervaly = sampley[1] - sampley[0]
+    geographic_bounds = dataset.sel(
+        x=slice(bounds[0], bounds[2]),
+        y=slice(bounds[1], bounds[3]),
+        time=slice(start_time, end_time),
+    )
+    time_chunks = geographic_bounds.chunks["time"]
+    x_chunks = geographic_bounds.chunks["x"]
+    y_chunks = geographic_bounds.chunks["y"]
+    time_max = max(time_chunks)
+    x_max = max(x_chunks)
+    y_max = max(y_chunks)
+    original_starttime = geographic_bounds.time.values[0]
+    chunk_bounds = dataset.sel(
+        x=slice(bounds[0] - ((x_max - x_chunks[0]) * intervalx), bounds[2]),
+        y=slice(bounds[1] - ((y_max - y_chunks[0]) * intervaly), bounds[3]),
+        time=slice(original_starttime - ((time_max - time_chunks[0]) * intervaltime), end_time),
+    )
+    logger.info(
+        f"Selected time range and clipped to bounds. x_chunks: {x_chunks}, y_chunks: {y_chunks}"
+    )
+    return chunk_bounds
+
+
 def clip_dataset_to_bounds(
     dataset: xr.Dataset,
     bounds: Tuple[float, float, float, float] | np.ndarray[tuple[int], np.dtype[np.float64]],
@@ -149,7 +209,7 @@ def save_dataset(
     )
     logger.info("For more detailed progress, see the Dask dashboard http://localhost:8787/status")
     progress(future)
-    future.result()
+    wait(future)
     if target_path.exists():
         shutil.rmtree(target_path)
     temp_file_path.rename(target_path)
@@ -248,11 +308,19 @@ def save_and_clip_dataset(
     )
 
     if not cached_data:
-        clipped_data = clip_dataset_to_bounds(
+        clipped_data = clip_dataset_to_zarr_bounds(
             dataset,
             gdf.total_bounds,
             start_time,  # type: ignore
             end_time,  # type: ignore
         )
         cached_data = save_to_cache(clipped_data, cache_location)
+
+        cached_data = clip_dataset_to_bounds(
+            cached_data,
+            gdf.total_bounds,
+            start_time,  # type: ignore
+            end_time,  # type: ignore
+        )
+
     return cached_data

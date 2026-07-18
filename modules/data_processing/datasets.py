@@ -3,6 +3,8 @@ from typing import Optional
 
 import s3fs
 import xarray as xr
+from s3fs import S3FileSystem
+
 from data_processing.dask_utils import use_cluster
 from data_processing.dataset_utils import validate_dataset_format
 from data_processing.s3fs_utils import S3ParallelFileSystem
@@ -65,7 +67,7 @@ def load_aorc_zarr(start_year: Optional[int] = None, end_year: Optional[int] = N
     estimated_time_s = ((end_year - start_year) * 2.5) + 3.5
     # from testing, it's about 2.1s per year + 3.5s overhead
     logger.info(f"This should take roughly {estimated_time_s} seconds")
-    fs = S3ParallelFileSystem(anon=True, default_cache_type="none")
+    fs = S3FileSystem(anon=True, default_cache_type="none")
     s3_url = "s3://noaa-nws-aorc-v1-1-1km/"
     urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year + 1)]
     filestores = [s3fs.S3Map(url, s3=fs) for url in urls]

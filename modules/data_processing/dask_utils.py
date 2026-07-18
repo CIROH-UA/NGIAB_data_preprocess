@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import os
 
 from dask.distributed import Client
@@ -14,7 +15,8 @@ def _env_n_workers():
             return int(value)
         except ValueError:
             logger.warning("Invalid NGIAB_DASK_WORKERS=%r, ignoring", value)
-    return None
+    return multiprocessing.cpu_count() // 4
+    # return None
 
 
 # Variable to store the number of workers
@@ -33,7 +35,7 @@ def _new_client():
     # If not set from the environment, the number of workers will be determined by Dask's defaults.
     if _n_workers is not None:
         logger.info("Starting Dask cluster with %d workers", _n_workers)
-    return Client(n_workers=_n_workers)
+    return Client(n_workers=_n_workers, threads_per_worker=16)
 
 
 def shutdown_cluster():
