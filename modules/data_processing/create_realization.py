@@ -416,6 +416,9 @@ def validate_models(models: list[str], routing: bool) -> list:
     """Check that the specified models are valid and that any dependencies are met. If there are any
     issues, print a warning message and ask the user if they want to proceed anyway.
 
+    models[-1] determines main_output_variable, which is the variable routed through t-route. So
+    if models[-1] is not a rainfall-runoff model, a warning will be returned.
+
     Args:
         models (list[str]): List of models to use, in the order they will be executed
         routing (bool): Whether routing is enabled
@@ -503,11 +506,14 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
     Note: This function automatically fetches calibrated parameters. Calibrated params are only
     available at certain gages for the SLoTH, NOM, and CFE model combination.
 
+    models[-1] determines main_output_variable, which is the variable routed through t-route.
+
     Args:
         output_folder (str): Name of the output folder, usually the cat-id
         start_time (datetime): Start time of simulation in YYYY-MM-DD HH:MM:SS
         end_time (datetime): End time of simulation in YYYY-MM-DD HH:MM:SS
-        models (list[str]): List of models to be coupled together
+        models (list[str]): List of models to be coupled together, in the order that they will be
+            executed
         routing (bool, optional): True if t-route is coupled. Defaults to False.
         gage_id (str | None, optional): Gage ID for the simulation. Defaults to None.
     """
