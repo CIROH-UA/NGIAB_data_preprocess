@@ -9,9 +9,6 @@
         "fixed_time_step": false,
         "uses_forcing_file": false,
         "variables_names_map": {
-            "precipitation_rate": "precip_rate",
-            "potential_evapotranspiration_rate": "EVAPOTRANS",
-            "soil_temperature_profile": "sloth_soil_temperature_profile"
         },
         "library_file": "/dmod/shared_libs/liblasambmi.so"
     }
