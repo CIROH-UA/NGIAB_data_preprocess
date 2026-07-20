@@ -36,7 +36,7 @@ class ModelSpec:
     """
 
     main_output_variable: str
-    realization_fragment: Path
+    realization_fragment: Path | None
     routable: Optional[bool] = False
     variables_names_map: dict[str, str] = field(default_factory=dict)
     overrides: list[tuple[str, dict[str, str]]] = field(default_factory=list)
@@ -44,7 +44,7 @@ class ModelSpec:
     @property
     def supported(self) -> bool:
         """True when the model is wired end-to-end (has a realization realization_fragment)."""
-        return self.realization_fragment is not None
+        return self.realization_fragment is not ""
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +323,11 @@ ALL_SLOTH_MODEL_PARAMS = {
 # Read as: ("target_model", lambda models: <condition that means rule is broken>, "warning")
 # ---------------------------------------------------------------------------
 
+def _is_coupled(models: list[str]) -> bool:
+    if len([m for m in models if m != "sloth"]) > 1:
+        return True
+    return False
+
 MODEL_DEPENDENCY_RULES = (
     # SLoTH required — bootstraps defaults for any model needing inter-model vars at t=0
     ("cfe", lambda models: "sloth" not in models, "CFE requires SLoTH"),
@@ -331,7 +336,7 @@ MODEL_DEPENDENCY_RULES = (
     ("smp", lambda models: "sloth" not in models, "SMP requires SLoTH"),
     (
         "smp",
-        lambda models: len([m for m in models if m != "sloth"]) > 1
+        lambda models: _is_coupled(models)
         and not any(m in models for m in ("casam", "cfe", "topmodel")),
         "SMP requires one of: CASAM, CFE, or TOPMODEL when coupled",
     ),
@@ -348,7 +353,7 @@ MODEL_DEPENDENCY_RULES = (
     # Snow17 must have a downstream runoff model (unless standalone with only SLoTH)
     (
         "snow17",
-        lambda models: len([m for m in models if m != "sloth"]) > 1
+        lambda models: _is_coupled(models)
         and not any(m in models for m in ("cfe", "casam", "topmodel", "sac-sma")),
         "Snow17 requires a downstream runoff model (CFE, CASAM, TOPMODEL, or SAC-SMA)",
     ),
@@ -361,14 +366,14 @@ MODEL_DEPENDENCY_RULES = (
     # NOM with no runoff model is likely misconfigured (unless standalone)
     (
         "nom",
-        lambda models: len([m for m in models if m != "sloth"]) > 1
+        lambda models: _is_coupled(models)
         and not any(m in models for m in ("cfe", "casam", "topmodel", "sac-sma")),
         "NOM is present but no runoff model (CFE, CASAM, TOPMODEL, SAC-SMA) found",
     ),
     # SFT: flag if coupled but no downstream consumer and no SMP
     (
         "sft",
-        lambda models: len([m for m in models if m != "sloth"]) > 1
+        lambda models: _is_coupled(models)
         and not any(m in models for m in ("cfe", "casam", "smp")),
         "SFT has no downstream consumer (CFE or CASAM) and no SMP",
     ),
