@@ -1,4 +1,4 @@
-"""Placeholder module to generate modular realizations."""
+"""Module to generate modular realizations."""
 
 import copy
 import json
@@ -505,8 +505,8 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
 
     Args:
         output_folder (str): Name of the output folder, usually the cat-id
-        start_time (str): Start time of simulation in YYYY-MM-DD HH:MM:SS
-        end_time (str): End time of simulation in YYYY-MM-DD HH:MM:SS
+        start_time (datetime): Start time of simulation in YYYY-MM-DD HH:MM:SS
+        end_time (datetime): End time of simulation in YYYY-MM-DD HH:MM:SS
         models (list[str]): List of models to be coupled together
         routing (bool, optional): True if t-route is coupled. Defaults to False.
         gage_id (str | None, optional): Gage ID for the simulation. Defaults to None.
