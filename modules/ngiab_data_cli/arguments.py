@@ -1,6 +1,8 @@
 import argparse
 from datetime import datetime
 
+from data_processing.create_realization import MODEL_REGISTRY
+
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
 DATE_FORMAT2 = "%Y-%m-%d %H:%M"  # used for datetime parsing
@@ -127,19 +129,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         nargs="+",
         help="List of models to couple together in the order of execution, e.g. --models sloth nom cfe",
-        choices=[
-            "sloth",
-            "nom",
-            "cfe",
-            "lstm",
-            "lstm_rust",
-            "dhbv2",
-            "dhbv2_daily",
-            "snow17",
-            "sac-sma",
-            "casam",
-            "summa"
-        ],
+        choices=list(MODEL_REGISTRY.keys()),
     )
 
     parser.add_argument(

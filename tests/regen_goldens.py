@@ -23,10 +23,12 @@ from data_processing.create_configs import (  # pylint: disable=wrong-import-pos
     create_modular_configs,
 )
 from data_processing.file_paths import FilePaths  # pylint: disable=wrong-import-position
-import data_processing.create_realization as mr  # pylint: disable=wrong-import-position
+# import data_processing.create_realization as mr  # pylint: disable=wrong-import-position
 from data_processing.create_realization import (  # pylint: disable=wrong-import-position
     create_modular_realization,
 )
+from test_modular_realization import GOLDEN_CASES
+
 from golden_utils import (  # pylint: disable=wrong-import-position
     END,
     GEOPACKAGE_FIXTURES,
@@ -39,22 +41,10 @@ from golden_utils import (  # pylint: disable=wrong-import-position
 
 GOLDEN_DIR = Path("tests/golden/realization")
 
-# Must match GOLDEN_CASES in test_modular_realization.py.
-GOLDEN_CASES = [
-    (["sloth", "nom", "cfe"], "cfe-nom.json"),
-    (["dhbv2"], "dhbv2.json"),
-    (["dhbv2_daily"], "dhbv2-daily.json"),
-    (["lstm"], "lstm-py.json"),
-    (["lstm_rust"], "lstm-rs.json"),
-    (["nom", "sac-sma"], "sacsma-nom.json"),
-    (["sloth", "snow17", "nom", "cfe"], "snow17-nom-cfe.json"),
-    (["summa"], "summa.json"),
-]
-
 CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily", "casam"]
 
 # Stub the interactive overwrite prompt to always accept.
-mr.Prompt.ask = staticmethod(lambda *a, **k: "y")  # type: ignore
+# mr.Prompt.ask = staticmethod(lambda *a, **k: "y")  # type: ignore
 
 
 def _write_summa_forcing_fixture(forcing_path: Path, cat_id: str) -> None:
@@ -130,7 +120,7 @@ def _generate_summa_golden(cat_id: str, tmp_root: str) -> dict:
     return produced
 
 
-for models, golden_name in GOLDEN_CASES:
+for models, golden_name, _ in GOLDEN_CASES:
     with tempfile.TemporaryDirectory() as tmp:
         FilePaths.get_working_dir = classmethod(lambda cls, _tmp=tmp: Path(_tmp))  # type: ignore
         cat_test_paths = FilePaths("cat-test")

@@ -19,7 +19,7 @@ import pytest
 
 import ngiab_data_cli.__main__ as cli_main
 from ngiab_data_cli.arguments import parse_arguments
-from data_processing.create_realization import ACCEPTED_MODELS
+from data_processing.create_realization import MODEL_REGISTRY
 
 # The models --models is documented to accept, in declared order. This is the
 # CLI's public contract; test_models_choices_are_all_builder_accepted guards it
@@ -84,7 +84,7 @@ class TestModelsArgument:
     def test_models_choices_are_all_builder_accepted(self):
         """Every model the CLI offers must be one modular_realization accepts, so
         the CLI can never hand validate_models an unbuildable name."""
-        assert set(EXPECTED_MODELS_CHOICES) <= set(ACCEPTED_MODELS)
+        assert set(EXPECTED_MODELS_CHOICES) <= set(list(MODEL_REGISTRY.keys()))
 
 
 # ---------------------------------------------------------------------------

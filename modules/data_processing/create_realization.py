@@ -41,11 +41,6 @@ class ModelSpec:
     variables_names_map: dict[str, str] = field(default_factory=dict)
     overrides: list[tuple[str, dict[str, str]]] = field(default_factory=list)
 
-    @property
-    def supported(self) -> bool:
-        """True when the model is wired end-to-end (has a realization realization_fragment)."""
-        return self.realization_fragment is not ""
-
 
 # ---------------------------------------------------------------------------
 # THE REGISTRY
@@ -91,15 +86,15 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
                 },
             ),
             ("snow17", {"atmosphere_water__liquid_equivalent_precipitation_rate": "raim"}),
-            ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
-            (
-                "sft",
-                {
-                    "ice_fraction_schaake": "ice_fraction_schaake",
-                    "ice_fraction_xinanjiang": "ice_fraction_xinanjiang",
-                },
-            ),
-            ("smp", {"soil_moisture_profile": "soil_moisture_profile"}),
+            # ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
+            # (
+            #     "sft",
+            #     {
+            #         "ice_fraction_schaake": "ice_fraction_schaake",
+            #         "ice_fraction_xinanjiang": "ice_fraction_xinanjiang",
+            #     },
+            # ),
+            # ("smp", {"soil_moisture_profile": "soil_moisture_profile"}),
         ],
     ),
     "casam": ModelSpec(
@@ -114,8 +109,8 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         overrides=[
             ("nom", {"potential_evapotranspiration_rate": "EVAPOTRANS"}),
             ("snow17", {"precipitation_rate": "raim"}),
-            ("pet", {"potential_evapotranspiration_rate": "water_potential_evaporation_flux"}),
-            ("sft", {"soil_temperature_profile": "soil_temperature_profile"}),
+            # ("pet", {"potential_evapotranspiration_rate": "water_potential_evaporation_flux"}),
+            # ("sft", {"soil_temperature_profile": "soil_temperature_profile"}),
         ],
     ),
     "snow17": ModelSpec(
@@ -138,7 +133,7 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         overrides=[
             ("nom", {"pet": "EVAPOTRANS"}),
             ("snow17", {"precip": "raim"}),
-            ("pet", {"pet": "water_potential_evaporation_flux"}),
+            # ("pet", {"pet": "water_potential_evaporation_flux"}),
         ],
     ),
     "lstm": ModelSpec(
@@ -203,94 +198,84 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
     # is False and validate_models rejects them up front. Their names-maps
     # and overrides are kept as scaffolding for when they are wired.
     # ------------------------------------------------------------------
-    "pet": ModelSpec(
-        main_output_variable="water_potential_evaporation_flux",
-        realization_fragment=None,
-        variables_names_map={"water_potential_evaporation_flux": "potential_evapotranspiration"},
-    ),
-    "sft": ModelSpec(
-        main_output_variable="num_cells",
-        realization_fragment=None,
-        variables_names_map={
-            "ground_temperature": "sloth_ground_temperature",
-            "soil_moisture_profile": "sloth_soil_moisture_profile",
-        },
-        overrides=[
-            ("nom", {"ground_temperature": "TGS"}),
-            ("smp", {"soil_moisture_profile": "soil_moisture_profile"}),
-        ],
-    ),
-    "smp": ModelSpec(
-        main_output_variable="soil_storage",
-        realization_fragment=None,
-        variables_names_map={
-            "soil_storage": "sloth_soil_storage",
-            "soil_storage_change": "sloth_soil_storage_change",
-            "num_wetting_fronts": "sloth_num_wetting_fronts",
-            "soil_moisture_wetting_fronts": "sloth_soil_moisture_wetting_fronts",
-            "soil_depth_wetting_fronts": "sloth_soil_depth_wetting_fronts",
-            "Qb_topmodel": "sloth_Qb_topmodel",
-            "Qv_topmodel": "sloth_Qv_topmodel",
-            "global_deficit": "sloth_global_deficit",
-        },
-        overrides=[
-            (
-                "casam",
-                {
-                    "num_wetting_fronts": "soil_num_wetting_fronts",
-                    "soil_moisture_wetting_fronts": "soil_moisture_wetting_fronts",
-                    "soil_depth_wetting_fronts": "soil_depth_wetting_fronts",
-                    "soil_storage": "soil_storage",
-                },
-            ),
-            (
-                "cfe",
-                {
-                    "soil_storage": "SOIL_STORAGE",
-                    "soil_storage_change": "SOIL_STORAGE_CHANGE",
-                },
-            ),
-            (
-                "topmodel",
-                {
-                    "Qb_topmodel": "land_surface_water__baseflow_volume_flux",
-                    "Qv_topmodel": "soil_water_root-zone_unsat-zone_top__recharge_volume_flux",
-                    "global_deficit": "soil_water__domain_volume_deficit",
-                },
-            ),
-        ],
-    ),
-    "topmodel": ModelSpec(
-        main_output_variable="Qout",
-        realization_fragment=None,
-        routable=True,
-        variables_names_map={
-            "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface",
-            "water_potential_evaporation_flux": "sloth_pet",
-        },
-        overrides=[
-            (
-                "nom",
-                {
-                    "atmosphere_water__liquid_equivalent_precipitation_rate": "QINSUR",
-                    "water_potential_evaporation_flux": "EVAPOTRANS",
-                },
-            ),
-            ("snow17", {"atmosphere_water__liquid_equivalent_precipitation_rate": "raim"}),
-            ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
-        ],
-    ),
+    # "pet": ModelSpec(
+    #     main_output_variable="water_potential_evaporation_flux",
+    #     realization_fragment=None,
+    #     variables_names_map={"water_potential_evaporation_flux": "potential_evapotranspiration"},
+    # ),
+    # "sft": ModelSpec(
+    #     main_output_variable="num_cells",
+    #     realization_fragment=None,
+    #     variables_names_map={
+    #         "ground_temperature": "sloth_ground_temperature",
+    #         "soil_moisture_profile": "sloth_soil_moisture_profile",
+    #     },
+    #     overrides=[
+    #         ("nom", {"ground_temperature": "TGS"}),
+    #         ("smp", {"soil_moisture_profile": "soil_moisture_profile"}),
+    #     ],
+    # ),
+    # "smp": ModelSpec(
+    #     main_output_variable="soil_storage",
+    #     realization_fragment=None,
+    #     variables_names_map={
+    #         "soil_storage": "sloth_soil_storage",
+    #         "soil_storage_change": "sloth_soil_storage_change",
+    #         "num_wetting_fronts": "sloth_num_wetting_fronts",
+    #         "soil_moisture_wetting_fronts": "sloth_soil_moisture_wetting_fronts",
+    #         "soil_depth_wetting_fronts": "sloth_soil_depth_wetting_fronts",
+    #         "Qb_topmodel": "sloth_Qb_topmodel",
+    #         "Qv_topmodel": "sloth_Qv_topmodel",
+    #         "global_deficit": "sloth_global_deficit",
+    #     },
+    #     overrides=[
+    #         (
+    #             "casam",
+    #             {
+    #                 "num_wetting_fronts": "soil_num_wetting_fronts",
+    #                 "soil_moisture_wetting_fronts": "soil_moisture_wetting_fronts",
+    #                 "soil_depth_wetting_fronts": "soil_depth_wetting_fronts",
+    #                 "soil_storage": "soil_storage",
+    #             },
+    #         ),
+    #         (
+    #             "cfe",
+    #             {
+    #                 "soil_storage": "SOIL_STORAGE",
+    #                 "soil_storage_change": "SOIL_STORAGE_CHANGE",
+    #             },
+    #         ),
+    #         (
+    #             "topmodel",
+    #             {
+    #                 "Qb_topmodel": "land_surface_water__baseflow_volume_flux",
+    #                 "Qv_topmodel": "soil_water_root-zone_unsat-zone_top__recharge_volume_flux",
+    #                 "global_deficit": "soil_water__domain_volume_deficit",
+    #             },
+    #         ),
+    #     ],
+    # ),
+    # "topmodel": ModelSpec(
+    #     main_output_variable="Qout",
+    #     realization_fragment=None,
+    #     routable=True,
+    #     variables_names_map={
+    #         "atmosphere_water__liquid_equivalent_precipitation_rate": "APCP_surface",
+    #         "water_potential_evaporation_flux": "sloth_pet",
+    #     },
+    #     overrides=[
+    #         (
+    #             "nom",
+    #             {
+    #                 "atmosphere_water__liquid_equivalent_precipitation_rate": "QINSUR",
+    #                 "water_potential_evaporation_flux": "EVAPOTRANS",
+    #             },
+    #         ),
+    #         ("snow17", {"atmosphere_water__liquid_equivalent_precipitation_rate": "raim"}),
+    #         ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
+    #     ],
+    # ),
 }
-
-
-# ---------------------------------------------------------------------------
-# Derived membership — one source of truth, no hand-maintained parallel lists.
-# ---------------------------------------------------------------------------
-
-ACCEPTED_MODELS: tuple[str, ...] = tuple(MODEL_REGISTRY)
-SUPPORTED_MODELS: tuple[str, ...] = tuple(
-    name for name, spec in MODEL_REGISTRY.items() if spec.supported
-)
 
 # ---------------------------------------------------------------------------
 # ALL_SLOTH_MODEL_PARAMS
@@ -332,24 +317,24 @@ MODEL_DEPENDENCY_RULES = (
     # SLoTH required — bootstraps defaults for any model needing inter-model vars at t=0
     ("cfe", lambda models: "sloth" not in models, "CFE requires SLoTH"),
     ("casam", lambda models: "sloth" not in models, "CASAM requires SLoTH"),
-    ("sft", lambda models: "sloth" not in models, "SFT requires SLoTH"),
-    ("smp", lambda models: "sloth" not in models, "SMP requires SLoTH"),
-    (
-        "smp",
-        lambda models: _is_coupled(models)
-        and not any(m in models for m in ("casam", "cfe", "topmodel")),
-        "SMP requires one of: CASAM, CFE, or TOPMODEL when coupled",
-    ),
-    (
-        "topmodel",
-        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
-        "TOPMODEL requires SLoTH, NOM, or PET",
-    ),
-    (
-        "sac-sma",
-        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
-        "SAC-SMA requires SLoTH, NOM, or PET",
-    ),
+    # ("sft", lambda models: "sloth" not in models, "SFT requires SLoTH"),
+    # ("smp", lambda models: "sloth" not in models, "SMP requires SLoTH"),
+    # (
+    #     "smp",
+    #     lambda models: _is_coupled(models)
+    #     and not any(m in models for m in ("casam", "cfe", "topmodel")),
+    #     "SMP requires one of: CASAM, CFE, or TOPMODEL when coupled",
+    # ),
+    # (
+    #     "topmodel",
+    #     lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
+    #     "TOPMODEL requires SLoTH, NOM, or PET",
+    # ),
+    # (
+    #     "sac-sma",
+    #     lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
+    #     "SAC-SMA requires SLoTH, NOM, or PET",
+    # ),
     # Snow17 must have a downstream runoff model (unless standalone with only SLoTH)
     (
         "snow17",
@@ -371,12 +356,12 @@ MODEL_DEPENDENCY_RULES = (
         "NOM is present but no runoff model (CFE, CASAM, TOPMODEL, SAC-SMA) found",
     ),
     # SFT: flag if coupled but no downstream consumer and no SMP
-    (
-        "sft",
-        lambda models: _is_coupled(models)
-        and not any(m in models for m in ("cfe", "casam", "smp")),
-        "SFT has no downstream consumer (CFE or CASAM) and no SMP",
-    ),
+    # (
+    #     "sft",
+    #     lambda models: _is_coupled(models)
+    #     and not any(m in models for m in ("cfe", "casam", "smp")),
+    #     "SFT has no downstream consumer (CFE or CASAM) and no SMP",
+    # ),
     # Standalone models should not couple with physics models
     (
         "lstm",
@@ -419,7 +404,7 @@ MODEL_DEPENDENCY_RULES = (
 # This function would get called to use the above rules to validate a passed list of models
 def validate_models(models: list[str], routing: bool) -> list:
     """Check that the specified models are valid and that any dependencies are met. If there are any
-    issues, print a warning message and ask the user if they want to proceed anyway.
+    issues, return a list of warnings.
 
     models[-1] determines main_output_variable, which is the variable routed through t-route. So
     if models[-1] is not a rainfall-runoff model, a warning will be returned.
@@ -428,18 +413,20 @@ def validate_models(models: list[str], routing: bool) -> list:
         models (list[str]): List of models to use, in the order they will be executed
         routing (bool): Whether routing is enabled
 
-    Raises:
-        ValueError: models is empty
-        ValueError: models contains invalid model names
-        ValueError: Model dependencies are not met and user chooses not to proceed
+    Returns:
+        warnings (lsit[str]): List of warnings about unmet dependencies
     """
+
     if len(models) == 0:
         raise ValueError("No models specified")
 
-    if any(model not in ACCEPTED_MODELS for model in models):
-        invalid_models = [model for model in models if model not in ACCEPTED_MODELS]
+    if any(model not in MODEL_REGISTRY for model in models):
+        invalid_models = [model for model in models if model not in MODEL_REGISTRY]
         raise ValueError(
-            f"Invalid models specified: {invalid_models}. Accepted models are: {ACCEPTED_MODELS}"
+            (
+                f"Invalid models specified: {invalid_models}. " +
+                f"Supported models are: {list(MODEL_REGISTRY.keys())}"
+            )
         )
 
     # checks model dependencies
@@ -466,7 +453,9 @@ def _insert_sloth_module(
             if varname in ALL_SLOTH_MODEL_PARAMS:
                 params[varname + ALL_SLOTH_MODEL_PARAMS[varname]] = 0.0
     sloth_position = models.index("sloth")
-    with open(MODEL_REGISTRY["sloth"].realization_fragment, "r", encoding="utf-8") as f:
+    with open(
+        MODEL_REGISTRY["sloth"].realization_fragment, "r", encoding="utf-8" # type: ignore
+    ) as f:
         sloth_realization = json.load(f)
 
     # insert dummy param if no other params are present, otherwise BMI will throw an error
@@ -550,7 +539,9 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
             if dependency in seen_models:
                 target_variable_names[model].update(overrides)
 
-        with open(MODEL_REGISTRY[model].realization_fragment, "r", encoding="utf-8") as f:
+        with open(
+            MODEL_REGISTRY[model].realization_fragment, "r", encoding="utf-8" # type: ignore
+        ) as f:
             realization = json.load(f)
         if model in target_variable_names:
             realization["params"]["variables_names_map"] = target_variable_names[model]

@@ -10,7 +10,6 @@ import pytest
 
 from data_processing.file_paths import FilePaths
 from data_processing.create_realization import (
-    ACCEPTED_MODELS,
     ALL_SLOTH_MODEL_PARAMS,
     MODEL_REGISTRY,
     _insert_sloth_module,
@@ -126,7 +125,7 @@ class TestValidateModelsInputs:
     def test_every_accepted_model_is_a_valid_name(self):
         """[model] alone must never trip the 'invalid name' guard (it may still
         warn about dependencies -- we answer 'y')."""
-        for model in ACCEPTED_MODELS:
+        for model in list(MODEL_REGISTRY.keys()):
             warnings = validate_models([model], routing=False)
 
         for warning in warnings:
@@ -142,9 +141,6 @@ class TestValidateModelsDependencies:
     WARNING_CASES = [
         (["cfe"], "CFE requires SLoTH"),
         (["casam"], "CASAM requires SLoTH"),
-        (["sft"], "SFT requires SLoTH"),
-        (["smp"], "SMP requires SLoTH"),
-        (["topmodel"], "TOPMODEL requires SLoTH, NOM, or PET"),
         (["sac-sma"], "SAC-SMA requires SLoTH, NOM, or PET"),
     ]
 
@@ -153,12 +149,7 @@ class TestValidateModelsDependencies:
         [
             ["sloth", "cfe"],
             ["sloth", "casam"],
-            ["sloth", "sft"],
-            ["sloth", "smp"],
-            ["nom", "topmodel"],
-            ["pet", "topmodel"],
             ["nom", "sac-sma"],
-            ["pet", "sac-sma"],
         ],
     )
     def test_met_dependency_does_not_prompt(self, models):
