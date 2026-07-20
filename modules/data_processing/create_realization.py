@@ -13,6 +13,7 @@ from data_processing.file_paths import FilePaths
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass(frozen=True)
 class ModelSpec:
     """All per-model coupling knowledge for one model.
@@ -139,12 +140,12 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
     "lstm": ModelSpec(
         main_output_variable="land_surface_water__runoff_depth",
         realization_fragment=FilePaths.lstm_modular_config,
-        routable=True
+        routable=True,
     ),
     "lstm_rust": ModelSpec(
         main_output_variable="land_surface_water__runoff_depth",
         realization_fragment=FilePaths.lstm_rust_modular_config,
-        routable=True
+        routable=True,
     ),
     "dhbv2": ModelSpec(
         main_output_variable="land_surface_water__runoff_volume_flux",
@@ -308,10 +309,12 @@ ALL_SLOTH_MODEL_PARAMS = {
 # Read as: ("target_model", lambda models: <condition that means rule is broken>, "warning")
 # ---------------------------------------------------------------------------
 
+
 def _is_coupled(models: list[str]) -> bool:
     if len([m for m in models if m != "sloth"]) > 1:
         return True
     return False
+
 
 MODEL_DEPENDENCY_RULES = (
     # SLoTH required — bootstraps defaults for any model needing inter-model vars at t=0
@@ -424,8 +427,8 @@ def validate_models(models: list[str], routing: bool) -> list:
         invalid_models = [model for model in models if model not in MODEL_REGISTRY]
         raise ValueError(
             (
-                f"Invalid models specified: {invalid_models}. " +
-                f"Supported models are: {list(MODEL_REGISTRY.keys())}"
+                f"Invalid models specified: {invalid_models}. "
+                + f"Supported models are: {list(MODEL_REGISTRY.keys())}"
             )
         )
 
@@ -454,7 +457,9 @@ def _insert_sloth_module(
                 params[varname + ALL_SLOTH_MODEL_PARAMS[varname]] = 0.0
     sloth_position = models.index("sloth")
     with open(
-        MODEL_REGISTRY["sloth"].realization_fragment, "r", encoding="utf-8" # type: ignore
+        MODEL_REGISTRY["sloth"].realization_fragment,
+        "r",
+        encoding="utf-8",  # type: ignore
     ) as f:
         sloth_realization = json.load(f)
 
@@ -540,7 +545,9 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
                 target_variable_names[model].update(overrides)
 
         with open(
-            MODEL_REGISTRY[model].realization_fragment, "r", encoding="utf-8" # type: ignore
+            MODEL_REGISTRY[model].realization_fragment,
+            "r",
+            encoding="utf-8",  # type: ignore
         ) as f:
             realization = json.load(f)
         if model in target_variable_names:
@@ -555,9 +562,9 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
 
-    realization["global"]["formulations"][0]["params"][
-        "main_output_variable"
-    ] = main_output_variable
+    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
+        main_output_variable
+    )
     realization["global"]["formulations"][0]["params"]["modules"] = modules
     realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
