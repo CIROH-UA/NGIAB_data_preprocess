@@ -1,4 +1,5 @@
 """Functions to generate BMI config files."""
+
 import logging
 import multiprocessing
 import os
@@ -34,7 +35,10 @@ def _get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[
     cat_to_feature = get_cat_to_nhd_feature_id(paths.geopackage_path)
 
     fs = s3fs.S3FileSystem(anon=True)
-    nc_url = f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/netcdf/GWOUT/{year}/{formatted_dt}.GWOUT_DOMAIN1"
+    nc_url = (
+        f"s3://noaa-nwm-retrospective-3-0-pds/CONUS/netcdf/GWOUT/{year}/{formatted_dt}"
+        + ".GWOUT_DOMAIN1"
+    )
 
     with fs.open(nc_url) as file_obj:
         ds = xr.open_dataset(file_obj)  # type: ignore
@@ -69,18 +73,18 @@ def _get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.D
     conf_df["latitude"] = lat
     return conf_df
 
+
 # CONFIG GENERATORS!!
 
+
 def _make_cfe_config(
-    divide_conf_df: pandas.DataFrame,
-    files: FilePaths,
-    water_levels: dict
+    divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: dict
 ) -> None:
     """
     Parses parameters from NOAHOWP_CFE DataFrame and returns a dictionary of catchment \
     configurations.
     """
-    with open(FilePaths.template_cfe_config, "r") as f:
+    with open(FilePaths.template_cfe_config, "r", encoding="utf-8") as f:
         cfe_template = f.read()
     cat_config_dir = files.config_dir / "cat_config" / "CFE"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
@@ -105,11 +109,11 @@ def _make_cfe_config(
             else "0.011[m]",  # mean.Zmax is in mm!
             gw_Coeff=row["mean.Coeff"] if row["mean.Coeff"] is not None else "0.0018[m h-1]",
             gw_Expon=row["mode.Expon"],
-            gw_storage="{:.5}".format(gw_storage_ratio),
+            gw_storage=f"{gw_storage_ratio:.5f}",
             refkdt=row["mean.refkdt"],
         )
         cat_ini_file = cat_config_dir / f"{row['divide_id']}.ini"
-        with open(cat_ini_file, "w") as f:
+        with open(cat_ini_file, "w", encoding="utf-8") as f:
             f.write(cat_config)
 
 
@@ -118,14 +122,14 @@ def _make_noahowp_config(
 ) -> None:
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
-    with open(FilePaths.template_noahowp_config, "r") as file:
+    with open(FilePaths.template_noahowp_config, "r", encoding="utf-8") as file:
         template = file.read()
 
     cat_config_dir = base_dir / "cat_config" / "NOAH-OWP-M"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in divide_conf_df.iterrows():
-        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w", encoding="utf-8") as file:
             file.write(
                 template.format(
                     start_datetime=start_datetime,
@@ -155,14 +159,14 @@ def _make_snow17_config(
 
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
-    with open(FilePaths.template_snow17_config, "r") as config_file:
+    with open(FilePaths.template_snow17_config, "r", encoding="utf-8") as config_file:
         config_template = config_file.read()
 
     cat_config_dir = base_dir / "cat_config" / "SNOW17"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in merged.iterrows():
-        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w", encoding="utf-8") as file:
             file.write(
                 config_template.format(
                     divide_id=row["divide_id"],
@@ -171,11 +175,11 @@ def _make_snow17_config(
                 )
             )
 
-    with open(FilePaths.template_snow17_params, "r") as params_file:
+    with open(FilePaths.template_snow17_params, "r", encoding="utf-8") as params_file:
         params_template = params_file.read()
 
     for _, row in merged.iterrows():
-        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w", encoding="utf-8") as file:
             file.write(
                 params_template.format(
                     divide_id=row["divide_id"],
@@ -220,14 +224,14 @@ def _make_sacsma_config(
 
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
-    with open(FilePaths.template_sac_config, "r") as config_file:
+    with open(FilePaths.template_sac_config, "r", encoding="utf-8") as config_file:
         config_template = config_file.read()
 
     cat_config_dir = base_dir / "cat_config" / "SAC-SMA"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in merged.iterrows():
-        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w", encoding="utf-8") as file:
             file.write(
                 config_template.format(
                     divide_id=row["divide_id"],
@@ -236,11 +240,11 @@ def _make_sacsma_config(
                 )
             )
 
-    with open(FilePaths.template_sac_params, "r") as params_file:
+    with open(FilePaths.template_sac_params, "r", encoding="utf-8") as params_file:
         params_template = params_file.read()
 
     for _, row in merged.iterrows():
-        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w", encoding="utf-8") as file:
             file.write(
                 params_template.format(
                     divide_id=row["divide_id"],
@@ -285,12 +289,12 @@ def _make_lstm_config(
         np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
     )
 
-    with open(template_path, "r") as file:
+    with open(template_path, "r", encoding="utf-8") as file:
         template = file.read()
 
     for _, row in divide_conf_df.iterrows():
         divide = row["divide_id"]
-        with open(cat_config_dir / f"{divide}.yml", "w") as file:
+        with open(cat_config_dir / f"{divide}.yml", "w", encoding="utf-8") as file:
             file.write(
                 template.format(
                     area_sqkm=row["areasqkm"],
@@ -347,7 +351,7 @@ def _make_casam_config(
     divide_conf_df: pandas.DataFrame,
     start_time: datetime,
     end_time: datetime,
-    sft_coupled: bool
+    sft_coupled: bool,
 ) -> None:
     """Generates CASAM BMI config
 
@@ -389,7 +393,7 @@ def _make_casam_config(
                     field_capacity_psi=row["field_capacity_psi"],
                     giuh_ordinates=fmt_list(row["giuh_ordinates"]),
                     sft_coupled=str(sft_coupled).lower(),
-                    soil_z=fmt_list(row["soil_z"])
+                    soil_z=fmt_list(row["soil_z"]),
                 )
             )
 
@@ -397,7 +401,7 @@ def _make_casam_config(
 def _configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
 ) -> None:
-    with open(FilePaths.template_troute_config, "r") as file:
+    with open(FilePaths.template_troute_config, "r", encoding="utf-8") as file:
         troute_template = file.read()
     time_step_size = 300
     gpkg_file_path = f"{config_dir}/{cat_id}_subset.gpkg"
@@ -435,19 +439,21 @@ def _configure_troute(
         binary_nexus_file_folder_comment=binary_nexus_file_folder_comment,
     )
 
-    with open(config_dir / "troute.yaml", "w") as file:
+    with open(config_dir / "troute.yaml", "w", encoding="utf-8") as file:
         file.write(filled_template)
+
 
 # SUMMA specific functions
 
+
 def _make_summa_config(hru_ids: list[int], output_dir: Path):
-    with open(FilePaths.template_summa_config, "r") as file:
+    with open(FilePaths.template_summa_config, "r", encoding="utf-8") as file:
         template = file.read()
     cat_config_dir = output_dir / "cat_config" / "SUMMA"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
-    for i, id in enumerate(hru_ids):
-        divide = f"cat-{id}"
-        with open(cat_config_dir / f"{divide}.input", "w") as file:
+    for i, id_num in enumerate(hru_ids):
+        divide = f"cat-{id_num}"
+        with open(cat_config_dir / f"{divide}.input", "w", encoding="utf-8") as file:
             # + 1 because fortran's first index is 1 not 0
             file.write(template.format(divide_index=i + 1))
 
@@ -571,7 +577,7 @@ def _make_summa_attributes(hru_ids, hydrofabric):
     return ds
 
 
-def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset: # pylint: disable=invalid-name
+def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:  # pylint: disable=invalid-name
     ds = xr.Dataset(
         {
             "hruId": xr.DataArray(
@@ -593,10 +599,10 @@ def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset: #
     return ds
 
 
-def _make_summa_coldState(hru_ids): # pylint: disable=invalid-name
+def _make_summa_coldState(hru_ids):  # pylint: disable=invalid-name
     n_hru = len(hru_ids)
-    n_midToto = 3 # pylint: disable=invalid-name
-    n_ifcToto = 4 # pylint: disable=invalid-name
+    n_midToto = 3  # pylint: disable=invalid-name
+    n_ifcToto = 4  # pylint: disable=invalid-name
 
     def scalar_var(fill_val, dtype=np.float64):
         return xr.DataArray(
@@ -610,12 +616,12 @@ def _make_summa_coldState(hru_ids): # pylint: disable=invalid-name
             dims=[dim_name, "hru"],
         )
 
-    iLayerHeight_data = np.broadcast_to( # pylint: disable=invalid-name
+    iLayerHeight_data = np.broadcast_to(  # pylint: disable=invalid-name
         np.array([0.0, 0.2, 0.5, 1.0])[:, np.newaxis],
         (n_ifcToto, n_hru),
     ).copy()
 
-    mLayerDepth_data = np.broadcast_to( # pylint: disable=invalid-name
+    mLayerDepth_data = np.broadcast_to(  # pylint: disable=invalid-name
         np.array([0.2, 0.3, 0.5])[:, np.newaxis],
         (n_midToto, n_hru),
     ).copy()
@@ -628,8 +634,8 @@ def _make_summa_coldState(hru_ids): # pylint: disable=invalid-name
                 attrs={"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
             ),
             "dt_init": scalar_var(3600.0),
-            "nSoil": scalar_var(3, dtype=np.int32),
-            "nSnow": scalar_var(0, dtype=np.int32),
+            "nSoil": scalar_var(3, dtype=np.int32),  # type: ignore
+            "nSnow": scalar_var(0, dtype=np.int32),  # type: ignore
             "scalarCanopyIce": scalar_var(0.0),
             "scalarCanopyLiq": scalar_var(0.0),
             "scalarSnowDepth": scalar_var(0.0),
@@ -681,9 +687,9 @@ def _make_summa_config_suite(cat_id: str, start_time: datetime, end_time: dateti
     )
     for file in files:
         if file.name == "fileManager.txt":
-            with open(file, "r") as f:
+            with open(file, "r", encoding="utf-8") as f:
                 template = f.read()
-            with open(paths.summa_model_config / file.name, "w") as f:
+            with open(paths.summa_model_config / file.name, "w", encoding="utf-8") as f:
                 f.write(template.format(start_time=start_time, end_time=end_time))
         else:
             shutil.copy(file, paths.summa_model_config)
@@ -700,6 +706,7 @@ def _make_summa_config_suite(cat_id: str, start_time: datetime, end_time: dateti
     ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
     _make_summa_config(hru_ids, paths.config_dir)
     paths.setup_run_folders(["outputs/summa"])
+
 
 def create_modular_configs(  # pylint: disable=too-many-branches
     output_folder: str,
