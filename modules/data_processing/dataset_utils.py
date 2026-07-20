@@ -68,12 +68,18 @@ def validate_time_range(dataset: xr.Dataset, start_time: str, end_time: str) -> 
     start_time_in_dataset = dataset.time.isel(time=0).values
     if np.datetime64(start_time) < start_time_in_dataset:
         logger.warning(
-            f"provided start {start_time} is before the start of the dataset {start_time_in_dataset}, selecting from {start_time_in_dataset}"
+            "provided start %s is before the start of the dataset %s, selecting from %s",
+            start_time,
+            start_time_in_dataset,
+            start_time_in_dataset,
         )
         start_time = start_time_in_dataset
     if np.datetime64(end_time) > end_time_in_dataset:
         logger.warning(
-            f"provided end {end_time} is after the end of the dataset {end_time_in_dataset}, selecting until {end_time_in_dataset}"
+            "provided end %s is after the end of the dataset %s, selecting until %s",
+            end_time,
+            end_time_in_dataset,
+            end_time_in_dataset,
         )
         end_time = end_time_in_dataset
     return start_time, end_time
@@ -112,8 +118,8 @@ def clip_dataset_to_bounds(
     sampley = dataset.y.values[:2]
     intervaly = sampley[1] - sampley[0]
     dataset = dataset.sel(
-        x=slice(bounds[0]-intervalx, bounds[2]+intervalx),
-        y=slice(bounds[1]-intervaly, bounds[3]+intervaly),
+        x=slice(bounds[0] - intervalx, bounds[2] + intervalx),
+        y=slice(bounds[1] - intervaly, bounds[3] + intervaly),
         time=slice(start_time, end_time),
     )
     logger.info("Selected time range and clipped to bounds")
@@ -143,21 +149,22 @@ def save_dataset(
         ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False)
     )  # type: ignore
     logger.debug(
-        f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
+        "NetCDF write task submitted to Dask. Waiting for completion to %s...", temp_file_path
     )
     logger.info("For more detailed progress, see the Dask dashboard http://localhost:8787/status")
     progress(future)
     future.result()
     os.rename(str(temp_file_path), str(target_path))
-    logger.info(f"Successfully saved data to: {target_path}")
+    logger.info("Successfully saved data to: %s", target_path)
 
 
 @no_cluster
 def save_to_cache(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     """
-    Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
+    Compute the store and save it to a cached netCDF file. This is not required but will save time
+    and bandwidth.
     """
-    logger.debug(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
+    logger.debug("Processing dataset for caching. Final cache target: %s", cached_nc_path)
 
     # lasily cast all numbers to f32
     for name, var in stores.data_vars.items():
@@ -188,7 +195,7 @@ def check_local_cache(
     # open the cached file and check that the time range is correct
     try:
         cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
-    except:
+    except:  # pylint: disable=bare-except
         logger.info("Cache produced with outdated backend, redownloading")
         return
 
@@ -213,12 +220,12 @@ def check_local_cache(
     # replace rainrate with precip
     missing_vars = set(forcing_vars) - set(cached_vars)
     if len(missing_vars) > 0:
-        logger.warning(f"Missing forcing vars in cache: {missing_vars}")
+        logger.warning(f"Missing forcing vars in cache: {missing_vars}")  # pylint: disable=logging-fstring-interpolation
         return
 
     if range_in_cache:
         logger.info("Time range is within cached data")
-        logger.debug(f"Opened cached nc file: [{cached_nc_path}]")
+        logger.debug("Opened cached nc file: [%s]", cached_nc_path)
         merged_data = clip_dataset_to_bounds(cached_data, gdf.total_bounds, start_time, end_time)
         logger.debug("Clipped stores")
 
@@ -232,7 +239,10 @@ def save_and_clip_dataset(
     end_time: datetime,
     cache_location: Path,
 ) -> xr.Dataset:
-    """convenience function clip the remote dataset, and either load from cache or save to cache if it's not present"""
+    """
+    convenience function clip the remote dataset, and either load from cache or save to cache if
+    it's not present
+    """
     gdf = gdf.to_crs(dataset.crs)
 
     cached_data = check_local_cache(
