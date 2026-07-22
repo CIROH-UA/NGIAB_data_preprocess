@@ -92,14 +92,14 @@ class FilePaths:
     @classmethod
     def get_working_dir(cls) -> Path | None:
         try:
-            with open(cls.config_file, "r") as f:
+            with open(cls.config_file, "r", encoding="utf-8") as f:
                 return Path(f.readline().strip()).expanduser()
         except FileNotFoundError:
             return None
 
     @classmethod
     def set_working_dir(cls, working_dir: Path) -> None:
-        with open(cls.config_file, "w") as f:
+        with open(cls.config_file, "w", encoding="utf-8") as f:
             f.write(str(working_dir))
 
     @classmethod
@@ -154,16 +154,18 @@ class FilePaths:
         history_file = self.metadata_dir / "cli_commands_history.txt"
         if not history_file.parent.exists():
             history_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.metadata_dir / "cli_commands_history.txt", "a") as f:
+        with open(self.metadata_dir / "cli_commands_history.txt", "a", encoding="utf-8") as f:
             f.write(f"{current_time}| {command_string}\n")
 
-    def setup_run_folders(self, extra_folders: list[str] = []) -> None:
+    def setup_run_folders(self, extra_folders: list[str] | None) -> None:
         folders = [
             "outputs",
             "outputs/ngen",
             "outputs/troute",
             "metadata",
         ]
+        if extra_folders is None:
+            extra_folders = []
         folders.extend(extra_folders)
         for folder in folders:
             Path(self.subset_dir / folder).mkdir(parents=True, exist_ok=True)
