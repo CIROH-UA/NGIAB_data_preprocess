@@ -1,6 +1,7 @@
 from typing import Tuple
 
 import rich.status
+from rich.prompt import Prompt
 
 # add a status bar for these imports so the cli feels more responsive
 with rich.status.Status("loading") as status:
@@ -13,14 +14,6 @@ with rich.status.Status("loading") as status:
     from pathlib import Path
 
     import geopandas as gpd
-    from data_processing.create_realization import (
-        create_dhbv2_realization,
-        create_lstm_realization,
-        create_realization,
-        create_summa_realization,
-        create_snow17_realization,
-        create_sacsma_realization,
-    )
     from data_processing.dask_utils import set_n_workers, shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -28,11 +21,11 @@ with rich.status.Status("loading") as status:
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
-    from data_processing.modular_realization import (
+    from data_processing.create_realization import (
         validate_models,
         create_modular_realization,
-        create_modular_configs
     )
+    from data_processing.create_configs import create_modular_configs
     from data_processing.subset import subset, subset_vpu
     from data_sources.source_validation import validate_hydrofabric, validate_output_dir
     from ngiab_data_cli.arguments import parse_arguments
@@ -46,7 +39,20 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
     output_folder = None
 
     if args.models:
-        validate_models(args.models, args.routing)
+        warnings = validate_models(args.models, args.routing)
+
+        if len(warnings) > 0:
+            warning_message = "Model configuration warnings:\n" + "\n".join(warnings)
+            logging.warning(warning_message)
+
+            response = Prompt.ask(
+                "Run anyway? (y/n)",
+                default="n",
+                choices=["y", "n"],
+            )
+            if response == "n":
+                raise ValueError("Model configuration invalid: " + warning_message)
+            print("Proceeding with data preprocessing despite warnings: " + warning_message)
 
     if args.vpu:
         if not args.output_name:
@@ -230,48 +236,15 @@ def main() -> None:
                 gage_id = args.input_feature
                 if not gage_id.startswith("gage-"):
                     gage_id = "gage-" + gage_id
-            if args.lstm or args.lstm_rust:
-                create_lstm_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    use_rust=args.lstm_rust,
-                )
-            elif args.dhbv2 or args.dhbv2_daily:
-                create_dhbv2_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    daily=args.dhbv2_daily,
-                )
-            elif args.summa:
-                create_summa_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                )
-            elif args.snow17:
-                create_snow17_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    use_nwm_gw=args.nwm_gw,
-                    gage_id=gage_id,
-                )
-            elif args.sacsma:
-                create_sacsma_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    gage_id=gage_id,
-                )
-            elif args.models:
+
+            if args.models:
                 create_modular_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
                     models=args.models,
                     routing=args.routing,
+                    gage_id=gage_id
                 )
                 create_modular_configs(
                     output_folder,
@@ -281,12 +254,14 @@ def main() -> None:
                     routing=args.routing,
                 )
             else:
-                create_realization(
+                # default to SLoTH + NOM + CFE + t-route
+                create_modular_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
-                    use_nwm_gw=args.nwm_gw,
-                    gage_id=gage_id,
+                    models=["sloth", "nom", "cfe"],
+                    routing=args.routing,
+                    gage_id=gage_id
                 )
             logging.info("Realization creation complete.")
 

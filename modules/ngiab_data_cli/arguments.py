@@ -1,6 +1,8 @@
 import argparse
 from datetime import datetime
 
+from data_processing.create_realization import MODEL_REGISTRY
+
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
 DATE_FORMAT2 = "%Y-%m-%d %H:%M"  # used for datetime parsing
@@ -122,63 +124,12 @@ def parse_arguments() -> argparse.Namespace:
         help="enable debug logging",
     )
 
-    # model flags, mutually exclusive
-    models = parser.add_mutually_exclusive_group(required=False)
-
-    models.add_argument(
-        "--lstm",
-        action="store_true",
-        help="enable LSTM model realization and forcings",
-    )
-    models.add_argument(
-        "--lstm_rust",
-        action="store_true",
-        help="enable experimental high speed Rust bindings of LSTM model realization and forcings",
-    )
-    models.add_argument(
-        "--dhbv2",
-        action="store_true",
-        help="enable hourly dHBV2 model realization and forcings",
-    )
-    models.add_argument(
-        "--dhbv2_daily",
-        action="store_true",
-        help="enable daily dHBV2 model realization and forcings",
-    )
-    models.add_argument(
-        "--summa",
-        action="store_true",
-        help="enable SUMMA model realization and forcings",
-    )
-    models.add_argument(
-        "--snow17",
-        action="store_true",
-        help="enable SNOW-17 model realization and forcings",
-    )
-    models.add_argument(
-        "--sacsma",
-        action="store_true",
-        help="enable SAC-SMA model realization and forcings",
-    )
-
-    # user can pass list of models to run to create custom coupling
-    models.add_argument(
+    parser.add_argument(
         "--models",
         type=str,
         nargs="+",
         help="List of models to couple together in the order of execution, e.g. --models sloth nom cfe",
-        choices=[
-            "sloth",
-            "nom",
-            "cfe",
-            "lstm",
-            "lstm_rust",
-            "dhbv2",
-            "dhbv2_daily",
-            "snow17",
-            "sac-sma",
-            "casam",
-        ],
+        choices=list(MODEL_REGISTRY.keys()),
     )
 
     parser.add_argument(

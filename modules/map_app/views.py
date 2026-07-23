@@ -6,7 +6,7 @@ import os
 import threading
 
 import geopandas as gpd
-from data_processing.create_realization import create_realization
+from data_processing.create_realization import create_modular_realization
 from data_processing.dataset_utils import save_and_clip_dataset
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import FilePaths
@@ -179,7 +179,12 @@ def get_realization():
     # get the forcings
     start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
     end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
-    create_realization(output_folder, start_time, end_time)
+    create_modular_realization(
+        output_folder,
+        start_time,
+        end_time,
+        ["sloth", "nom", "cfe"],
+        routing=True)
     return "success", 200
 
 

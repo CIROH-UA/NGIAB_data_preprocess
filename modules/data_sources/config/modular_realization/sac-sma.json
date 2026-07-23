@@ -8,9 +8,6 @@
         "allow_exceed_end_time": true,
         "main_output_variable": "tci",
         "variables_names_map": {
-            "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
-            "tair": "land_surface_air__temperature",
-            "pet": "EVAPOTRANS"
         },
         "uses_forcing_file": false
     }

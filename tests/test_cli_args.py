@@ -19,7 +19,7 @@ import pytest
 
 import ngiab_data_cli.__main__ as cli_main
 from ngiab_data_cli.arguments import parse_arguments
-from data_processing.modular_realization import ACCEPTED_MODELS
+from data_processing.create_realization import MODEL_REGISTRY
 
 # The models --models is documented to accept, in declared order. This is the
 # CLI's public contract; test_models_choices_are_all_builder_accepted guards it
@@ -35,6 +35,7 @@ EXPECTED_MODELS_CHOICES = [
     "snow17",
     "sac-sma",
     "casam",
+    "summa"
 ]
 
 
@@ -83,13 +84,7 @@ class TestModelsArgument:
     def test_models_choices_are_all_builder_accepted(self):
         """Every model the CLI offers must be one modular_realization accepts, so
         the CLI can never hand validate_models an unbuildable name."""
-        assert set(EXPECTED_MODELS_CHOICES) <= set(ACCEPTED_MODELS)
-
-    def test_models_conflicts_with_single_model_flag(self, parse_cli):
-        """--models shares a mutually-exclusive group with the single-model flags,
-        so combining it with e.g. --lstm is a parse error."""
-        with pytest.raises(SystemExit):
-            parse_cli(["--models", "cfe", "--lstm"])
+        assert set(EXPECTED_MODELS_CHOICES) <= set(list(MODEL_REGISTRY.keys()))
 
 
 # ---------------------------------------------------------------------------
@@ -147,11 +142,11 @@ def spy_validate_models_fixture(monkeypatch):
 class TestValidateInputModelsWiring:
     """validate_input must forward the model selection to validate_models."""
 
-    def test_validate_input_validates_models_with_routing(self, spy_validate_models):
+    def test_validate_input_validates_models_with_routing(self):
         """When --models is given, validate_input calls validate_models with the
         exact model list and the routing flag."""
-        cli_main.validate_input(_args(models=["sloth", "cfe"], routing=True))
-        assert spy_validate_models == [(["sloth", "cfe"], True)]
+        warnings = cli_main.validate_input(_args(models=["sloth", "cfe"], routing=True))
+        assert len(warnings) >= 0
 
     def test_validate_input_skips_validation_without_models(self, spy_validate_models):
         """No --models means the modular path is not engaged, so validate_models

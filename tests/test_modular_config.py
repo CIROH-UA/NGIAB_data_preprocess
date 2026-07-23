@@ -1,19 +1,4 @@
-"""Config-generation tests for ``create_modular_configs`` (the orchestration wrapper).
-
-``create_modular_configs`` dispatches each requested model to the same
-``make_*_config`` builders that ``test_config_generation`` exercises directly, so a
-run over the full supported model set must reproduce the committed
-``tests/golden/config/{cat_id}.json`` goldens. That equivalence is the headline
-test. The rest cover the wrapper's own orchestration logic that the legacy suite
-does not: per-model dispatch, the ``routing`` flag, the SLoTH no-op, and the
-``NotImplementedError`` path for not-yet-supported models.
-
-Marked ``integration`` to match ``test_config_generation``: these spin up the full
-config-generation machinery (dask/duckdb/geopandas) and the dHBV2 path reads its
-attributes parquet from S3 (FilePaths.dhbv_attributes), so they are non-hermetic.
-Fixtures, the golden directory, the fixed START/END, and the tolerant comparison
-helpers are imported from ``test_config_generation`` so the goldens and comparison
-logic stay single-sourced.
+"""Config-generation tests for ``create_configs`` (the orchestration wrapper).
 """
 
 import difflib
@@ -24,34 +9,49 @@ from pathlib import Path
 import pytest
 
 from data_processing.file_paths import FilePaths
-from data_processing.modular_realization import create_modular_configs
+from data_processing.create_configs import create_modular_configs
 
-from test_config_generation import (
+from golden_utils import (
     GEOPACKAGE_FIXTURES,
     GOLDEN_CONFIG_DIR,
     START,
     END,
-    _config_text_equivalent,
-    _normalize,
+    config_text_equivalent,
+    normalize,
+    write_golden_json,
 )
 
 pytestmark = pytest.mark.integration
 
+
+def test_write_golden_json_writes_sorted_json(tmp_path):
+    """The helper should serialize dict goldens with stable formatting."""
+    golden_path = tmp_path / "sample.json"
+    payload = {"b": 2, "a": {"d": 4, "c": 3}}
+
+    write_golden_json(golden_path, payload)
+
+    assert golden_path.read_text() == '{\n  "a": {\n    "c": 3,\n    "d": 4\n  },\n  "b": 2\n}\n'
+
+
 # A small, fast fixture used by the single-catchment orchestration tests.
 CAT_ID = "cat-1555522"
 
-# The models create_modular_configs can build a config for today; this is exactly
-# the set baked into the golden {cat_id}.json files (sloth produces no file, and
-# pet/sft/smp/topmodel/summa are not supported yet).
+# The models whose output is baked into the golden {cat_id}.json files. sloth
+# produces no file; summa IS now supported by create_modular_configs (it dispatches
+# to the SUMMA config suite) but is deliberately excluded here: the goldens predate
+# summa support and summa needs forcings.nc + a hydrofabric fixture, so it has its
+# own dedicated suite in test_summa_config_generation.py. pet/sft/smp/topmodel are
+# not supported yet.
+
 ALL_CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily", "casam"]
 
 
 def _generate_modular_config(cat_id, tmp_root, monkeypatch, *, models, routing=False):
     """Run ``create_modular_configs`` and return ``{relative_path: normalized_text}``.
 
-    Mirrors ``test_config_generation._generate_config`` (patches get_working_dir,
-    seeds the geopackage, normalizes machine-specific bits) but drives the build
-    through the modular wrapper instead of the individual makers.
+    Patches get_working_dir, seeds the geopackage, and normalizes machine-specific
+    bits, then drives the build through the public modular wrapper.
     """
     monkeypatch.setattr(FilePaths, "get_working_dir", classmethod(lambda cls: Path(tmp_root)))
 
@@ -65,8 +65,10 @@ def _generate_modular_config(cat_id, tmp_root, monkeypatch, *, models, routing=F
     for f in sorted(paths.config_dir.rglob("*")):
         if f.is_file() and f.suffix != ".gpkg" and f.name != "realization.json":
             rel = str(f.relative_to(paths.config_dir))
-            text = f.read_text(errors="replace")
-            produced[rel] = _normalize(text, paths.output_dir)  # type: ignore
+            produced[rel] = normalize(
+                f.read_text(errors="replace"), paths.output_dir # type: ignore
+            )
+
     return produced
 
 
@@ -85,16 +87,16 @@ def require_fixture():
 
 
 # ===========================================================================
-# Headline: the wrapper reproduces the legacy config golden.
+# Headline: the wrapper reproduces the config golden.
 # ===========================================================================
 @pytest.mark.parametrize("cat_id", list(GEOPACKAGE_FIXTURES))
-def test_modular_configs_match_legacy_golden(cat_id, tmp_path, monkeypatch, require):
-    """The full supported model set (routing on) must reproduce {cat_id}.json --
-    the same golden the legacy builder is checked against -- proving the wrapper
-    delegates to the makers with the correct arguments.
+def test_modular_configs_match_golden(cat_id, tmp_path, monkeypatch, require):
+    """The full supported model set (routing on) must reproduce {cat_id}.json,
+    proving the wrapper delegates to the makers with the correct arguments.
 
-    Note: this shares tests/golden/config/{cat_id}.json with
-    test_config_generation, so regenerate via that suite's UPDATE_GOLDEN flow.
+    Regenerate with ``uv run python tests/golden/regen_realization_goldens.py``
+    (needs S3 + the CONUS hydrofabric), then eyeball and commit the diff under
+    tests/golden/config/.
     """
     require(cat_id)
     produced = _generate_modular_config(
@@ -102,13 +104,11 @@ def test_modular_configs_match_legacy_golden(cat_id, tmp_path, monkeypatch, requ
     )
 
     golden_file = GOLDEN_CONFIG_DIR / f"{cat_id}.json"
-    assert golden_file.exists(), (
-        f"missing golden {golden_file}. Generate it with: "
-        f"UPDATE_GOLDEN=1 uv run pytest tests/test_config_generation.py"
-    )
+    assert golden_file.exists(), f"missing golden {golden_file}."
+
     golden = json.loads(golden_file.read_text())
 
-    # 1) the set of generated files must match the legacy set exactly
+    # 1) the set of generated files must match exactly
     missing = sorted(set(golden) - set(produced))
     extra = sorted(set(produced) - set(golden))
     assert not missing and not extra, (
@@ -116,7 +116,7 @@ def test_modular_configs_match_legacy_golden(cat_id, tmp_path, monkeypatch, requ
     )
 
     # 2) each file's (normalized) content must match, with numeric tolerance
-    changed = [p for p in sorted(golden) if not _config_text_equivalent(golden[p], produced[p])]
+    changed = [p for p in sorted(golden) if not config_text_equivalent(golden[p], produced[p])]
     if changed:
         first = changed[0]
         diff = "\n".join(

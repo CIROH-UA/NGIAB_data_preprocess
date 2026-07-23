@@ -9,14 +9,6 @@
         "allow_exceed_end_time": true,
         "main_output_variable": "QINSUR",
         "variables_names_map": {
-            "PRCPNONC": "precip_rate",
-            "Q2": "SPFH_2maboveground",
-            "SFCTMP": "TMP_2maboveground",
-            "UU": "UGRD_10maboveground",
-            "VV": "VGRD_10maboveground",
-            "LWDN": "DLWRF_surface",
-            "SOLDN": "DSWRF_surface",
-            "SFCPRS": "PRES_surface"
         },
         "uses_forcing_file": false
     }

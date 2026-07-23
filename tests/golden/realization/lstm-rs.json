@@ -5,11 +5,11 @@
         "name": "bmi_multi",
         "params": {
           "name": "bmi_multi",
-          "model_type_name": "lstm",
+          "model_type_name": "bmi_multi",
+          "main_output_variable": "land_surface_water__runoff_depth",
           "forcing_file": "",
           "init_config": "",
           "allow_exceed_end_time": true,
-          "main_output_variable": "land_surface_water__runoff_depth",
           "modules": [
             {
               "name": "bmi_c",
@@ -40,8 +40,8 @@
     "end_time": "2020-01-02 00:00:00",
     "output_interval": 3600
   },
+  "output_root": "./outputs/ngen",
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
-  },
-  "output_root": "./outputs/ngen"
+  }
 }
