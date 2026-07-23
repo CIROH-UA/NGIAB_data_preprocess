@@ -9,8 +9,6 @@
         "allow_exceed_end_time": true,
         "main_output_variable": "raim",
         "variables_names_map": {
-            "precip": "atmosphere_water__liquid_equivalent_precipitation_rate",
-            "tair": "land_surface_air__temperature"
         },
         "uses_forcing_file": false
     }

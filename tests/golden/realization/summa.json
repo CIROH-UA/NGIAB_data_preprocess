@@ -5,11 +5,11 @@
         "name": "bmi_multi",
         "params": {
           "name": "bmi_multi",
-          "model_type_name": "bmi_multi_summa",
+          "model_type_name": "bmi_multi",
+          "main_output_variable": "land_surface_water__runoff_volume_flux",
           "forcing_file": "",
           "init_config": "",
           "allow_exceed_end_time": true,
-          "main_output_variable": "land_surface_water__runoff_volume_flux",
           "modules": [
             {
               "name": "bmi_fortran",
