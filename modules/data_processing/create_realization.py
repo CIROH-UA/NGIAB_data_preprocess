@@ -13,6 +13,7 @@ from data_processing.file_paths import FilePaths
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass(frozen=True)
 class ModelSpec:
     """All per-model coupling knowledge for one model.
@@ -46,6 +47,21 @@ class ModelSpec:
 # THE REGISTRY
 # One entry per model. Order here is only for readability.
 # ---------------------------------------------------------------------------
+
+# dhbv2 and dhbv2_daily share an identical forcing variables_names_map; the registry
+# is read-only (ModelSpec is frozen) and create_modular_realization always deep-copies
+# before mutating, so both entries can safely reference this one dict.
+_DHBV2_FORCING_VARS_MAP = {
+    "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
+    "land_surface_air__temperature": "TMP_2maboveground",
+    "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+    "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+    "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+    "land_surface_air__pressure": "PRES_surface",
+    "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+    "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+    "land_surface_water__runoff_volume_flux": "streamflow",
+}
 
 MODEL_REGISTRY: dict[str, ModelSpec] = {
     "sloth": ModelSpec(
@@ -139,44 +155,24 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
     "lstm": ModelSpec(
         main_output_variable="land_surface_water__runoff_depth",
         realization_fragment=FilePaths.lstm_modular_config,
-        routable=True
+        routable=True,
     ),
     "lstm_rust": ModelSpec(
         main_output_variable="land_surface_water__runoff_depth",
         realization_fragment=FilePaths.lstm_rust_modular_config,
-        routable=True
+        routable=True,
     ),
     "dhbv2": ModelSpec(
         main_output_variable="land_surface_water__runoff_volume_flux",
         realization_fragment=FilePaths.dhbv2_modular_config,
         routable=True,
-        variables_names_map={
-            "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
-            "land_surface_air__temperature": "TMP_2maboveground",
-            "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
-            "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
-            "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
-            "land_surface_air__pressure": "PRES_surface",
-            "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
-            "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
-            "land_surface_water__runoff_volume_flux": "streamflow",
-        },
+        variables_names_map=_DHBV2_FORCING_VARS_MAP,
     ),
     "dhbv2_daily": ModelSpec(
         main_output_variable="land_surface_water__runoff_volume_flux",
         realization_fragment=FilePaths.dhbv2_daily_modular_config,
         routable=True,
-        variables_names_map={
-            "atmosphere_water__liquid_equivalent_precipitation_rate": "precip_rate",
-            "land_surface_air__temperature": "TMP_2maboveground",
-            "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
-            "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
-            "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
-            "land_surface_air__pressure": "PRES_surface",
-            "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
-            "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
-            "land_surface_water__runoff_volume_flux": "streamflow",
-        },
+        variables_names_map=_DHBV2_FORCING_VARS_MAP,
     ),
     "summa": ModelSpec(
         main_output_variable="land_surface_water__runoff_volume_flux",
@@ -308,10 +304,29 @@ ALL_SLOTH_MODEL_PARAMS = {
 # Read as: ("target_model", lambda models: <condition that means rule is broken>, "warning")
 # ---------------------------------------------------------------------------
 
+
 def _is_coupled(models: list[str]) -> bool:
     if len([m for m in models if m != "sloth"]) > 1:
         return True
     return False
+
+
+# Standalone models (LSTM variants, dHBV2 variants) should never be coupled with a
+# physics model -- shared predicate + label map avoids repeating the same lambda/tuple
+# shape for each one below.
+_PHYSICS_MODELS = ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
+
+
+def _standalone_conflict(models: list[str]) -> bool:
+    return any(m in models for m in _PHYSICS_MODELS)
+
+
+_STANDALONE_MODEL_LABELS = {
+    "lstm": "LSTM",
+    "lstm_rust": "LSTM-rust",
+    "dhbv2": "dHBV2",
+    "dhbv2_daily": "dHBV2-daily",
+}
 
 MODEL_DEPENDENCY_RULES = (
     # SLoTH required — bootstraps defaults for any model needing inter-model vars at t=0
@@ -363,33 +378,13 @@ MODEL_DEPENDENCY_RULES = (
     #     "SFT has no downstream consumer (CFE or CASAM) and no SMP",
     # ),
     # Standalone models should not couple with physics models
-    (
-        "lstm",
-        lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
-        ),
-        "LSTM is standalone — unexpected coupling with physics models",
-    ),
-    (
-        "lstm_rust",
-        lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
-        ),
-        "LSTM-rust is standalone — unexpected coupling with physics models",
-    ),
-    (
-        "dhbv2",
-        lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
-        ),
-        "dHBV2 is standalone — unexpected coupling with physics models",
-    ),
-    (
-        "dhbv2_daily",
-        lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
-        ),
-        "dHBV2-daily is standalone — unexpected coupling with physics models",
+    *(
+        (
+            model,
+            _standalone_conflict,
+            f"{label} is standalone — unexpected coupling with physics models",
+        )
+        for model, label in _STANDALONE_MODEL_LABELS.items()
     ),
     (
         "summa",
@@ -424,8 +419,8 @@ def validate_models(models: list[str], routing: bool) -> list:
         invalid_models = [model for model in models if model not in MODEL_REGISTRY]
         raise ValueError(
             (
-                f"Invalid models specified: {invalid_models}. " +
-                f"Supported models are: {list(MODEL_REGISTRY.keys())}"
+                f"Invalid models specified: {invalid_models}. "
+                + f"Supported models are: {list(MODEL_REGISTRY.keys())}"
             )
         )
 
@@ -454,7 +449,9 @@ def _insert_sloth_module(
                 params[varname + ALL_SLOTH_MODEL_PARAMS[varname]] = 0.0
     sloth_position = models.index("sloth")
     with open(
-        MODEL_REGISTRY["sloth"].realization_fragment, "r", encoding="utf-8" # type: ignore
+        MODEL_REGISTRY["sloth"].realization_fragment,
+        "r",
+        encoding="utf-8",  # type: ignore
     ) as f:
         sloth_realization = json.load(f)
 
@@ -465,7 +462,9 @@ def _insert_sloth_module(
     modules.insert(sloth_position, sloth_realization)
 
 
-def _handle_calibrated_params(paths: FilePaths, gage_id: str) -> bool:
+def _handle_calibrated_params(
+    paths: FilePaths, gage_id: str, start_time: datetime, end_time: datetime
+) -> bool:
     # try and download s3:communityhydrofabric/hydrofabrics/community/gage_parameters/gage_id
     # if it doesn't exist, use the default
     url = (
@@ -476,9 +475,11 @@ def _handle_calibrated_params(paths: FilePaths, gage_id: str) -> bool:
 
     if response.status_code == 200:
         new_template = response.json()
-        template_path = paths.config_dir / "downloaded_params.json"
-        with open(template_path, "w", encoding="utf-8") as f:
-            json.dump(new_template, f)
+        new_template["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
+        new_template["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
+        realization_path = paths.config_dir / "realization.json"
+        with open(realization_path, "w", encoding="utf-8") as f:
+            json.dump(new_template, f, indent=4)
 
         logger.info("downloaded calibrated parameters for %s", gage_id)
         return True
@@ -516,7 +517,7 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
 
     # calibrated parameter fetching
     if gage_id is not None and models == ["sloth", "nom", "cfe"]:
-        if _handle_calibrated_params(paths, gage_id):
+        if _handle_calibrated_params(paths, gage_id, start_time, end_time):
             return
 
     main_output_variable = MODEL_REGISTRY[models[-1]].main_output_variable
@@ -540,7 +541,9 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
                 target_variable_names[model].update(overrides)
 
         with open(
-            MODEL_REGISTRY[model].realization_fragment, "r", encoding="utf-8" # type: ignore
+            MODEL_REGISTRY[model].realization_fragment,
+            "r",
+            encoding="utf-8",  # type: ignore
         ) as f:
             realization = json.load(f)
         if model in target_variable_names:
@@ -555,9 +558,9 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
     with open(FilePaths.modular_template, "r", encoding="utf-8") as f:
         realization = json.load(f)
 
-    realization["global"]["formulations"][0]["params"][
-        "main_output_variable"
-    ] = main_output_variable
+    realization["global"]["formulations"][0]["params"]["main_output_variable"] = (
+        main_output_variable
+    )
     realization["global"]["formulations"][0]["params"]["modules"] = modules
     realization["time"]["start_time"] = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
