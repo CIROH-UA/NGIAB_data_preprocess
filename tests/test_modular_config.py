@@ -1,8 +1,8 @@
-"""Config-generation tests for ``create_configs`` (the orchestration wrapper).
-"""
+"""Config-generation tests for ``create_configs`` (the orchestration wrapper)."""
 
 import difflib
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -66,7 +66,8 @@ def _generate_modular_config(cat_id, tmp_root, monkeypatch, *, models, routing=F
         if f.is_file() and f.suffix != ".gpkg" and f.name != "realization.json":
             rel = str(f.relative_to(paths.config_dir))
             produced[rel] = normalize(
-                f.read_text(errors="replace"), paths.output_dir # type: ignore
+                f.read_text(errors="replace"),
+                paths.output_dir,  # type: ignore
             )
 
     return produced
@@ -147,6 +148,36 @@ class TestOrchestration:
             CAT_ID, tmp_path, monkeypatch, models=["cfe"], routing=True
         )
         assert "troute.yaml" in produced
+
+    def test_troute_nested_output_folder_uses_leaf_name(self, tmp_path, monkeypatch, require):
+        """A nested output_folder (containing a path separator) must not leak into
+        the on-disk gpkg lookup or the troute.yaml geo_file_path -- both must
+        resolve to the bare leaf name, matching how FilePaths.geopackage_path
+        always builds the real gpkg filename from the leaf-only folder_name.
+
+        Regression test for the path-handling bug fixed on main in #228
+        ("Fix output_name path handling"), which was silently reintroduced when
+        config generation was split out into create_configs.py.
+        """
+        require(CAT_ID)
+        monkeypatch.chdir(tmp_path)
+        nested_id = f"nested/{CAT_ID}"
+
+        # FilePaths resolves a multi-segment folder_name relative to cwd (not
+        # get_working_dir()), so chdir into tmp_path keeps this hermetic. The gpkg
+        # itself still only ever lives at paths.geopackage_path (leaf-name only).
+        paths = FilePaths(nested_id)
+        paths.config_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(GEOPACKAGE_FIXTURES[CAT_ID], paths.geopackage_path)
+
+        create_modular_configs(nested_id, START, END, ["cfe"], routing=True)
+
+        troute_yaml = (paths.config_dir / "troute.yaml").read_text()
+        match = re.search(r"geo_file_path:\s*(\S+)", troute_yaml)
+        assert match, "troute.yaml missing geo_file_path"
+        geo_file_path = match.group(1)
+        assert geo_file_path == f"./config/{CAT_ID}_subset.gpkg"
+        assert "nested" not in geo_file_path
 
     def test_routing_false_omits_troute(self, tmp_path, monkeypatch, require):
         """routing=False must not emit a troute.yaml."""
