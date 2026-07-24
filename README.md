@@ -208,15 +208,8 @@ Installed with uv: `uv run cli`
 - `--subset_type`: Specify the subset type. `nexus`: get everything flowing into the downstream nexus of the selected catchment. `catchment`: get everything flowing into the selected catchment.
 - `-f`, `--forcings`: Generate forcings for the given feature.
 - `-r`, `--realization`: Create a realization for the given feature.
-- `--lstm`: Configures the data for the [python lstm](https://github.com/ciroh-ua/lstm/) with t-route activated.
-- `--lstm_rust`: Configures the data for the [rust lstm](https://github.com/ciroh-ua/rust-lstm-1025/) with t-route activated.
-- `--dhbv2`: Configures the data for the hourly [dHBV2](https://github.com/mhpi/dhbv2) with t-route activated.
-- `--dhbv2_daily`: Configures the data for the daily [dHBV2](https://github.com/mhpi/dhbv2) with t-route activated.
-- `--summa`: Configures the data for the [SUMMA](https://github.com/CH-Earth/summa) model with t-route activated.
-- `--snow17`: Configures the data for the [SNOW17](https://github.com/NOAA-OWP/snow17) model. This configuration contains SLoTH, SNOW17, NOM, and CFE, and activates t-route.
-- `--sacsma`: Configures the data for the [SAC-SMA](https://github.com/NOAA-OWP/sac-sma) model. This configuration contains NOM and SAC-SMA, and activates t-route
-- `--models`: Configures the data for a user-specified model coupling, e.g., `--models sloth nom cfe`
-- `--routing`: Configures the data for a t-route run. This flag only changes preprocessor behavior if used with `--models`.
+- `--models`: Configures the data for a user-specified model coupling, e.g., `--models sloth nom cfe`. See [Custom](#custom) for the full list of supported models and examples.
+- `--routing`: Enables t-route for a `--models` run. This flag only changes preprocessor behavior if used with `--models`.
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
@@ -277,8 +270,8 @@ Installed with uv: `uv run cli`
 
 8. Prepare everything for an NGIAB LSTM run at a given gage:
    ```bash
-   uvx ngiab-prep -i gage-10154200 -sfr --start 2022-01-01 --end 2022-02-28 --lstm
-   #         you can replace --lstm with any other model, like --lstm_rust, --dhbv2, --dhbv2_daily, --summa
+   uvx ngiab-prep -i gage-10154200 -sfr --start 2022-01-01 --end 2022-02-28 --models lstm --routing
+   #         you can replace lstm with any other model in MODEL_REGISTRY, e.g. lstm_rust, dhbv2, dhbv2_daily, summa
    ```
 
 9. Prepare everything for a custom NGIAB SLoTH + SNOW17 + CASAM + t-route run at a given gage:
@@ -325,7 +318,7 @@ This tool currently offers eight default realizations, as well as the ability to
 
 ## Custom
 
-Users can now mix and match models to create custom realizations. Models supported by this capability are `sloth`, `nom`, `cfe`, `lstm`, `lstm_rust`, `dhbv2`, `dhbv2_daily`, `snow17`, `sac-sma`, and `casam`. SUMMA is not currently supported by this functionality, but we plan on adding it in the future. This feature includes automated validation (i.e., a warning will appear if the preprocessor thinks a user has submitted an invalid list of models to couple).
+Users can now mix and match models to create custom realizations. Models supported by this capability are `sloth`, `nom`, `cfe`, `lstm`, `lstm_rust`, `dhbv2`, `dhbv2_daily`, `snow17`, `sac-sma`, `casam`, and `summa`. Note that `summa` derives its HRU ordering from the already-generated forcings file, so forcings must be created (`-f`) before running `--models summa`. This feature includes automated validation (i.e., a warning will appear if the preprocessor thinks a user has submitted an invalid list of models to couple).
 
 To use this functionality, add the `--models` flag with the list of models you would like to couple together in the order that they should be run. To activate routing through t-route, append the `--routing` flag. Some examples include:
 
