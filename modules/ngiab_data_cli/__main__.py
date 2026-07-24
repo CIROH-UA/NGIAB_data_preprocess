@@ -45,11 +45,17 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             warning_message = "Model configuration warnings:\n" + "\n".join(warnings)
             logging.warning(warning_message)
 
-            response = Prompt.ask(
-                "Run anyway? (y/n)",
-                default="n",
-                choices=["y", "n"],
-            )
+            if sys.stdin.isatty():
+                response = Prompt.ask(
+                    "Run anyway? (y/n)",
+                    default="n",
+                    choices=["y", "n"],
+                )
+            else:
+                logging.warning(
+                    "Non-interactive session detected, proceeding automatically despite warnings."
+                )
+                response = "y"
             if response == "n":
                 raise ValueError("Model configuration invalid: " + warning_message)
             print("Proceeding with data preprocessing despite warnings: " + warning_message)
@@ -244,7 +250,7 @@ def main() -> None:
                     end_time=args.end_date,
                     models=args.models,
                     routing=args.routing,
-                    gage_id=gage_id
+                    gage_id=gage_id,
                 )
                 create_modular_configs(
                     output_folder,
@@ -255,13 +261,21 @@ def main() -> None:
                 )
             else:
                 # default to SLoTH + NOM + CFE + t-route
+                # default realizations always include t-route regardless of --routing
                 create_modular_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
                     models=["sloth", "nom", "cfe"],
-                    routing=args.routing,
-                    gage_id=gage_id
+                    routing=True,
+                    gage_id=gage_id,
+                )
+                create_modular_configs(
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                    models=["sloth", "nom", "cfe"],
+                    routing=True,
                 )
             logging.info("Realization creation complete.")
 
@@ -270,20 +284,20 @@ def main() -> None:
 
             try:
                 subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
-            except:
+            except Exception:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
                 command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
-            except:
+            except Exception:
                 logging.error("Next Gen run failed.")
 
         if args.eval:
             plot = False
             try:
-                import matplotlib
-                import seaborn
+                import matplotlib  # noqa: F401
+                import seaborn  # noqa: F401
 
                 plot = True
             except ImportError:
@@ -307,7 +321,7 @@ def main() -> None:
             try:
                 command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:v0.2.1'
                 subprocess.run(command, shell=True)
-            except:
+            except Exception:
                 logging.error("Failed to launch docker container.")
 
         logging.info("All operations completed successfully.")
