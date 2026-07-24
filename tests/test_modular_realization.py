@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from data_processing.file_paths import FilePaths
+from data_processing import create_realization
 from data_processing.create_realization import (
     ALL_SLOTH_MODEL_PARAMS,
     MODEL_REGISTRY,
@@ -39,12 +40,19 @@ def make_realization_fixture(tmp_path, monkeypatch):
     monkeypatch.setattr(FilePaths, "get_working_dir", classmethod(lambda cls: Path(tmp_path)))
 
     def _run(  # pylint: disable=too-many-arguments
-        models, *, folder="cat-test", start=START, end=END, routing=False, make_config=True
+        models,
+        *,
+        folder="cat-test",
+        start=START,
+        end=END,
+        routing=False,
+        make_config=True,
+        gage_id=None,
     ):
         paths = FilePaths(folder)
         if make_config:
             paths.config_dir.mkdir(parents=True, exist_ok=True)
-        create_modular_realization(folder, start, end, models, routing=routing)
+        create_modular_realization(folder, start, end, models, routing=routing, gage_id=gage_id)
         return json.loads((paths.config_dir / "realization.json").read_text())
 
     return _run
@@ -292,8 +300,9 @@ class TestCreateModularRealization:
         """cfe before nom -> cfe keeps its default (sloth/forcing) sources."""
         r = make_realization(["sloth", "cfe", "nom"])
         vmap = _cfe_module(r)["params"]["variables_names_map"]
-        assert vmap["water_potential_evaporation_flux"] == (
-            MODEL_REGISTRY["cfe"].variables_names_map["water_potential_evaporation_flux"]
+        assert (
+            vmap["water_potential_evaporation_flux"]
+            == (MODEL_REGISTRY["cfe"].variables_names_map["water_potential_evaporation_flux"])
         )
 
     def test_routing_on_adds_troute_block(self, make_realization):
@@ -319,3 +328,102 @@ class TestCreateModularRealization:
             make_realization(
                 ["sloth", "cfe"], start="2020-01-01 00:00:00", end="2020-01-02 00:00:00"
             )
+
+
+# ---------------------------------------------------------------------------
+# create_modular_realization -- calibrated-parameter (gage_id) path
+# ---------------------------------------------------------------------------
+class _FakeResponse:
+    """Minimal stand-in for a ``requests.Response``."""
+
+    def __init__(self, status_code, payload=None):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class TestCreateModularRealizationCalibratedParams:
+    """Validate the gage_id/calibrated-parameter short-circuit path."""
+
+    def test_successful_download_writes_patched_realization_json(
+        self, make_realization, monkeypatch, tmp_path
+    ):
+        """A 200 response must still result in config/realization.json being
+        written, with the placeholder time fields overwritten by the
+        caller-supplied start/end times (not left as the downloaded stub's
+        placeholder values)."""
+        fake_payload = {
+            "time": {
+                "start_time": "1900-01-01 00:00:00",
+                "end_time": "1900-01-02 00:00:00",
+                "output_interval": 3600,
+            },
+            "global": {"formulations": [{"params": {"model_type_name": "CFE"}}]},
+            "output_root": "./outputs/",
+        }
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            return _FakeResponse(200, fake_payload)
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "nom", "cfe"], gage_id="gage-01234567")
+
+        realization_path = tmp_path / "cat-test" / "config" / "realization.json"
+        assert realization_path.exists()
+        assert result["time"]["start_time"] == "2020-01-01 00:00:00"
+        assert result["time"]["end_time"] == "2020-01-02 00:00:00"
+        # Confirms the downloaded template (not the modular-registry template)
+        # was the basis for the written file.
+        assert result["output_root"] == "./outputs/"
+        # The old, dead-end filename should not be produced anymore.
+        assert not (tmp_path / "cat-test" / "config" / "downloaded_params.json").exists()
+
+    def test_failed_download_falls_back_to_modular_template(
+        self, make_realization, monkeypatch, tmp_path
+    ):
+        """A non-200 response must not short-circuit -- the normal modular
+        build (from MODEL_REGISTRY) still runs and produces realization.json."""
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            return _FakeResponse(404)
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "nom", "cfe"], gage_id="gage-01234567")
+
+        realization_path = tmp_path / "cat-test" / "config" / "realization.json"
+        assert realization_path.exists()
+        # The modular build stamps main_output_variable from the registry --
+        # the downloaded-template path would never set this key this way.
+        params = result["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable
+
+    def test_gage_id_ignored_for_non_matching_model_combo(self, make_realization, monkeypatch):
+        """The calibrated-parameter path only triggers for the exact
+        ["sloth", "nom", "cfe"] combination -- requests.get must not even be
+        called for any other model list, even with a gage_id set."""
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            raise AssertionError("requests.get should not be called for this model combo")
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "cfe"], gage_id="gage-01234567")
+        params = result["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable
+
+    def test_no_gage_id_never_calls_requests(self, make_realization, monkeypatch):
+        """Without a gage_id, the calibrated-parameter path must be skipped
+        entirely, regardless of the model combination."""
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            raise AssertionError("requests.get should not be called without a gage_id")
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "nom", "cfe"])
+        params = result["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable
