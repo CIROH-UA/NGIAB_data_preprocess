@@ -35,7 +35,7 @@ EXPECTED_MODELS_CHOICES = [
     "snow17",
     "sac-sma",
     "casam",
-    "summa"
+    "summa",
 ]
 
 
@@ -153,3 +153,32 @@ class TestValidateInputModelsWiring:
         is never called."""
         cli_main.validate_input(_args(models=None))
         assert spy_validate_models == []
+
+
+# ---------------------------------------------------------------------------
+# validate_input: non-interactive stdin must not block on Prompt.ask
+# ---------------------------------------------------------------------------
+class _NonTtyStdin:
+    """Minimal stand-in for sys.stdin that reports itself as not a TTY."""
+
+    def isatty(self):
+        return False
+
+
+class TestValidateInputNonInteractive:
+    """When stdin is not a TTY (piped input, cron, CI), validate_input must not
+    call Prompt.ask -- doing so would hang or raise in a non-interactive
+    session. Instead it should log and proceed as if the user answered "y"."""
+
+    def test_skips_prompt_and_proceeds_when_not_a_tty(self, monkeypatch):
+        monkeypatch.setattr(cli_main, "validate_models", lambda models, routing: ["some warning"])
+        monkeypatch.setattr(sys, "stdin", _NonTtyStdin())
+
+        def _fail_if_called(*args, **kwargs):
+            raise AssertionError("Prompt.ask must not be called when stdin is not a TTY")
+
+        monkeypatch.setattr(cli_main.Prompt, "ask", _fail_if_called)
+
+        # Should not raise: warnings are present, but the non-interactive
+        # fallback treats the response as "y" (proceed), not "n".
+        cli_main.validate_input(_args(models=["sloth", "cfe"], routing=True))
