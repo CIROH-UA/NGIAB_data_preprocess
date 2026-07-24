@@ -1,4 +1,5 @@
 """Functions to generate BMI config files."""
+
 import logging
 import multiprocessing
 import os
@@ -69,12 +70,12 @@ def _get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.D
     conf_df["latitude"] = lat
     return conf_df
 
+
 # CONFIG GENERATORS!!
 
+
 def _make_cfe_config(
-    divide_conf_df: pandas.DataFrame,
-    files: FilePaths,
-    water_levels: dict
+    divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: dict
 ) -> None:
     """
     Parses parameters from NOAHOWP_CFE DataFrame and returns a dictionary of catchment \
@@ -347,7 +348,7 @@ def _make_casam_config(
     divide_conf_df: pandas.DataFrame,
     start_time: datetime,
     end_time: datetime,
-    sft_coupled: bool
+    sft_coupled: bool,
 ) -> None:
     """Generates CASAM BMI config
 
@@ -389,7 +390,7 @@ def _make_casam_config(
                     field_capacity_psi=row["field_capacity_psi"],
                     giuh_ordinates=fmt_list(row["giuh_ordinates"]),
                     sft_coupled=str(sft_coupled).lower(),
-                    soil_z=fmt_list(row["soil_z"])
+                    soil_z=fmt_list(row["soil_z"]),
                 )
             )
 
@@ -400,7 +401,8 @@ def _configure_troute(
     with open(FilePaths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
-    gpkg_file_path = f"{config_dir}/{cat_id}_subset.gpkg"
+    output_name = Path(cat_id).name
+    gpkg_file_path = config_dir / f"{output_name}_subset.gpkg"
     nts = (end_time - start_time).total_seconds() / time_step_size
     with sqlite3.connect(gpkg_file_path) as conn:
         ncats_df = pandas.read_sql_query("SELECT COUNT(id) FROM 'divides';", conn)
@@ -428,7 +430,7 @@ def _configure_troute(
         time_step_size=time_step_size,
         # troute seems to be ok with setting this to your cpu_count
         cpu_pool=multiprocessing.cpu_count(),
-        geo_file_path=f"./config/{cat_id}_subset.gpkg",
+        geo_file_path=f"./config/{output_name}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=nts,
         max_loop_size=max_loop_size,
@@ -438,7 +440,9 @@ def _configure_troute(
     with open(config_dir / "troute.yaml", "w") as file:
         file.write(filled_template)
 
+
 # SUMMA specific functions
+
 
 def _make_summa_config(hru_ids: list[int], output_dir: Path):
     with open(FilePaths.template_summa_config, "r") as file:
@@ -571,7 +575,7 @@ def _make_summa_attributes(hru_ids, hydrofabric):
     return ds
 
 
-def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset: # pylint: disable=invalid-name
+def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:  # pylint: disable=invalid-name
     ds = xr.Dataset(
         {
             "hruId": xr.DataArray(
@@ -593,10 +597,10 @@ def _make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset: #
     return ds
 
 
-def _make_summa_coldState(hru_ids): # pylint: disable=invalid-name
+def _make_summa_coldState(hru_ids):  # pylint: disable=invalid-name
     n_hru = len(hru_ids)
-    n_midToto = 3 # pylint: disable=invalid-name
-    n_ifcToto = 4 # pylint: disable=invalid-name
+    n_midToto = 3  # pylint: disable=invalid-name
+    n_ifcToto = 4  # pylint: disable=invalid-name
 
     def scalar_var(fill_val, dtype=np.float64):
         return xr.DataArray(
@@ -610,12 +614,12 @@ def _make_summa_coldState(hru_ids): # pylint: disable=invalid-name
             dims=[dim_name, "hru"],
         )
 
-    iLayerHeight_data = np.broadcast_to( # pylint: disable=invalid-name
+    iLayerHeight_data = np.broadcast_to(  # pylint: disable=invalid-name
         np.array([0.0, 0.2, 0.5, 1.0])[:, np.newaxis],
         (n_ifcToto, n_hru),
     ).copy()
 
-    mLayerDepth_data = np.broadcast_to( # pylint: disable=invalid-name
+    mLayerDepth_data = np.broadcast_to(  # pylint: disable=invalid-name
         np.array([0.2, 0.3, 0.5])[:, np.newaxis],
         (n_midToto, n_hru),
     ).copy()
@@ -663,8 +667,8 @@ def _make_summa_coldState(hru_ids): # pylint: disable=invalid-name
 
 
 def _make_summa_config_suite(cat_id: str, start_time: datetime, end_time: datetime):
-    """Makes SUMMA configuration files. Much of this code is duplicated from
-    create_summa_realization, which will be the task of a future refactor to clean up
+    """Makes SUMMA configuration files: model config, attributes, trial params, and
+    cold state, plus copies the static SUMMA file manager suite into the run directory.
 
     Args:
         cat_id (str): Catchment ID
@@ -700,6 +704,7 @@ def _make_summa_config_suite(cat_id: str, start_time: datetime, end_time: dateti
     ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
     _make_summa_config(hru_ids, paths.config_dir)
     paths.setup_run_folders(["outputs/summa"])
+
 
 def create_modular_configs(  # pylint: disable=too-many-branches
     output_folder: str,
