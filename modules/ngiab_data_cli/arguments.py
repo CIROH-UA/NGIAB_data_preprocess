@@ -202,9 +202,6 @@ def parse_arguments() -> argparse.Namespace:
         args.realization = True
         args.run = True
 
-    if args.vis:
-        args.eval = True
-
     if args.run:
         args.validate = True
 
