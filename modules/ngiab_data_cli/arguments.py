@@ -27,7 +27,10 @@ def parse_arguments() -> argparse.Namespace:
         "--input_feature",
         "--input_file",
         type=str,
-        help="ID of feature to subset, providing a prefix will automatically convert to catid, \n e.g. cat-5173 or gage-01646500 or wb-1234",
+        help=(
+            "ID of feature to subset, providing a prefix will automatically convert to catid, \n"
+            + "e.g. cat-5173 or gage-01646500 or wb-1234"
+        ),
     )
     group.add_argument(
         "--vpu",
@@ -71,7 +74,10 @@ def parse_arguments() -> argparse.Namespace:
         "-g",
         "--gage",
         action="store_true",
-        help="Use gage ID instead of catid, expects a single gage ID via the cli \n e.g. python -m ngiab_data_cli -i 01646500 -g -s",
+        help=(
+            "Use gage ID instead of catid, expects a single gage ID via the cli \n "
+            + "e.g. python -m ngiab_data_cli -i 01646500 -g -s"
+        ),
     )
     parser.add_argument(
         "-s",
@@ -115,7 +121,10 @@ def parse_arguments() -> argparse.Namespace:
         "-o",
         "--output_name",
         type=str,
-        help="Custom data output folder name in lieu of the default, which is the ID of the input feature",
+        help=(
+            "Custom data output folder name in lieu of the default, which is the ID of the "
+            + "input feature"
+        ),
     )
     parser.add_argument(
         "-D",
@@ -128,14 +137,20 @@ def parse_arguments() -> argparse.Namespace:
         "--models",
         type=str,
         nargs="+",
-        help="List of models to couple together in the order of execution, e.g. --models sloth nom cfe",
+        help=(
+            "List of models to couple together in the order of execution, e.g. "
+            + "--models sloth nom cfe"
+        ),
         choices=list(MODEL_REGISTRY.keys()),
     )
 
     parser.add_argument(
         "--routing",
         action="store_true",
-        help="enable routing when running with custom coupled models. Note this this will not activate without --models",
+        help=(
+            "enable routing when running with custom coupled models. Note this this will not "
+            + "activate without --models"
+        ),
     )
 
     parser.add_argument(
@@ -150,12 +165,6 @@ def parse_arguments() -> argparse.Namespace:
         "--validate", action="store_true", help="Run every missing step required to run ngiab"
     )
     parser.add_argument(
-        "--eval", action="store_true", help="Evaluate perforance of the model after running"
-    )
-    parser.add_argument(
-        "--vis", "--visualise", action="store_true", help="Visualize the model output"
-    )
-    parser.add_argument(
         "--source",
         type=str,
         help="source of the data",
@@ -165,7 +174,10 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--subset_type",
         type=str,
-        help="By nexus: get everything flowing into the downstream nexus of the selected catchment. By catchment: get everything flowing into the selected catchment.",
+        help=(
+            "By nexus: get everything flowing into the downstream nexus of the selected "
+            + "catchment. By catchment: get everything flowing into the selected catchment."
+        ),
         choices=["nexus", "catchment"],
         default="nexus",
     )
@@ -189,9 +201,6 @@ def parse_arguments() -> argparse.Namespace:
         args.forcings = True
         args.realization = True
         args.run = True
-
-    if args.vis:
-        args.eval = True
 
     if args.run:
         args.validate = True

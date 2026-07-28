@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 from typing import List, Union
+import sys
 
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import (
@@ -46,7 +47,8 @@ def create_subset_gpkg(
     if not override_gpkg:
         if os.path.exists(output_gpkg_path):
             response = Prompt.ask(
-                f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want to overwrite it?",
+                f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want "
+                + "to overwrite it?",
                 default="n",
                 choices=["y", "n"],
             )
@@ -55,13 +57,13 @@ def create_subset_gpkg(
                 os.remove(output_gpkg_path)
             else:
                 console.print("Exiting...", style="bold red")
-                exit()
+                sys.exit()
     else:
         if os.path.exists(output_gpkg_path):
             os.remove(output_gpkg_path)
 
     create_empty_gpkg(output_gpkg_path)
-    logger.info(f"Subsetting tables: {subset_tables}")
+    logger.info("Subsetting tables: %s", subset_tables)
     for table in subset_tables:
         if is_vpu:
             subset_table_by_vpu(table, ids[0], hydrofabric, output_gpkg_path)
@@ -77,7 +79,8 @@ def subset_vpu(
 ):
     if os.path.exists(output_gpkg_path):
         response = Prompt.ask(
-            f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want to overwrite it?",
+            f"Subset geopackage at {output_gpkg_path} already exists. Are you sure you want to "
+            + "overwrite it?",
             default="n",
             choices=["y", "n"],
         )
@@ -86,10 +89,10 @@ def subset_vpu(
             os.remove(output_gpkg_path)
         else:
             console.print("Exiting...", style="bold red")
-            exit()
+            sys.exit()
 
     create_subset_gpkg(vpu_id, hydrofabric, output_gpkg_path=output_gpkg_path, is_vpu=True)
-    logger.info(f"Subset complete for VPU {vpu_id}")
+    logger.info("Subset complete for VPU %s", vpu_id)
     return output_gpkg_path.parent
 
 
@@ -110,5 +113,5 @@ def subset(
         output_gpkg_path = paths.geopackage_path
 
     create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path, override_gpkg=override_gpkg)
-    logger.info(f"Subset complete for {len(upstream_ids)} features (catchments + nexuses)")
-    logger.debug(f"Subset complete for {upstream_ids} catchments")
+    logger.info("Subset complete for %s features (catchments + nexuses)", len(upstream_ids))
+    logger.debug("Subset complete for %s catchments", upstream_ids)

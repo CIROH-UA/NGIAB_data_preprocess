@@ -14,20 +14,6 @@ from shapely.wkb import loads
 logger = logging.getLogger(__name__)
 
 
-class GeoPackage:
-    def __init__(self, file_name):
-        self.file_name = file_name
-
-    def __enter__(self):
-        self.conn = sqlite3.connect(self.file_name)
-        self.conn.enable_load_extension(True)
-        self.conn.load_extension("mod_spatialite")
-        return self.conn
-
-    def __exit__(self, *args):
-        self.conn.close()
-
-
 def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     """
     Verify that the indices in the specified geopackage are correct.
@@ -45,7 +31,8 @@ def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
         'CREATE INDEX "flid" ON "flowpaths" ( "id" ASC );',
         'CREATE INDEX "hlid" ON "hydrolocations" ( "id" ASC );',
         'CREATE INDEX "gageid" ON "hydrolocations" ( "hl_uri" ASC );',
-        'CREATE INDEX "laid" ON "lakes" ( "poi_id" ASC );',  # flowpaths.id->pois.id->pois.poi_id->lakes.poi_id
+        # flowpaths.id->pois.id->pois.poi_id->lakes.poi_id
+        'CREATE INDEX "laid" ON "lakes" ( "poi_id" ASC );',
         'CREATE INDEX "poid" ON "pois" ( "id" ASC )',
         'CREATE INDEX "neid" ON "nexus" ( "id" ASC );',
         'CREATE INDEX "nid" ON "network" ( "id" ASC );',
@@ -61,7 +48,7 @@ def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
         logger.info("Creating indices")
     for index in new_indicies:
         if index.split('"')[1] not in indices:
-            logger.info(f"Creating index {index}")
+            logger.info("Creating index %s", index)
             con.execute(index)
             con.commit()
         # pragma optimize after creating the indices
@@ -74,7 +61,7 @@ def create_empty_gpkg(gpkg: Path) -> None:
     """
     Create an empty geopackage with the necessary tables and indices.
     """
-    with open(FilePaths.template_sql) as f:
+    with open(FilePaths.template_sql, encoding="utf-8") as f:
         sql_script = f.read()
 
     with sqlite3.connect(gpkg) as conn:
@@ -85,12 +72,12 @@ def add_triggers_to_gpkg(gpkg: Path) -> None:
     """
     Adds geopackage triggers required to maintain spatial index integrity
     """
-    with open(FilePaths.triggers_sql) as f:
+    with open(FilePaths.triggers_sql, encoding="utf-8") as f:
         triggers = f.read()
     with sqlite3.connect(gpkg) as conn:
         conn.executescript(triggers)
 
-    logger.debug(f"Added triggers to subset gpkg {gpkg}")
+    logger.debug("Added triggers to subset gpkg %s", gpkg)
 
 
 def blob_to_geometry(blob: bytes) -> BaseGeometry | None:
@@ -136,7 +123,7 @@ def blob_to_centre_point(blob: bytes) -> Point | None:
     envelope = blob[8:header_byte_length]
     if envelope_type != 1:
         logger.error(blob)
-        raise Exception("Envelope type not supported")
+        raise TypeError("Envelope type not supported")
     minx = struct.unpack("d", envelope[0:8])[0]
     maxx = struct.unpack("d", envelope[8:16])[0]
     miny = struct.unpack("d", envelope[16:24])[0]
@@ -147,7 +134,7 @@ def blob_to_centre_point(blob: bytes) -> Point | None:
     return Point(x, y)
 
 
-def convert_to_5070(shapely_geometry: Point) -> Point:
+def _convert_to_5070(shapely_geometry: Point) -> Point:
     # convert to web mercator
     if shapely_geometry.is_empty:
         return shapely_geometry
@@ -155,8 +142,8 @@ def convert_to_5070(shapely_geometry: Point) -> Point:
     target_crs = pyproj.CRS("EPSG:5070")
     project = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True).transform
     new_geometry = transform(project, shapely_geometry)
-    logger.debug(f" new geometry: {new_geometry}")
-    logger.debug(f"old geometry: {shapely_geometry}")
+    logger.debug(" new geometry: %s", new_geometry)
+    logger.debug("old geometry: %s", shapely_geometry)
     return new_geometry
 
 
@@ -175,10 +162,10 @@ def get_catid_from_point(coords: Dict[str, float]) -> str:
         IndexError: If no watershed boundary is found for the given point.
 
     """
-    logger.info(f"Getting catid for {coords}")
+    logger.info("Getting catid for %s", coords)
     q = FilePaths.conus_hydrofabric
     point = Point(coords["lng"], coords["lat"])
-    point = convert_to_5070(point)
+    point = _convert_to_5070(point)
     with sqlite3.connect(q) as con:
         sql = f"""SELECT DISTINCT d.divide_id, d.geom
                 FROM divides d
@@ -199,7 +186,7 @@ def get_catid_from_point(coords: Dict[str, float]) -> str:
     return results[0][0]
 
 
-def create_rTree_table(table: str, con: sqlite3.Connection) -> None:
+def create_rTree_table(table: str, con: sqlite3.Connection) -> None:  # pylint: disable=invalid-name
     """
     Create an rTree table for the specified table.
 
@@ -208,12 +195,13 @@ def create_rTree_table(table: str, con: sqlite3.Connection) -> None:
         con (sqlite3.Connection): The database connection.
     """
     con.execute(
-        f'CREATE VIRTUAL TABLE "rtree_{table}_geom" USING rtree("id", "minx", "maxx", "miny", "maxy")'
+        f'CREATE VIRTUAL TABLE "rtree_{table}_geom" '
+        + 'USING rtree("id", "minx", "maxx", "miny", "maxy")'
     )
     con.commit()
 
 
-def copy_rTree_tables(
+def copy_rTree_tables(  # pylint: disable=invalid-name
     table: str, ids: List[str], source_db: sqlite3.Connection, dest_db: sqlite3.Connection
 ) -> None:
     """
@@ -226,7 +214,7 @@ def copy_rTree_tables(
         source_db (sqlite3.Connection): The source database connection.
         dest_db (sqlite3.Connection): The destination database connection.
     """
-    rTree_table = f"rtree_{table}_geom"
+    rTree_table = f"rtree_{table}_geom"  # pylint: disable=invalid-name
 
     create_rTree_table(table, dest_db)
 
@@ -248,7 +236,7 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
     if len(contents) == 0:
         return
 
-    logger.debug(f"Inserting {table}")
+    logger.debug("Inserting %s", table)
     placeholders = ",".join("?" * len(contents[0]))
     con.executemany(f"INSERT INTO '{table}' VALUES ({placeholders})", contents)
     con.commit()
@@ -258,7 +246,8 @@ def update_geopackage_metadata(gpkg: Path) -> None:
     """
     Update the contents of the gpkg_contents table in the specified geopackage.
     """
-    # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
+    # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y,
+    # srs_id
     tables = get_feature_tables(FilePaths.conus_hydrofabric)
     con = sqlite3.connect(gpkg)
     for table in tables:
@@ -269,7 +258,11 @@ def update_geopackage_metadata(gpkg: Path) -> None:
         srs_id = con.execute(
             f"SELECT srs_id FROM gpkg_geometry_columns WHERE table_name = '{table}'"
         ).fetchone()[0]
-        sql_command = f"INSERT INTO gpkg_contents (table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id) VALUES ('{table}', 'features', '{table}', '', datetime('now'), {min_x}, {min_y}, {max_x}, {max_y}, {srs_id})"
+        sql_command = (
+            "INSERT INTO gpkg_contents (table_name, data_type, identifier, description, "
+            + f"last_change, min_x, min_y, max_x, max_y, srs_id) VALUES ('{table}', 'features', "
+            + f"'{table}', '', datetime('now'), {min_x}, {min_y}, {max_x}, {max_y}, {srs_id})"
+        )
         sql_command = sql_command.replace("None", "NULL")
         con.execute(sql_command)
     con.commit()
@@ -283,7 +276,8 @@ def update_geopackage_metadata(gpkg: Path) -> None:
     for table in tables:
         num_features = con.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[0]
         con.execute(
-            f"INSERT INTO gpkg_ogr_contents (table_name, feature_count) VALUES ('{table}', {num_features})"
+            "INSERT INTO gpkg_ogr_contents (table_name, feature_count) "
+            + f"VALUES ('{table}', {num_features})"
         )
 
     con.close()
@@ -291,16 +285,18 @@ def update_geopackage_metadata(gpkg: Path) -> None:
 
 def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_name: Path) -> None:
     """
-    Subset the specified table from the hydrofabric database by vpuid and save it to the subset geopackage.
+    Subset the specified table from the hydrofabric database by vpuid and save it to the subset
+    geopackage.
     vpus can be selected by section or as a whole e.g. 03=03N,03S,03W
 
     Args:
         table (str): The table name.
-        vpu (str): The VPU ID. e.g. 01,02,03N,03S,03W,04,05,06,07,08,09,10L,10U,11,12,13,14,15,16,17,18
+        vpu (str): The VPU ID.
+            e.g. 01,02,03N,03S,03W,04,05,06,07,08,09,10L,10U,11,12,13,14,15,16,17,18
         hydrofabric (Path): The path to the hydrofabric database.
         subset_gpkg_name (Path): The name of the subset geopackage.
     """
-    logger.debug(f"Subsetting {table} in {subset_gpkg_name}")
+    logger.debug("Subsetting %s in %s", table, subset_gpkg_name)
     source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
@@ -319,16 +315,18 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
     if table == "network":
         # Look for the network entry that has a toid not in the flowpath or nexus tables
         network_toids = [x[2] for x in contents]
-        logger.debug(f"Network toids: {len(network_toids)}")
+        logger.debug("Network toids: %s", len(network_toids))
         sql = "SELECT id FROM flowpaths"
         flowpath_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
-        logger.debug(f"Flowpath ids: {len(flowpath_ids)}")
+        logger.debug("Flowpath ids: %s", len(flowpath_ids))
         sql = "SELECT id FROM nexus"
         nexus_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
-        logger.debug(f"Nexus ids: {len(nexus_ids)}")
+        logger.debug("Nexus ids: %s", len(nexus_ids))
         bad_ids = set(network_toids) - set(flowpath_ids + nexus_ids)
         logger.debug(bad_ids)
-        logger.info(f"Removing {len(bad_ids)} network entries that are not in flowpaths or nexuses")
+        logger.info(
+            "Removing %s network entries that are not in flowpaths or nexuses", len(bad_ids)
+        )
         # id column is second after fid
         contents = [x for x in contents if x[1] not in bad_ids]
 
@@ -353,7 +351,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
         hydrofabric (str): The path to the hydrofabric database.
         subset_gpkg_name (str): The name of the subset geopackage.
     """
-    logger.debug(f"Subsetting {table} in {subset_gpkg_name}")
+    logger.debug("Subsetting %s in %s", table, subset_gpkg_name)
     source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
@@ -398,7 +396,8 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
 
 def get_table_crs_short(gpkg: str | Path, table: str) -> str:
     """
-    Gets the CRS of the specified table in the specified geopackage as a short string. e.g. EPSG:5070
+    Gets the CRS of the specified table in the specified geopackage as a short string.
+    e.g. EPSG:5070
 
     Args:
         gpkg (str): The path to the geopackage.
@@ -428,7 +427,10 @@ def get_table_crs(gpkg: str, table: str) -> str:
         str: The CRS of the table.
     """
     con = sqlite3.connect(gpkg)
-    sql_query = f"SELECT g.definition FROM gpkg_geometry_columns AS c JOIN gpkg_spatial_ref_sys AS g ON c.srs_id = g.srs_id WHERE c.table_name = '{table}'"
+    sql_query = (
+        "SELECT g.definition FROM gpkg_geometry_columns AS c JOIN gpkg_spatial_ref_sys AS g "
+        + f"ON c.srs_id = g.srs_id WHERE c.table_name = '{table}'"
+    )
     crs = con.execute(sql_query).fetchone()[0]
     con.close()
     return crs
@@ -451,21 +453,21 @@ def get_cat_from_gage_id(gage_id: str, gpkg: Path = FilePaths.conus_hydrofabric)
     gage_id = "".join([x for x in gage_id if x.isdigit()])
 
     if len(gage_id) < 8:
-        logger.warning(f"Gages in the hydrofabric are at least 8 digits {gage_id}")
+        logger.warning("Gages in the hydrofabric are at least 8 digits %s", gage_id)
         old_gage_id = gage_id
         gage_id = f"{int(gage_id):08d}"
-        logger.warning(f"Converted {old_gage_id} to {gage_id}")
+        logger.warning("Converted %s to %s", old_gage_id, gage_id)
 
-    logger.info(f"Getting catid for {gage_id}, in {gpkg}")
+    logger.info("Getting catid for %s, in %s", gage_id, gpkg)
 
     with sqlite3.connect(gpkg) as con:
         sql_query = f"SELECT id FROM 'flowpath-attributes' WHERE gage = '{gage_id}'"
         result = con.execute(sql_query).fetchall()
         if len(result) == 0:
-            logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
+            logger.critical("Gage ID %s is not associated with any waterbodies", gage_id)
             raise IndexError(f"Could not find a waterbody for gage {gage_id}")
         if len(result) > 1:
-            logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
+            logger.critical("Gage ID %s is associated with multiple waterbodies", gage_id)
             raise IndexError(f"Could not find a unique waterbody for gage {gage_id}")
 
         wb_id = result[0][0]
@@ -479,10 +481,12 @@ def get_cat_to_nex_flowpairs(hydrofabric: Path = FilePaths.conus_hydrofabric) ->
     Retrieves the from and to IDs from the specified hydrofabric.
 
     This functions returns a list of tuples containing (catchment ID, nexus ID).
-    The true network flows catchment to waterbody to nexus, this bypasses the waterbody and returns catchment to nexus.
+    The true network flows catchment to waterbody to nexus, this bypasses the waterbody and returns
+    catchment to nexus.
 
     Args:
-        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to FilePaths.conus_hydrofabric.
+        hydrofabric (Path, optional): The file path to the hydrofabric. Defaults to
+            FilePaths.conus_hydrofabric.
     Returns:
         List[tuple]: A list of tuples containing the from and to IDs.
     """
@@ -492,7 +496,7 @@ def get_cat_to_nex_flowpairs(hydrofabric: Path = FilePaths.conus_hydrofabric) ->
         edges = con.execute(sql_query).fetchall()
         con.close()
     except sqlite3.Error as e:
-        logger.error(f"SQLite error: {e}")
+        logger.error("SQLite error: %s", e)
         raise
     unique_edges = list(set(edges))
     return unique_edges
@@ -508,7 +512,9 @@ def get_feature_tables(gpkg: Path) -> List[str]:
 
 
 def get_available_tables(gpkg: Path) -> List[str]:
-    """Takes a Path to a geopackage and returns a list of non-metadata tables. aka gpd.list_layers()"""
+    """
+    Takes a Path to a geopackage and returns a list of non-metadata tables. aka gpd.list_layers()
+    """
     sql_query = "SELECT table_name FROM gpkg_contents"
     with sqlite3.connect(gpkg) as conn:
         tables = conn.execute(sql_query).fetchall()
@@ -526,11 +532,15 @@ def get_cat_to_nhd_feature_id(gpkg: Path = FilePaths.conus_hydrofabric) -> Dict[
         raise IndexError(f"More than one of the possible tables exists: {possible_tables}")
     if len(tables) == 0:
         raise IndexError(
-            f"No source data found for NHD ID in {available_tables}, expected one of {possible_tables}"
+            f"No source data found for NHD ID in {available_tables}, "
+            + f"expected one of {possible_tables}"
         )
 
     table_name = list(tables)[0]
-    sql_query = f"SELECT divide_id, hf_id FROM {table_name} WHERE divide_id IS NOT NULL AND hf_id IS NOT NULL ORDER BY hf_hydroseq DESC"
+    sql_query = (
+        f"SELECT divide_id, hf_id FROM {table_name} WHERE divide_id IS NOT NULL "
+        + "AND hf_id IS NOT NULL ORDER BY hf_hydroseq DESC"
+    )
 
     with sqlite3.connect(gpkg) as conn:
         result: List[Tuple[str, str]] = conn.execute(sql_query).fetchall()

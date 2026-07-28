@@ -84,7 +84,7 @@ def main() -> None:
         set_n_workers(args.dask_workers)
 
     gdf = gpd.read_file(args.input_file, layer="divides")
-    logging.debug(f"gdf  bounds: {gdf.total_bounds}")
+    logging.debug("gdf  bounds: %s", gdf.total_bounds)
 
     start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
     end_time = args.end_date.strftime("%Y-%m-%d %H:%M")
@@ -93,7 +93,7 @@ def main() -> None:
     print(cached_nc_path)
     if args.source == "aorc":
         data = load_aorc_zarr(args.start_date.year, args.end_date.year)
-    elif args.source == "nwm":
+    else:
         data = load_v3_retrospective_zarr()
 
     gdf = gdf.to_crs(data.crs)
@@ -115,7 +115,7 @@ def main() -> None:
     compute_zonal_stats(gdf, cached_data, forcing_working_dir)
 
     shutil.copy(forcing_working_dir / "forcings.nc", args.output_file)
-    logging.info(f"Created forcings file: {args.output_file}")
+    logging.info("Created forcings file: %s", args.output_file)
     # remove the working directory
     shutil.rmtree(forcing_working_dir)
 

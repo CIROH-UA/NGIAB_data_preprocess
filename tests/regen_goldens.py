@@ -23,6 +23,7 @@ from data_processing.create_configs import (  # pylint: disable=wrong-import-pos
     create_modular_configs,
 )
 from data_processing.file_paths import FilePaths  # pylint: disable=wrong-import-position
+
 # import data_processing.create_realization as mr  # pylint: disable=wrong-import-position
 from data_processing.create_realization import (  # pylint: disable=wrong-import-position
     create_modular_realization,
@@ -90,7 +91,8 @@ def _generate_config_golden(cat_id: str, tmp_root: str) -> dict:
         if f.is_file() and f.suffix != ".gpkg" and f.name != "realization.json":
             rel = str(f.relative_to(paths.config_dir))
             produced[rel] = normalize(
-                f.read_text(errors="replace"), paths.output_dir  # type: ignore[arg-type]
+                f.read_text(errors="replace"),
+                paths.output_dir,  # type: ignore[arg-type]
             )
     return produced
 

@@ -453,6 +453,7 @@ def test_gage_make_summa_trialParams_dims_and_structure(tmp_path):  # pylint: di
         assert int(actual["hruId"].values[-1]) == GAGE_HRU_IDS[-1]
         np.testing.assert_allclose(actual["maxstep"].values, timesteps * 3600)
 
+
 # ---------------------------------------------------------------------------
 # Integration tests for _make_summa_config_suite.
 #

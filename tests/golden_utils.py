@@ -115,6 +115,7 @@ SUMMA_GAGE_FORCING_IDS = [
     "cat-2861416",
 ]
 
+
 def normalize(text: str, output_dir: Path) -> str:
     """Strip the few non-deterministic / machine-specific bits.
 
