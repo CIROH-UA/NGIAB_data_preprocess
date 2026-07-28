@@ -457,7 +457,7 @@ def _insert_sloth_module(
                 params[varname + ALL_SLOTH_MODEL_PARAMS[varname]] = 0.0
     sloth_position = models.index("sloth")
     with open(
-        MODEL_REGISTRY["sloth"].realization_fragment, # type: ignore
+        MODEL_REGISTRY["sloth"].realization_fragment,  # type: ignore
         "r",
         encoding="utf-8",
     ) as f:
@@ -545,7 +545,7 @@ def create_modular_realization(  # pylint: disable=too-many-locals,too-many-argu
                 target_variable_names[model].update(overrides)
 
         with open(
-            MODEL_REGISTRY[model].realization_fragment, # type: ignore
+            MODEL_REGISTRY[model].realization_fragment,  # type: ignore
             "r",
             encoding="utf-8",
         ) as f:

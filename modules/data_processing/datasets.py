@@ -72,7 +72,10 @@ def load_aorc_zarr(start_year: Optional[int] = None, end_year: Optional[int] = N
     urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year + 1)]
     filestores = [s3fs.S3Map(url, s3=fs) for url in urls]
     dataset = xr.open_mfdataset(
-        filestores, parallel=True, engine="zarr", cache=True # type: ignore
+        filestores,
+        parallel=True,
+        engine="zarr",
+        cache=True,  # type: ignore
     )
     dataset.attrs["crs"] = "+proj=longlat +datum=WGS84 +no_defs"
     dataset.attrs["name"] = "aorc_1km_zarr"
