@@ -1,7 +1,9 @@
-from s3fs import S3FileSystem
-from s3fs.core import _error_wrapper, version_id_kw
 from typing import Optional
 import asyncio
+from s3fs import S3FileSystem
+from s3fs.core import _error_wrapper, version_id_kw
+
+CHUNK_SIZE = 5 * 1024 * 1024  # 1MB chunks
 
 
 class S3ParallelFileSystem(S3FileSystem):
@@ -36,15 +38,14 @@ class S3ParallelFileSystem(S3FileSystem):
             # Fall back to single request if HEAD fails
             return await self._download_chunk(bucket, key, {}, version_kw)
 
-        CHUNK_SIZE = 5 * 1024 * 1024  # 1MB chunks
         if obj_size <= CHUNK_SIZE:
             return await self._download_chunk(bucket, key, {}, version_kw)
 
         # Calculate chunks for parallel download
         chunks = []
-        for start in range(0, obj_size, CHUNK_SIZE):
-            end = min(start + CHUNK_SIZE - 1, obj_size - 1)
-            range_header = f"bytes={start}-{end}"
+        for start_i in range(0, obj_size, CHUNK_SIZE):
+            end_i = min(start_i + CHUNK_SIZE - 1, obj_size - 1)
+            range_header = f"bytes={start_i}-{end_i}"
             chunks.append({"Range": range_header})
 
         # Download chunks in parallel
