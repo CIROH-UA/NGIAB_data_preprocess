@@ -86,7 +86,7 @@ def use_cluster(func):
         try:
             client = Client.current()  # pylint: disable=unused-variable
         except ValueError:
-            client = _new_client() # noqa
+            client = _new_client()  # noqa
         result = func(*args, **kwargs)
         return result
 
