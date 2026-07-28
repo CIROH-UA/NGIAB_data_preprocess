@@ -157,7 +157,7 @@ class FilePaths:
         with open(self.metadata_dir / "cli_commands_history.txt", "a", encoding="utf-8") as f:
             f.write(f"{current_time}| {command_string}\n")
 
-    def setup_run_folders(self, extra_folders: list[str] | None) -> None:
+    def setup_run_folders(self, *, extra_folders: list[str] | None = None) -> None:
         folders = [
             "outputs",
             "outputs/ngen",

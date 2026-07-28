@@ -393,9 +393,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
         ids.extend(new_ids)
 
     ids = [f"'{x}'" for x in ids]
-    key_name = "id"
-    if table in table_keys:
-        key_name = table_keys[table]
+    key_name = table_keys.get(table, "id")
     sql_query = f"SELECT * FROM '{table}' WHERE {key_name} IN ({','.join(ids)})"
     contents = source_db.execute(sql_query).fetchall()
 

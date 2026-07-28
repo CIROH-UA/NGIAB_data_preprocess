@@ -71,7 +71,9 @@ def load_aorc_zarr(start_year: Optional[int] = None, end_year: Optional[int] = N
     s3_url = "s3://noaa-nws-aorc-v1-1-1km/"
     urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year + 1)]
     filestores = [s3fs.S3Map(url, s3=fs) for url in urls]
-    dataset = xr.open_mfdataset(filestores, parallel=True, engine="zarr", cache=True)  # type: ignore
+    dataset = xr.open_mfdataset(
+        filestores, parallel=True, engine="zarr", cache=True # type: ignore
+    )
     dataset.attrs["crs"] = "+proj=longlat +datum=WGS84 +no_defs"
     dataset.attrs["name"] = "aorc_1km_zarr"
     # rename latitude and longitude to x and y

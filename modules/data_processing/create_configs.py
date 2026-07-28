@@ -43,7 +43,7 @@ def _get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[
     with fs.open(nc_url) as file_obj:
         ds = xr.open_dataset(file_obj)  # type: ignore
 
-        water_levels: Dict[str, int] = dict()
+        water_levels: Dict[str, int] = {}
         for cat, feature in tqdm(cat_to_feature.items()):
             # this value is in CM, we need meters to match max_gw_depth
             # xarray says it's in mm, with 0.1 scale factor. calling .values doesn't apply the scale
@@ -705,7 +705,7 @@ def _make_summa_config_suite(cat_id: str, start_time: datetime, end_time: dateti
     ds, encoding = _make_summa_coldState(hru_ids)
     ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
     _make_summa_config(hru_ids, paths.config_dir)
-    paths.setup_run_folders(["outputs/summa"])
+    paths.setup_run_folders(extra_folders=["outputs/summa"])
 
 
 def create_modular_configs(  # pylint: disable=too-many-branches

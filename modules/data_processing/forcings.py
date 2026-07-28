@@ -374,8 +374,7 @@ def compute_zonal_stats(
     logger.info("Computing zonal stats in parallel for all timesteps")
     timer_start = time.time()
     num_partitions = multiprocessing.cpu_count() - 1
-    if num_partitions > len(gdf):
-        num_partitions = len(gdf)
+    num_partitions = min(num_partitions, len(gdf))
 
     catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
     units = get_units(gridded_data)
@@ -585,7 +584,7 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     forcing_paths = setup_directories(output_folder_name)
     logger.debug("forcing path %s %s", output_folder_name, forcing_paths.forcings_dir)
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
-    logger.debug(f"gdf bounds: {gdf.total_bounds}")  # pylint: disable=logging-fstring-interpolation
+    logger.debug("gdf bounds: %s", gdf.total_bounds)
     gdf = gdf.to_crs(dataset.crs)
     dataset = dataset.isel(
         # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but

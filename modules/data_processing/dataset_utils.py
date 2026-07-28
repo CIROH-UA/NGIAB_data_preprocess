@@ -220,7 +220,7 @@ def check_local_cache(
     # replace rainrate with precip
     missing_vars = set(forcing_vars) - set(cached_vars)
     if len(missing_vars) > 0:
-        logger.warning(f"Missing forcing vars in cache: {missing_vars}")  # pylint: disable=logging-fstring-interpolation
+        logger.warning("Missing forcing vars in cache: %s", missing_vars)
         return
 
     if range_in_cache:
