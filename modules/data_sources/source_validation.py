@@ -33,10 +33,10 @@ console = Console()
 S3_BUCKET = "communityhydrofabric"
 S3_KEY = "hydrofabrics/community/conus_nextgen.tar.gz"
 S3_REGION = "us-east-1"
-hydrofabric_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
+HYDROFABRIC_URL = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
 
 
-def decompress_gzip_tar(file_path, output_dir):
+def _decompress_gzip_tar(file_path, output_dir):
     console.print("Decompressing Hydrofabric...", style="bold green")
     progress = Progress(
         SpinnerColumn(),
@@ -46,7 +46,7 @@ def decompress_gzip_tar(file_path, output_dir):
     task = progress.add_task("Decompressing", total=1)
     with progress:
         with gzip.open(file_path, "rb") as f_in:
-            with tarfile.open(fileobj=f_in) as tar:
+            with tarfile.open(fileobj=f_in) as tar:  # type: ignore
                 # Extract all contents
                 for member in tar:
                     tar.extract(member, path=output_dir)
@@ -63,7 +63,7 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         console.print(f"File already exists: {save_path}", style="bold yellow")
         os.remove(save_path)
 
-    client_config = botocore.config.Config(max_pool_connections=75)
+    client_config = botocore.config.Config(max_pool_connections=75)  # type: ignore
     # Initialize S3 client
     s3_client = boto3.client(
         "s3",
@@ -73,7 +73,7 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         config=client_config,
     )
     # Disable request signing for public buckets
-    s3_client._request_signer.sign = lambda *args, **kwargs: None
+    s3_client._request_signer.sign = lambda *args, **kwargs: None  # pylint: disable=protected-access
 
     # Get object size
     try:
@@ -126,20 +126,22 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         return False
 
 
-def get_headers(url: str = hydrofabric_url):
+def _get_headers(url: str = HYDROFABRIC_URL):
     # for versioning
-    # Useful Headers: { 'Last-Modified': 'Wed, 20 Nov 2024 18:45:59 GMT', 'ETag': '"cc1452838886a7ab3065a61073fa991b-207"'}
+    # Useful Headers: { 'Last-Modified': 'Wed, 20 Nov 2024 18:45:59 GMT',
+    # 'ETag': '"cc1452838886a7ab3065a61073fa991b-207"'}
     try:
-        response = requests.head(url)
+        response = requests.head(url, timeout=10)
     except requests.exceptions.ConnectionError:
         return 500, {}
     return response.status_code, response.headers
 
 
-def download_and_update_hf():
+def _download_and_update_hf():
     if FilePaths.conus_hydrofabric.is_file():
         console.print(
-            f"Hydrofabric already exists at {FilePaths.conus_hydrofabric}, removing it to download the latest version.",
+            f"Hydrofabric already exists at {FilePaths.conus_hydrofabric}, removing it to "
+            + "download the latest version.",
             style="bold yellow",
         )
         FilePaths.conus_hydrofabric.unlink()
@@ -152,7 +154,8 @@ def download_and_update_hf():
 
     if FilePaths.hydrofabric_graph.is_file():
         console.print(
-            f"Hydrofabric graph already exists at {FilePaths.hydrofabric_graph}, removing it to download the latest version.",
+            f"Hydrofabric graph already exists at {FilePaths.hydrofabric_graph}, removing it to "
+            + "download the latest version.",
             style="bold yellow",
         )
         FilePaths.hydrofabric_graph.unlink()
@@ -163,14 +166,14 @@ def download_and_update_hf():
         key="hydrofabrics/community/conus_igraph_network.gpickle",
     )
 
-    status, headers = get_headers()
+    status, headers = _get_headers()
 
     if status == 200:
         # write headers to a file
-        with open(FilePaths.hydrofabric_download_log, "w") as f:
+        with open(FilePaths.hydrofabric_download_log, "w", encoding="utf-8") as f:
             json.dump(dict(headers), f)
 
-    decompress_gzip_tar(
+    _decompress_gzip_tar(
         FilePaths.conus_hydrofabric.with_suffix(".tar.gz"),
         FilePaths.conus_hydrofabric.parent,
     )
@@ -184,7 +187,7 @@ def validate_hydrofabric():
             choices=["y", "n"],
         )
         if response == "y":
-            download_and_update_hf()
+            _download_and_update_hf()
         else:
             console.print("Exiting...", style="bold red")
             exit()
@@ -195,26 +198,28 @@ def validate_hydrofabric():
 
     if not FilePaths.hydrofabric_download_log.is_file():
         response = Prompt.ask(
-            "Hydrofabric version information unavailable, Would you like to fetch the updated version?",
+            "Hydrofabric version information unavailable, Would you like to fetch the updated "
+            + "version?",
             default="y",
             choices=["y", "n"],
         )
         if response == "y":
-            download_and_update_hf()
+            _download_and_update_hf()
         else:
             console.print("Continuing... ", style="bold yellow")
             console.print(
-                f"To disable this warning, create an empty file called {FilePaths.no_update_hf.resolve()}",
+                "To disable this warning, create an empty file called "
+                + f"{FilePaths.no_update_hf.resolve()}",
                 style="bold yellow",
             )
             sleep(2)
             return
 
-    with open(FilePaths.hydrofabric_download_log, "r") as f:
+    with open(FilePaths.hydrofabric_download_log, "r", encoding="utf-8") as f:
         content = f.read()
         headers = json.loads(content)
 
-    status, latest_headers = get_headers()
+    status, latest_headers = _get_headers()
 
     if status != 200:
         console.print(
@@ -225,7 +230,8 @@ def validate_hydrofabric():
     if headers.get("ETag", "") != latest_headers.get("ETag", ""):
         console.print("Local and remote Hydrofabric Differ", style="bold yellow")
         console.print(
-            f"Local last updated at {headers.get('Last-Modified', 'NA')}, remote last updated at {latest_headers.get('Last-Modified', 'NA')}",
+            f"Local last updated at {headers.get('Last-Modified', 'NA')}, remote last updated at "
+            + f"{latest_headers.get('Last-Modified', 'NA')}",
             style="bold yellow",
         )
         response = Prompt.ask(
@@ -234,11 +240,12 @@ def validate_hydrofabric():
             choices=["y", "n"],
         )
         if response == "y":
-            download_and_update_hf()
+            _download_and_update_hf()
         else:
             console.print("Continuing... ", style="bold yellow")
             console.print(
-                f"To disable this warning, create an empty file called {FilePaths.no_update_hf.resolve()}",
+                "To disable this warning, create an empty file called "
+                + f"{FilePaths.no_update_hf.resolve()}",
                 style="bold yellow",
             )
             sleep(2)
@@ -256,13 +263,14 @@ def validate_hydrofabric():
                     f"Hydrofabric {FilePaths.conus_hydrofabric} is corrupted. Redownloading...",
                     style="red",
                 )
-                download_and_update_hf()
+                _download_and_update_hf()
 
 
 def validate_output_dir():
     if not FilePaths.config_file.is_file():
         response = Prompt.ask(
-            "Output directory is not set. Would you like to use the default? ~/ngiab_preprocess_output/",
+            "Output directory is not set. Would you like to use the default? "
+            + "~/ngiab_preprocess_output/",
             default="y",
             choices=["y", "n"],
         )
