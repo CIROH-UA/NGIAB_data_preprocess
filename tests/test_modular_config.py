@@ -44,7 +44,17 @@ CAT_ID = "cat-1555522"
 # own dedicated suite in test_summa_config_generation.py. pet/sft/smp/topmodel are
 # not supported yet.
 
-ALL_CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily", "casam"]
+ALL_CONFIG_MODELS = [
+    "cfe",
+    "nom",
+    "snow17",
+    "sac-sma",
+    "lstm",
+    "dhbv2",
+    "dhbv2_daily",
+    "casam",
+    "pet"
+]
 
 
 def _generate_modular_config(cat_id, tmp_root, monkeypatch, *, models, routing=False):

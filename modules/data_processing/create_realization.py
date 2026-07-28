@@ -346,11 +346,11 @@ MODEL_DEPENDENCY_RULES = (
     #     lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
     #     "TOPMODEL requires SLoTH, NOM, or PET",
     # ),
-    # (
-    #     "sac-sma",
-    #     lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
-    #     "SAC-SMA requires SLoTH, NOM, or PET",
-    # ),
+    (
+        "sac-sma",
+        lambda models: "sloth" not in models and "pet" not in models and "nom" not in models,
+        "SAC-SMA requires SLoTH, NOM, or PET",
+    ),
     # Snow17 must have a downstream runoff model (unless standalone with only SLoTH)
     (
         "snow17",

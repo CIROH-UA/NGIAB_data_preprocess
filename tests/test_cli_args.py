@@ -36,6 +36,7 @@ EXPECTED_MODELS_CHOICES = [
     "sac-sma",
     "casam",
     "summa",
+    "pet"
 ]
 
 

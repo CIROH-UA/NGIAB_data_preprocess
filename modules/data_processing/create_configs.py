@@ -412,7 +412,7 @@ def _make_pet_config(
         on="divide_id"
     )
 
-    with open(FilePaths.template_sac_config, "r", encoding="utf-8") as config_file:
+    with open(FilePaths.template_pet_config, "r", encoding="utf-8") as config_file:
         config_template = config_file.read()
 
     cat_config_dir = base_dir / "cat_config" / "PET"
@@ -423,7 +423,7 @@ def _make_pet_config(
             file.write(
                 config_template.format(
                     vegetation_height_m = row["vegetation_height_m"],
-                    zero_plane_displacement_height = row["zero_plane_displacement_height_m"],
+                    zero_plane_displacement_height_m = row["zero_plane_displacement_height_m"],
                     momentum_roughness = row["momentum_transfer_roughness_length_m"],
                     heat_transfer_roughness_length_m = row["heat_transfer_roughness_length_m"],
                     surface_longwave_emissivity = row["surface_longwave_emissivity"],

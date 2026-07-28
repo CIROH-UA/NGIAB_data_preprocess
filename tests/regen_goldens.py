@@ -42,7 +42,7 @@ from golden_utils import (  # pylint: disable=wrong-import-position
 
 GOLDEN_DIR = Path("tests/golden/realization")
 
-CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily", "casam"]
+CONFIG_MODELS = ["cfe", "nom", "snow17", "sac-sma", "lstm", "dhbv2", "dhbv2_daily", "casam", "pet"]
 
 # Stub the interactive overwrite prompt to always accept.
 # mr.Prompt.ask = staticmethod(lambda *a, **k: "y")  # type: ignore
@@ -121,48 +121,52 @@ def _generate_summa_golden(cat_id: str, tmp_root: str) -> dict:
             produced[rel] = normalize(f.read_text(errors="replace"), paths.config_dir)
     return produced
 
+def main():
+    """regen goldens"""
+    for models, golden_name, _ in GOLDEN_CASES:
+        with tempfile.TemporaryDirectory() as tmp:
+            FilePaths.get_working_dir = classmethod(lambda cls, _tmp=tmp: Path(_tmp))  # type: ignore
+            cat_test_paths = FilePaths("cat-test")
+            cat_test_paths.config_dir.mkdir(parents=True, exist_ok=True)
+            create_modular_realization("cat-test", START, END, models, routing=True)
+            produced_realizations = json.loads(
+                (cat_test_paths.config_dir / "realization.json").read_text()
+            )
 
-for models, golden_name, _ in GOLDEN_CASES:
-    with tempfile.TemporaryDirectory() as tmp:
-        FilePaths.get_working_dir = classmethod(lambda cls, _tmp=tmp: Path(_tmp))  # type: ignore
-        cat_test_paths = FilePaths("cat-test")
-        cat_test_paths.config_dir.mkdir(parents=True, exist_ok=True)
-        create_modular_realization("cat-test", START, END, models, routing=True)
-        produced_realizations = json.loads(
-            (cat_test_paths.config_dir / "realization.json").read_text()
-        )
+        golden_path = GOLDEN_DIR / golden_name
+        old = json.loads(golden_path.read_text()) if golden_path.exists() else None
+        if old == produced_realizations:
+            print(f"  unchanged  {golden_name}")
+            continue
+        # Match the committed golden serialization (2-space indent, trailing newline).
+        write_golden_json(golden_path, produced_realizations)
+        print(f"  UPDATED    {golden_name}")
 
-    golden_path = GOLDEN_DIR / golden_name
-    old = json.loads(golden_path.read_text()) if golden_path.exists() else None
-    if old == produced_realizations:
-        print(f"  unchanged  {golden_name}")
-        continue
-    # Match the committed golden serialization (2-space indent, trailing newline).
-    write_golden_json(golden_path, produced_realizations)
-    print(f"  UPDATED    {golden_name}")
+    for cat_id_gpkg in GEOPACKAGE_FIXTURES:
+        with tempfile.TemporaryDirectory() as tmp:
+            produced_configs = _generate_config_golden(cat_id_gpkg, tmp)
 
-for cat_id_gpkg in GEOPACKAGE_FIXTURES:
-    with tempfile.TemporaryDirectory() as tmp:
-        produced_configs = _generate_config_golden(cat_id_gpkg, tmp)
+        golden_path = GOLDEN_CONFIG_DIR / f"{cat_id_gpkg}.json"
+        old = json.loads(golden_path.read_text()) if golden_path.exists() else None
+        if old == produced_configs:
+            print(f"  unchanged  {golden_path.name}")
+            continue
+        write_golden_json(golden_path, produced_configs)
+        print(f"  UPDATED    {golden_path.name}")
 
-    golden_path = GOLDEN_CONFIG_DIR / f"{cat_id_gpkg}.json"
-    old = json.loads(golden_path.read_text()) if golden_path.exists() else None
-    if old == produced_configs:
-        print(f"  unchanged  {golden_path.name}")
-        continue
-    write_golden_json(golden_path, produced_configs)
-    print(f"  UPDATED    {golden_path.name}")
+    for cat_id_gpkg in GEOPACKAGE_FIXTURES:
+        with tempfile.TemporaryDirectory() as tmp:
+            produced_summa = _generate_summa_golden(cat_id_gpkg, tmp)
 
-for cat_id_gpkg in GEOPACKAGE_FIXTURES:
-    with tempfile.TemporaryDirectory() as tmp:
-        produced_summa = _generate_summa_golden(cat_id_gpkg, tmp)
+        golden_path = GOLDEN_CONFIG_DIR / f"{cat_id_gpkg}-summa.json"
+        old = json.loads(golden_path.read_text()) if golden_path.exists() else None
+        if old == produced_summa:
+            print(f"  unchanged  {golden_path.name}")
+            continue
+        write_golden_json(golden_path, produced_summa)
+        print(f"  UPDATED    {golden_path.name}")
 
-    golden_path = GOLDEN_CONFIG_DIR / f"{cat_id_gpkg}-summa.json"
-    old = json.loads(golden_path.read_text()) if golden_path.exists() else None
-    if old == produced_summa:
-        print(f"  unchanged  {golden_path.name}")
-        continue
-    write_golden_json(golden_path, produced_summa)
-    print(f"  UPDATED    {golden_path.name}")
+    print("done")
 
-print("done")
+if __name__ == "__main__":
+    main()

@@ -22,7 +22,6 @@ START = datetime(2020, 1, 1, 0, 0, 0)
 END = datetime(2020, 1, 2, 0, 0, 0)
 
 GOLDEN_DIR = Path(__file__).parent / "golden" / "realization"
-CFE_NOM_GOLDEN = GOLDEN_DIR / "cfe-nom.json"
 
 
 # ---------------------------------------------------------------------------
@@ -146,11 +145,11 @@ class TestValidateModelsInputs:
 class TestValidateModelsDependencies:
     """Validate dependency-driven prompts and rule enforcement for model lists."""
 
-    WARNING_CASES = [
-        (["cfe"], "CFE requires SLoTH"),
-        (["casam"], "CASAM requires SLoTH"),
-        (["sac-sma"], "SAC-SMA requires SLoTH, NOM, or PET"),
-    ]
+    # WARNING_CASES = [
+    #     (["cfe"], "CFE requires SLoTH"),
+    #     (["casam"], "CASAM requires SLoTH"),
+    #     (["sac-sma"], "SAC-SMA requires SLoTH, NOM, or PET"),
+    # ]
 
     @pytest.mark.parametrize(
         "models",
@@ -158,6 +157,21 @@ class TestValidateModelsDependencies:
             ["sloth", "cfe"],
             ["sloth", "casam"],
             ["nom", "sac-sma"],
+            ["pet", "sac-sma"],
+            ["sloth", "pet", "cfe"],
+            ["sloth", "nom", "cfe"],
+            ["sloth", "snow17", "cfe"],
+            ["sloth", "snow17", "casam"],
+            ["nom", "snow17", "sac-sma"],
+            ["pet", "snow17", "sac-sma"],
+            ["sloth", "nom", "casam"],
+            ["sloth", "pet", "casam"],
+            ["sloth", "sac-sma"],
+            ["summa"],
+            ["dhbv2"],
+            ["dhbv2_daily"],
+            ["lstm"],
+            ["lstm_rust"]
         ],
     )
     def test_met_dependency_does_not_prompt(self, models):
