@@ -398,6 +398,43 @@ def _make_casam_config(
             )
 
 
+def _make_pet_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+
+    pet_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.pet_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
+
+    merged = pet_atts.merge(
+        divide_conf_df[["divide_id", "latitude", "longitude", "mean.elevation"]],
+        on="divide_id"
+    )
+
+    with open(FilePaths.template_sac_config, "r", encoding="utf-8") as config_file:
+        config_template = config_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "PET"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.txt", "w", encoding="utf-8") as file:
+            file.write(
+                config_template.format(
+                    vegetation_height_m = row["vegetation_height_m"],
+                    zero_plane_displacement_height = row["zero_plane_displacement_height_m"],
+                    momentum_roughness = row["momentum_transfer_roughness_length_m"],
+                    heat_transfer_roughness_length_m = row["heat_transfer_roughness_length_m"],
+                    surface_longwave_emissivity = row["surface_longwave_emissivity"],
+                    surface_shortwave_albedo = row["surface_shortwave_albedo"],
+                    latitude = row["latitude"],
+                    longitude = row["longitude"],
+                    elevation_mean = row["mean.elevation"] / 100,  # convert cm in hf to m
+                    num_timesteps = int((end_time - start_time).total_seconds() / 3600)
+                )
+            )
+
 def _configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
 ) -> None:
@@ -763,8 +800,10 @@ def create_modular_configs(  # pylint: disable=too-many-branches
             _make_casam_config(paths.config_dir, conf_df, start_time, end_time, sft_coupled)
         elif model == "summa":
             _make_summa_config_suite(output_folder, start_time, end_time)
+        elif model == "pet":
+            _make_pet_config(paths.config_dir, conf_df, start_time, end_time)
         else:
-            # config generation not supported for PET, SFT, SMP, TOPMODEL yet
+            # config generation not supported for SFT, SMP, TOPMODEL yet
             raise NotImplementedError(f"Config generation not yet supported for '{model}'")
 
     if routing:

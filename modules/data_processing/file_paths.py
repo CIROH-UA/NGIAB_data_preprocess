@@ -25,6 +25,7 @@ class FilePaths:
     snow17_attributes = hf_bucket + resource_key + "snow17_attributes_sorted.parquet"
     sacsma_attributes = hf_bucket + resource_key + "sacsma_attributes_sorted.parquet"
     casam_attributes = hf_bucket + resource_key + "casam_attrs_sorted.parquet"
+    pet_attributes = hf_bucket + resource_key + "pet_attributes_sorted.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
@@ -41,6 +42,7 @@ class FilePaths:
     template_sac_config = template_cat_dir / "sac-init.namelist.input"
     template_sac_params = template_cat_dir / "sac-params.txt"
     template_casam_config = template_cat_dir / "casam.txt"
+    template_pet_config = template_cat_dir / "pet.txt"
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
@@ -69,6 +71,7 @@ class FilePaths:
     sac_modular_config = modular_realization_dir / "sac-sma.json"
     snow17_modular_config = modular_realization_dir / "snow17.json"
     summa_modular_config = modular_realization_dir / "summa.json"
+    pet_modular_config = modular_realization_dir / "pet.json"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """

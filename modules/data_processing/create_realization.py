@@ -102,7 +102,7 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
                 },
             ),
             ("snow17", {"atmosphere_water__liquid_equivalent_precipitation_rate": "raim"}),
-            # ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
+            ("pet", {"water_potential_evaporation_flux": "water_potential_evaporation_flux"}),
             # (
             #     "sft",
             #     {
@@ -125,7 +125,7 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         overrides=[
             ("nom", {"potential_evapotranspiration_rate": "EVAPOTRANS"}),
             ("snow17", {"precipitation_rate": "raim"}),
-            # ("pet", {"potential_evapotranspiration_rate": "water_potential_evaporation_flux"}),
+            ("pet", {"potential_evapotranspiration_rate": "water_potential_evaporation_flux"}),
             # ("sft", {"soil_temperature_profile": "soil_temperature_profile"}),
         ],
     ),
@@ -149,7 +149,7 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         overrides=[
             ("nom", {"pet": "EVAPOTRANS"}),
             ("snow17", {"precip": "raim"}),
-            # ("pet", {"pet": "water_potential_evaporation_flux"}),
+            ("pet", {"pet": "water_potential_evaporation_flux"}),
         ],
     ),
     "lstm": ModelSpec(
@@ -189,16 +189,17 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
             "land_surface_air__pressure": "PRES_surface",
         },
     ),
+        "pet": ModelSpec(
+        main_output_variable="water_potential_evaporation_flux",
+        realization_fragment=FilePaths.pet_modular_config,
+        variables_names_map={"water_potential_evaporation_flux": "potential_evapotranspiration"},
+    ),
     # ------------------------------------------------------------------
     # Recognized but not yet wired: no realization realization_fragment, so supported
     # is False and validate_models rejects them up front. Their names-maps
     # and overrides are kept as scaffolding for when they are wired.
     # ------------------------------------------------------------------
-    # "pet": ModelSpec(
-    #     main_output_variable="water_potential_evaporation_flux",
-    #     realization_fragment=None,
-    #     variables_names_map={"water_potential_evaporation_flux": "potential_evapotranspiration"},
-    # ),
+
     # "sft": ModelSpec(
     #     main_output_variable="num_cells",
     #     realization_fragment=None,
