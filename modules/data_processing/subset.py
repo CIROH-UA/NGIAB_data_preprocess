@@ -32,7 +32,7 @@ subset_tables = [
 ]
 
 
-def create_subset_gpkg(
+def _create_subset_gpkg(
     ids: Union[List[str], str],
     hydrofabric: Path,
     output_gpkg_path: Path,
@@ -90,7 +90,7 @@ def subset_vpu(
             console.print("Exiting...", style="bold red")
             sys.exit()
 
-    create_subset_gpkg(vpu_id, hydrofabric, output_gpkg_path=output_gpkg_path, is_vpu=True)
+    _create_subset_gpkg(vpu_id, hydrofabric, output_gpkg_path=output_gpkg_path, is_vpu=True)
     logger.info("Subset complete for VPU %s", vpu_id)
     return output_gpkg_path.parent
 
@@ -111,6 +111,6 @@ def subset(
         paths = FilePaths(output_folder_name)
         output_gpkg_path = paths.geopackage_path
 
-    create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path, override_gpkg=override_gpkg)
+    _create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path, override_gpkg=override_gpkg)
     logger.info("Subset complete for %d features (catchments + nexuses)", len(upstream_ids))
     logger.debug("Subset complete for %s catchments", upstream_ids)

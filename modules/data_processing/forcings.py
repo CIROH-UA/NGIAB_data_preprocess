@@ -133,7 +133,7 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:  # pylint: d
     return dataset
 
 
-def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
+def _add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # the inverse of the function above
     dataset["precip_rate"] = dataset["APCP_surface"] / 3600
     dataset["precip_rate"].attrs["units"] = "mm s^-1"
@@ -519,7 +519,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
 
     final_ds = final_ds.rename_vars(rename_dict)
     if "APCP_surface" in final_ds.data_vars:
-        final_ds = add_precip_rate_to_dataset(final_ds)
+        final_ds = _add_precip_rate_to_dataset(final_ds)
     elif "precip_rate" in final_ds.data_vars:
         final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
@@ -567,7 +567,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     temp_forcings_dir.rmdir()
 
 
-def setup_directories(cat_id: str) -> FilePaths:
+def _setup_directories(cat_id: str) -> FilePaths:
     forcing_paths = FilePaths(cat_id)
     # delete everything in the forcing folder except the cached nc file
     for file in forcing_paths.forcings_dir.glob("*.*"):
@@ -581,7 +581,7 @@ def setup_directories(cat_id: str) -> FilePaths:
 
 def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     validate_dataset_format(dataset)
-    forcing_paths = setup_directories(output_folder_name)
+    forcing_paths = _setup_directories(output_folder_name)
     logger.debug("forcing path %s %s", output_folder_name, forcing_paths.forcings_dir)
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug("gdf bounds: %s", gdf.total_bounds)

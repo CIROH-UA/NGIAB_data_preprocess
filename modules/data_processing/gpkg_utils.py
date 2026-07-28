@@ -14,22 +14,6 @@ from shapely.wkb import loads
 logger = logging.getLogger(__name__)
 
 
-class GeoPackage:
-    def __init__(self, file_name):
-        self.file_name = file_name
-
-    def __enter__(self):
-        self.conn = sqlite3.connect(  # pylint: disable=attribute-defined-outside-init
-            self.file_name
-        )
-        self.conn.enable_load_extension(True)
-        self.conn.load_extension("mod_spatialite")
-        return self.conn
-
-    def __exit__(self, *args):
-        self.conn.close()
-
-
 def verify_indices(gpkg: Path = FilePaths.conus_hydrofabric) -> None:
     """
     Verify that the indices in the specified geopackage are correct.
@@ -150,7 +134,7 @@ def blob_to_centre_point(blob: bytes) -> Point | None:
     return Point(x, y)
 
 
-def convert_to_5070(shapely_geometry: Point) -> Point:
+def _convert_to_5070(shapely_geometry: Point) -> Point:
     # convert to web mercator
     if shapely_geometry.is_empty:
         return shapely_geometry
@@ -181,7 +165,7 @@ def get_catid_from_point(coords: Dict[str, float]) -> str:
     logger.info("Getting catid for %s", coords)
     q = FilePaths.conus_hydrofabric
     point = Point(coords["lng"], coords["lat"])
-    point = convert_to_5070(point)
+    point = _convert_to_5070(point)
     with sqlite3.connect(q) as con:
         sql = f"""SELECT DISTINCT d.divide_id, d.geom
                 FROM divides d

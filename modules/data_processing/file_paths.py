@@ -84,7 +84,7 @@ class FilePaths:
             raise ValueError("please pass either folder_name or output_dir")
         if folder_name:
             self.folder_name = folder_name
-            self.output_dir = self.root_output_dir() / folder_name
+            self.output_dir = self._root_output_dir() / folder_name
         if output_dir:
             self.output_dir = Path(output_dir)
             self.folder_name = self.output_dir.stem
@@ -103,7 +103,7 @@ class FilePaths:
             f.write(str(working_dir))
 
     @classmethod
-    def root_output_dir(cls) -> Path:
+    def _root_output_dir(cls) -> Path:
         return cls.get_working_dir() or Path(__file__).parent.parent.parent / "output"
 
     @property
@@ -111,7 +111,7 @@ class FilePaths:
         if self.output_dir:
             return self.output_dir
         else:
-            self.output_dir = self.root_output_dir() / self.folder_name
+            self.output_dir = self._root_output_dir() / self.folder_name
             return self.output_dir
 
     @property
@@ -131,14 +131,14 @@ class FilePaths:
         return self.config_dir / "model_config" / "SUMMA"
 
     @property
-    def metadata_dir(self) -> Path:
+    def _metadata_dir(self) -> Path:
         meta_dir = self.subset_dir / "metadata"
         meta_dir.mkdir(parents=True, exist_ok=True)
         return meta_dir
 
     @property
     def forcing_progress_file(self) -> Path:
-        return self.metadata_dir / "forcing_progress.json"
+        return self._metadata_dir / "forcing_progress.json"
 
     @property
     def geopackage_path(self) -> Path:
@@ -151,10 +151,10 @@ class FilePaths:
     def append_cli_command(self, command: list[str]) -> None:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         command_string = " ".join(command)
-        history_file = self.metadata_dir / "cli_commands_history.txt"
+        history_file = self._metadata_dir / "cli_commands_history.txt"
         if not history_file.parent.exists():
             history_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.metadata_dir / "cli_commands_history.txt", "a", encoding="utf-8") as f:
+        with open(self._metadata_dir / "cli_commands_history.txt", "a", encoding="utf-8") as f:
             f.write(f"{current_time}| {command_string}\n")
 
     def setup_run_folders(self, *, extra_folders: list[str] | None = None) -> None:
