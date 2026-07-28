@@ -195,7 +195,7 @@ def check_local_cache(
     # open the cached file and check that the time range is correct
     try:
         cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
-    except:
+    except: # noqa
         logger.info("Cache produced with outdated backend, redownloading")
         return
 
