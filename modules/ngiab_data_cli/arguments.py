@@ -150,12 +150,6 @@ def parse_arguments() -> argparse.Namespace:
         "--validate", action="store_true", help="Run every missing step required to run ngiab"
     )
     parser.add_argument(
-        "--eval", action="store_true", help="Evaluate perforance of the model after running"
-    )
-    parser.add_argument(
-        "--vis", "--visualise", action="store_true", help="Visualize the model output"
-    )
-    parser.add_argument(
         "--source",
         type=str,
         help="source of the data",
