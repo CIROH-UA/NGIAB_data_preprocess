@@ -314,7 +314,7 @@ def _is_coupled(models: list[str]) -> bool:
 # Standalone models (LSTM variants, dHBV2 variants) should never be coupled with a
 # physics model -- shared predicate + label map avoids repeating the same lambda/tuple
 # shape for each one below.
-_PHYSICS_MODELS = ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel")
+_PHYSICS_MODELS = ("cfe", "casam", "sft", "smp", "sac-sma", "topmodel", "snow17", "pet", "nom")
 
 
 def _standalone_conflict(models: list[str]) -> bool:
@@ -326,6 +326,7 @@ _STANDALONE_MODEL_LABELS = {
     "lstm_rust": "LSTM-rust",
     "dhbv2": "dHBV2",
     "dhbv2_daily": "dHBV2-daily",
+    "summa": "SUMMA"
 }
 
 MODEL_DEPENDENCY_RULES = (
@@ -385,13 +386,6 @@ MODEL_DEPENDENCY_RULES = (
             f"{label} is standalone — unexpected coupling with physics models",
         )
         for model, label in _STANDALONE_MODEL_LABELS.items()
-    ),
-    (
-        "summa",
-        lambda models: any(
-            m in models for m in ("cfe", "casam", "sft", "smp", "snow17", "pet", "sac-sma")
-        ),
-        "SUMMA is a full land surface model — unexpected coupling with physics models",
     ),
 )
 
