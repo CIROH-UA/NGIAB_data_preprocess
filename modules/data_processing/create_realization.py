@@ -326,7 +326,7 @@ _STANDALONE_MODEL_LABELS = {
     "lstm_rust": "LSTM-rust",
     "dhbv2": "dHBV2",
     "dhbv2_daily": "dHBV2-daily",
-    "summa": "SUMMA"
+    "summa": "SUMMA",
 }
 
 MODEL_DEPENDENCY_RULES = (
