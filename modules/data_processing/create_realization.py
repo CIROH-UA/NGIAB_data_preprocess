@@ -145,32 +145,8 @@ def make_snow17_config(
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
             file.write(
                 params_template.format(
-                    divide_id=row['divide_id'],
-                    areasqkm=row['areasqkm'],
-                    latitude=row['latitude'],
-                    elevation=row['mean.elevation'],
-                    scf=row['scf'],
-                    mfmax=row['mfmax'],
-                    mfmin=row['mfmin'],
-                    uadj=row['uadj'],
-                    si=row['si'],
-                    pxtemp=row['pxtemp'],
-                    nmf=row['nmf'],
-                    tipm=row['tipm'],
-                    mbase=row['mbase'],
-                    plwhc=row['plwhc'],
-                    daygm=row['daygm'],
-                    adc1=row['adc1'],
-                    adc2=row['adc2'],
-                    adc3=row['adc3'],
-                    adc4=row['adc4'],
-                    adc5=row['adc5'],
-                    adc6=row['adc6'],
-                    adc7=row['adc7'],
-                    adc8=row['adc8'],
-                    adc9=row['adc9'],
-                    adc10=row['adc10'],
-                    adc11=row['adc11'],
+                    **row,
+                    elevation=row["mean.elevation"] / 100,  # convert cm in hf to m
                 )
             )
 
