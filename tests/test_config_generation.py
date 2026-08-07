@@ -178,7 +178,7 @@ def _generate_config(cat_id: str, tmp_root: Path, monkeypatch) -> dict:
     produced = {}
     for f in sorted(paths.config_dir.rglob("*")):
         if f.is_file() and f.suffix != ".gpkg" and f.name != "realization.json":
-            rel = str(f.relative_to(paths.config_dir))
+            rel = f.relative_to(paths.config_dir).as_posix()
             produced[rel] = _normalize(
                 f.read_text(errors="replace"),
                 paths.output_dir,  # type: ignore

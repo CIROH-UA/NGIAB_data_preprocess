@@ -152,7 +152,7 @@ def make_snow17_config(
                     divide_id=row["divide_id"],
                     areasqkm=row["areasqkm"],
                     latitude=row["latitude"],
-                    elevation=row["mean.elevation"],
+                    elevation=row["mean.elevation"] / 100,  # convert cm in hf to m
                     scf=row["scf"],
                     mfmax=row["mfmax"],
                     mfmin=row["mfmin"],
