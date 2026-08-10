@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import multiprocessing
@@ -763,6 +764,59 @@ def create_sacsma_realization(
     paths.setup_run_folders()
 
 
+# Modules whose parameters are produced by calibration. SLOTH is deliberately
+# excluded: the published files carry the same constants as the default template,
+# only serialised as strings, so copying them would regress the types.
+CALIBRATED_MODULES = ("NoahOWP", "CFE")
+
+
+def _bmi_modules(realization: dict) -> list:
+    """The BMI module list of a cfe-nom style realization, or [] if it has none."""
+    formulations = realization.get("global", {}).get("formulations", [])
+    if not formulations:
+        return []
+    return formulations[0].get("params", {}).get("modules", [])
+
+
+def graft_calibrated_model_params(default_template: dict, calibrated: dict) -> dict:
+    """Copy calibrated model_params onto the bundled default realization template.
+
+    Only the model_params blocks are taken from `calibrated`; every other key comes
+    from `default_template`. The published gage parameter files carry stale
+    scaffolding alongside the calibrated values - version pinned library_file paths,
+    missing forcing_file keys, extra keys the template does not use - and which
+    scaffolding is present varies from file to file, so it cannot be reliably
+    stripped. Building up from the default instead keeps the preprocessor's own
+    known good configuration and takes only what calibration actually produced.
+
+    Returns a new dict; neither argument is modified.
+    """
+    merged = copy.deepcopy(default_template)
+
+    calibrated_params = {}
+    for module in _bmi_modules(calibrated):
+        params = module.get("params", {})
+        if "model_type_name" in params and "model_params" in params:
+            calibrated_params[params["model_type_name"]] = params["model_params"]
+
+    grafted = []
+    for module in _bmi_modules(merged):
+        name = module.get("params", {}).get("model_type_name")
+        if name in CALIBRATED_MODULES and name in calibrated_params:
+            module["params"]["model_params"] = copy.deepcopy(calibrated_params[name])
+            grafted.append(name)
+
+    if grafted:
+        logger.debug(f"grafted calibrated model_params for {', '.join(grafted)}")
+    else:
+        logger.warning(
+            "calibrated template had no model_params for "
+            f"{' or '.join(CALIBRATED_MODULES)}, using the default template unchanged"
+        )
+
+    return merged
+
+
 def create_realization(
     cat_id: str,
     start_time: datetime,
@@ -780,10 +834,12 @@ def create_realization(
         url = f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/gage_parameters/{gage_id}.json"
         response = requests.get(url)
         if response.status_code == 200:
-            new_template = requests.get(url).json()
+            with open(template_path, "r") as f:
+                default_template = json.load(f)
+            merged = graft_calibrated_model_params(default_template, response.json())
             template_path = paths.config_dir / "downloaded_params.json"
             with open(template_path, "w") as f:
-                json.dump(new_template, f)
+                json.dump(merged, f, indent=4)
             logger.info(f"downloaded calibrated parameters for {gage_id}")
         else:
             logger.warning(f"could not download parameters for {gage_id}, using default template")
