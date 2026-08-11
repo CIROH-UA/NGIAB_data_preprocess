@@ -9,6 +9,7 @@ from data_processing.subset import subset
 
 logger = logging.getLogger(__name__)
 
+
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Subsetting hydrofabrics")
