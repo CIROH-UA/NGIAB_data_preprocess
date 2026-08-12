@@ -15,8 +15,6 @@ WORKDIR /app/
 RUN uv venv -p 3.11
 ENV PATH="/app/.venv/bin:$PATH"
 # appease exact-extract with the special scikit-build-core version
-# RUN echo "scikit-build-core<0.10" > /tmp/build-constraints.txt && \
-#     uv pip install -r pyproject.toml --build-constraint /tmp/build-constraints.txt
 COPY . .
 RUN uv build \
     && echo "scikit-build-core<0.10" > /tmp/build-constraints.txt \
