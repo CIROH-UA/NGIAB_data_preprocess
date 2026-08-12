@@ -2,9 +2,7 @@ FROM amazonlinux:2023 AS base
 COPY --from=ghcr.io/astral-sh/uv:0.12.3 /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1
 
-RUN dnf -y install python3.11 python3.11-devel cmake gcc gcc-c++ make geos geos-devel \
-    && dnf clean all \
-    && rm -rf /var/cache/dnf
+RUN dnf -y install python3.11 python3.11-devel cmake gcc gcc-c++ make geos geos-devel
 RUN ln -sf /usr/bin/python3.11 /usr/bin/python3 \
     && ln -sf /usr/bin/python3.11 /usr/bin/python
 
