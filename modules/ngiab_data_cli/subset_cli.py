@@ -50,6 +50,13 @@ def main() -> None:
         override_gpkg=True,
     )
 
+    logger.info(
+        "Subset complete for catchment %s from %s. Output saved to %s",
+        args.cat_id,
+        args.gpkg_path,
+        args.output_path
+    )
+
 
 if __name__ == "__main__":
     main()

@@ -69,7 +69,7 @@ def create_subset_gpkg(
             subset_table(table, ids, hydrofabric, output_gpkg_path)
 
     add_triggers_to_gpkg(output_gpkg_path)
-    update_geopackage_metadata(output_gpkg_path)
+    update_geopackage_metadata(output_gpkg_path, hydrofabric=hydrofabric)
 
 
 def subset_vpu(
@@ -100,7 +100,11 @@ def subset(
     include_outlet: bool = True,
     override_gpkg: bool = True,
 ):
-    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet))
+    if hydrofabric != FilePaths.conus_hydrofabric:
+        pickled_graph_path = hydrofabric.parent / "hydrofabric_graph.gpickle"
+    else:
+        pickled_graph_path = FilePaths.hydrofabric_graph
+    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet, hydrofabric, pickled_graph_path))
 
     if not output_gpkg_path:
         # if the name isn't provided, use the first upstream id

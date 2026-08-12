@@ -86,20 +86,26 @@ def create_graph_from_gpkg(hydrofabric: Path) -> ig.Graph:
 
 
 @cache
-def get_graph() -> ig.Graph:
+def get_graph(
+    gpkg_path: Path = FilePaths.conus_hydrofabric,
+    pickled_graph_path: Path = FilePaths.hydrofabric_graph
+) -> ig.Graph:
     """
     Attempts to load a graph from a pickled file; if unavailable, creates it from the geopackage.
 
     This function first checks if a pickled version of the graph exists. If not, it creates a new graph
     by reading hydrological data from a geopackage file and then pickles the newly created graph for future use.
 
+    Args:
+        gpkg_path (Path): The file path to the hydrofabric geopackage.
+        pickled_graph_path (Path): The file path to the pickled graph.
+
     Returns:
         ig.Graph: The hydrological network graph.
     """
-    pickled_graph_path = FilePaths.hydrofabric_graph
     if not pickled_graph_path.exists():
         logger.debug("Graph pickle does not exist, creating a new graph.")
-        network_graph = create_graph_from_gpkg(FilePaths.conus_hydrofabric)
+        network_graph = create_graph_from_gpkg(gpkg_path)
         network_graph.write_pickle(pickled_graph_path)
     else:
         try:
@@ -112,7 +118,11 @@ def get_graph() -> ig.Graph:
     return network_graph
 
 
-def get_outlet_id(wb_or_cat_id: str) -> str | None:
+def get_outlet_id(
+        wb_or_cat_id: str,
+        hydrofabric: Path = FilePaths.conus_hydrofabric,
+        pickled_graph_path: Path = FilePaths.hydrofabric_graph
+        ) -> str | None:
     """
     Retrieves the ID of the node downstream of the given node in the hydrological network.
 
@@ -122,7 +132,9 @@ def get_outlet_id(wb_or_cat_id: str) -> str | None:
     When finding the upstreams of a 'wb' waterbody or 'cat' catchment, what we actually want is the upstreams of the outlet of the 'wb'.
 
     Args:
-        name (str): The name of the node.
+        wb_or_cat_id (str): The ID of the waterbody or catchment.
+        hydrofabric (Path): The path to the hydrofabric geopackage.
+        pickled_graph_path (Path): The path to the pickled graph.
 
     Returns:
         str: The ID of the node downstream of the specified node.
@@ -131,7 +143,7 @@ def get_outlet_id(wb_or_cat_id: str) -> str | None:
     # remove everything that isn't a digit, then prepend wb- to get the graph node name
     stem = "".join(filter(str.isdigit, wb_or_cat_id))
     name = f"wb-{stem}"
-    graph = get_graph()
+    graph = get_graph(hydrofabric, pickled_graph_path)
     node_index = graph.vs.find(name=name).index
     # this returns the current node, and every node downstream of it in order
     downstream_node = graph.subcomponent(node_index, mode="OUT")
@@ -184,7 +196,12 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
     return cat_ids
 
 
-def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True) -> Set[str]:
+def get_upstream_ids(
+        names: Union[str, List[str]],
+        include_outlet: bool = True,
+        gpkg_path: Path = FilePaths.conus_hydrofabric,
+        pickled_graph_path: Path = FilePaths.hydrofabric_graph
+        ) -> Set[str]:
     """
     Retrieves IDs of all nodes upstream of, and including, the given nodes in the hydrological network.
 
@@ -193,17 +210,20 @@ def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True) 
 
     Args:
         names (Union[str, List[str]]): A single node name or a list of node names.
+        include_outlet (bool): If True, includes the outlet node in the returned set. Defaults to True.
+        gpkg_path (Path): The path to the hydrofabric geopackage.
+        pickled_graph_path (Path): The path to the pickled graph.
 
     Returns:
         Set[str]: A list of IDs for all nodes upstream of the specified node(s). INCLUDING THE INPUT NODES.
     """
-    graph = get_graph()
+    graph = get_graph(gpkg_path, pickled_graph_path)
     if isinstance(names, str):
         names = [names]
     parent_ids = set()
     for name in names:
         if ("wb" in name or "cat" in name) and include_outlet:
-            name = get_outlet_id(name)
+            name = get_outlet_id(name, hydrofabric=gpkg_path, pickled_graph_path=pickled_graph_path)
         if name in parent_ids:
             continue
         try:
