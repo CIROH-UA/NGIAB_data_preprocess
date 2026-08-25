@@ -1,0 +1,15 @@
+{
+    "name": "bmi_fortran",
+    "params": {
+        "name": "bmi_fortran",
+        "model_type_name": "NoahOWP",
+        "library_file": "/dmod/shared_libs/libsurfacebmi.so",
+        "forcing_file": "",
+        "init_config": "./config/cat_config/NOAH-OWP-M/{{id}}.input",
+        "allow_exceed_end_time": true,
+        "main_output_variable": "QINSUR",
+        "variables_names_map": {
+        },
+        "uses_forcing_file": false
+    }
+}

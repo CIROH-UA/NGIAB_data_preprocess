@@ -12,19 +12,19 @@
   soil_table         = "SOILPARM.TBL"                   ! soil param table
   noahowp_table      = "MPTABLE.TBL"                    ! noah-mp related param tables
   soil_class_name    = "STAS"                           ! soil class data source - "STAS" or "STAS-RUC"
-  veg_class_name     = "MODIFIED_IGBP_MODIS_NOAH"       ! vegetation class data source - "MODIFIED_IGBP_MODIS_NOAH" or "USGS" 
+  veg_class_name     = "MODIFIED_IGBP_MODIS_NOAH"       ! vegetation class data source - "MODIFIED_IGBP_MODIS_NOAH" or "USGS"
 /
 
 &location ! for point runs, needs to be modified for gridded
-  lat                = {lat}                       ! latitude [degrees]
-  lon                = {lon}                       ! longitude [degrees]
-  terrain_slope      = {terrain_slope}                         ! terrain slope [degrees]
-  azimuth            = {azimuth}                         ! terrain azimuth or aspect [degrees clockwise from north]
+  lat                = {latitude}                       ! latitude [degrees]
+  lon                = {longitude}                       ! longitude [degrees]
+  terrain_slope      = {mean_slope_1km}                         ! terrain slope [degrees]
+  azimuth            = {circ_mean_aspect}                         ! terrain azimuth or aspect [degrees clockwise from north]
 /
 
 &forcing
   ZREF               = 10.0    ! measurment height for wind speed
-  rain_snow_thresh   = 1.0     ! rain-snow temperature threshold (degrees Celcius)  
+  rain_snow_thresh   = 1.0     ! rain-snow temperature threshold (degrees Celcius)
 /
 
 &model_options
@@ -44,15 +44,15 @@
   supercooled_water_option          = 1
   stomatal_resistance_option        = 4
   evap_srfc_resistance_option       = 5
-  subsurface_option                 = 2 
+  subsurface_option                 = 2
 /
 
 &structure
- isltyp           = {ISLTYP}       ! soil texture class
+ isltyp           = {mode_ISLTYP:.0f}       ! soil texture class
  nsoil            = 4       ! number of soil levels
  nsnow            = 3       ! number of snow levels
  nveg             = 20      ! number of vegetation types
- vegtyp           = {IVGTYP}       ! vegetation type modis
+ vegtyp           = {mode_IVGTYP:.0f}       ! vegetation type modis
  croptype         = 0       ! crop type (0 = no crops)
  sfctyp           = 1       ! land surface type, 1:soil, 2:lake
  soilcolor        = 4       ! soil color code

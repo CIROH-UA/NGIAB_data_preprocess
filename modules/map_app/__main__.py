@@ -2,8 +2,8 @@
 ## It is the entry point for the application and is equivalent to run.sh
 import logging
 import webbrowser
-from threading import Timer
 from pathlib import Path
+from threading import Timer
 
 from data_processing.file_paths import FilePaths
 from data_processing.graph_utils import get_graph
@@ -12,11 +12,12 @@ from map_app import app, console_handler
 
 LOG_PATH = Path.home() / ".ngiab" / "app.log"
 
+
 def open_browser():
     # find the last line in the log file that contains the port number
     # * running on http://0.0.0.0:port_number
     port_number = None
-    with open(LOG_PATH, 'r') as f:
+    with open(LOG_PATH, "r") as f:
         lines = f.readlines()
         for line in reversed(lines):
             if "Running on http" in line:

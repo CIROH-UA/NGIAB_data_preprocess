@@ -1,0 +1,429 @@
+"""Tests for ``data_processing.create_realization``."""
+
+import copy
+import difflib
+import json
+from datetime import datetime
+from pathlib import Path
+
+import pytest
+
+from data_processing.file_paths import FilePaths
+from data_processing import create_realization
+from data_processing.create_realization import (
+    ALL_SLOTH_MODEL_PARAMS,
+    MODEL_REGISTRY,
+    _insert_sloth_module,
+    create_modular_realization,
+    validate_models,
+)
+
+START = datetime(2020, 1, 1, 0, 0, 0)
+END = datetime(2020, 1, 2, 0, 0, 0)
+
+GOLDEN_DIR = Path(__file__).parent / "golden" / "realization"
+CFE_NOM_GOLDEN = GOLDEN_DIR / "cfe-nom.json"
+
+
+# ---------------------------------------------------------------------------
+# fixtures / helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(name="make_realization")
+def make_realization_fixture(tmp_path, monkeypatch):
+    """Return a runner for ``create_modular_realization`` rooted at ``tmp_path``.
+
+    Pre-creates ``config/`` because the function writes ``realization.json`` into
+    it but does not create it (the real workflow makes it during subsetting).
+    """
+    monkeypatch.setattr(FilePaths, "get_working_dir", classmethod(lambda cls: Path(tmp_path)))
+
+    def _run(  # pylint: disable=too-many-arguments
+        models,
+        *,
+        folder="cat-test",
+        start=START,
+        end=END,
+        routing=False,
+        make_config=True,
+        gage_id=None,
+    ):
+        paths = FilePaths(folder)
+        if make_config:
+            paths.config_dir.mkdir(parents=True, exist_ok=True)
+        create_modular_realization(folder, start, end, models, routing=routing, gage_id=gage_id)
+        return json.loads((paths.config_dir / "realization.json").read_text())
+
+    return _run
+
+
+def _modules_of(realization):
+    return realization["global"]["formulations"][0]["params"]["modules"]
+
+
+def _model_type_names(realization):
+    return [m["params"]["model_type_name"] for m in _modules_of(realization)]
+
+
+def _cfe_module(realization):
+    return next(m for m in _modules_of(realization) if m["params"]["model_type_name"] == "CFE")
+
+
+# ===========================================================================
+# Headline: the modular build must equal the respective golden.
+# ===========================================================================
+
+# One entry per committed golden: (models in execution order, golden filename, label).
+# routing is on for all of them (the goldens were stamped with routing enabled).
+GOLDEN_CASES = [
+    (["sloth", "nom", "cfe"], "cfe-nom.json", "sloth->nom->cfe"),
+    (["dhbv2"], "dhbv2.json", "dhbv2"),
+    (["dhbv2_daily"], "dhbv2-daily.json", "dhbv2_daily"),
+    (["lstm"], "lstm-py.json", "lstm"),
+    (["lstm_rust"], "lstm-rs.json", "lstm_rust"),
+    (["nom", "sac-sma"], "sacsma-nom.json", "nom->sac-sma"),
+    (["sloth", "snow17", "nom", "cfe"], "snow17-nom-cfe.json", "sloth->snow17->nom->cfe"),
+    (["summa"], "summa.json", "summa"),
+]
+
+
+@pytest.mark.parametrize("models, golden_name, label", GOLDEN_CASES)
+def test_modular_realization_matches_golden(models, golden_name, label, make_realization):
+    """Each model combination (routing on) must reproduce its committed golden.
+
+    Mirrors test_sloth_nom_cfe_matches_cfe_nom_golden: build with the same fixed
+    inputs the golden was stamped with, then compare the parsed dicts (key order
+    is irrelevant -- only structure and values matter).
+    """
+    produced = make_realization(models, routing=True)
+    golden = json.loads((GOLDEN_DIR / golden_name).read_text())
+    if produced != golden:
+        diff = "\n".join(
+            difflib.unified_diff(
+                json.dumps(golden, indent=2, sort_keys=True).splitlines(),
+                json.dumps(produced, indent=2, sort_keys=True).splitlines(),
+                fromfile=f"golden/{golden_name}",
+                tofile=f"produced ({label})",
+                lineterm="",
+            )
+        )
+        pytest.fail(f"modular {label} realization does not match {golden_name}.\n\n" + diff)
+
+
+# ---------------------------------------------------------------------------
+# validate_models -- input validation
+# ---------------------------------------------------------------------------
+class TestValidateModelsInputs:
+    """Validate input handling for the model-selection parser."""
+
+    def test_empty_list_raises(self):
+        """Ensure an empty model list raises a clear validation error."""
+        with pytest.raises(ValueError, match="No models specified"):
+            _ = validate_models([], routing=False)
+
+    def test_unknown_model_raises_and_names_offender(
+        self,
+    ):
+        """Unknown model names are rejected before any prompt, and the error
+        message names the offending model."""
+        with pytest.raises(ValueError, match="Invalid models specified"):
+            _ = validate_models(["cfe", "not_a_model"], routing=False)
+
+    def test_every_accepted_model_is_a_valid_name(self):
+        """[model] alone must never trip the 'invalid name' guard (it may still
+        warn about dependencies -- we answer 'y')."""
+        for model in list(MODEL_REGISTRY.keys()):
+            warnings = validate_models([model], routing=False)
+
+        for warning in warnings:
+            assert "Invalid models specified" not in warning
+
+
+# ---------------------------------------------------------------------------
+# validate_models -- dependency rules
+# ---------------------------------------------------------------------------
+class TestValidateModelsDependencies:
+    """Validate dependency-driven prompts and rule enforcement for model lists."""
+
+    WARNING_CASES = [
+        (["cfe"], "CFE requires SLoTH"),
+        (["casam"], "CASAM requires SLoTH"),
+        (["sac-sma"], "SAC-SMA requires SLoTH, NOM, or PET"),
+    ]
+
+    @pytest.mark.parametrize(
+        "models",
+        [
+            ["sloth", "cfe"],
+            ["sloth", "casam"],
+            ["nom", "sac-sma"],
+        ],
+    )
+    def test_met_dependency_does_not_prompt(self, models):
+        """Ensure satisfied dependencies do not trigger a confirmation prompt."""
+        warnings = validate_models(models, routing=False)
+        assert not warnings
+
+    def test_multiple_unmet_dependencies_accumulate(self):
+        """Each failing model contributes its own warning line to the message."""
+        warnings = validate_models(["cfe", "casam"], routing=False)
+        assert "CFE requires SLoTH" in warnings
+        assert "CASAM requires SLoTH" in warnings
+
+
+# ---------------------------------------------------------------------------
+# validate_models -- routing rule
+# ---------------------------------------------------------------------------
+class TestValidateModelsRouting:
+    """Validate routing-related model selection rules."""
+
+    def test_routing_without_rainfall_runoff_warns(self):
+        """Ensure routing requires a rainfall-runoff model and prompts otherwise."""
+        warnings = validate_models(["nom"], routing=True)
+        assert "Routing is on but no rainfall-runoff model is used" in warnings
+
+    def test_routing_with_rainfall_runoff_is_quiet(self):
+        """Ensure routing succeeds without prompting when a runoff model is present."""
+        warnings = validate_models(["sloth", "cfe"], routing=True)
+        assert not warnings
+
+    def test_routing_off_never_adds_routing_warning(self):
+        """Ensure routing is ignored when routing is disabled."""
+        warnings = validate_models(["nom"], routing=False)
+        assert not warnings
+
+
+# ---------------------------------------------------------------------------
+# _insert_sloth_module
+# ---------------------------------------------------------------------------
+class TestInsertSlothModule:
+    """Validate the helper that inserts the SLOTH module into the realization."""
+
+    def test_inserts_at_sloth_index(self):
+        """Ensure the SLOTH module is inserted at the expected position."""
+        modules = [
+            {"params": {"model_type_name": "A"}},
+            {"params": {"model_type_name": "B"}},
+        ]
+        _insert_sloth_module(["A", "sloth", "B"], {"cfe": {"x": "sloth_pet"}}, modules)
+        assert [m["params"]["model_type_name"] for m in modules] == ["A", "SLOTH", "B"]
+
+    def test_builds_model_params_from_sloth_prefixed_vars(self):
+        """Ensure SLOTH parameters are derived from sloth-prefixed variable names."""
+        modules = []
+        target = {"cfe": copy.deepcopy(MODEL_REGISTRY["cfe"].variables_names_map)}
+        _insert_sloth_module(["sloth"], target, modules)
+        params = modules[0]["params"]["model_params"]
+        assert set(params.keys()) == {
+            "sloth_pet" + ALL_SLOTH_MODEL_PARAMS["sloth_pet"],
+            "sloth_ice_fraction_schaake" + ALL_SLOTH_MODEL_PARAMS["sloth_ice_fraction_schaake"],
+            "sloth_ice_fraction_xinanjiang"
+            + ALL_SLOTH_MODEL_PARAMS["sloth_ice_fraction_xinanjiang"],
+            "sloth_soil_moisture_profile" + ALL_SLOTH_MODEL_PARAMS["sloth_soil_moisture_profile"],
+        }
+        assert all(v == 0.0 for v in params.values())
+
+    def test_non_sloth_vars_are_ignored(self):
+        """Ensure non-SLOTH variables do not contribute model parameters."""
+        modules = []
+        _insert_sloth_module(["sloth"], {"cfe": {"precip": "APCP_surface"}}, modules)
+        assert modules[0]["params"]["model_params"] == {"sloth_dummy_param(1,double,1,node)": 0.0}
+
+    def test_sloth_dummy_variable_added(self):
+        """Ensure SLoTH dummy variable is added when no other parameters are present."""
+        modules = []
+        _insert_sloth_module(["sloth"], {}, modules)
+        assert modules[0]["params"]["model_params"] == {"sloth_dummy_param(1,double,1,node)": 0.0}
+
+
+# ---------------------------------------------------------------------------
+# create_modular_realization -- integration
+# ---------------------------------------------------------------------------
+class TestCreateModularRealization:
+    """Validate the end-to-end modular realization creation workflow."""
+
+    def test_writes_realization_json(self, make_realization, tmp_path):
+        """Ensure the realization JSON is written to the expected config path."""
+        make_realization(["sloth", "cfe"])
+        assert (tmp_path / "cat-test" / "config" / "realization.json").exists()
+
+    def test_top_level_shape(self, make_realization):
+        """Ensure the generated realization contains the expected top-level keys."""
+        r = make_realization(["sloth", "cfe"])
+        assert {"global", "time", "output_root"} <= set(r)
+
+    def test_main_output_variable_comes_from_last_model(self, make_realization):
+        """Ensure the main output variable follows the last model in the chain."""
+        r = make_realization(["sloth", "cfe"])
+        params = r["global"]["formulations"][0]["params"]
+        assert (
+            params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable == "Q_OUT"
+        )
+
+    def test_sloth_inserted_before_cfe_by_position(self, make_realization):
+        """Ensure the SLOTH module appears before the CFE module in the chain."""
+        r = make_realization(["sloth", "cfe"])
+        names = _model_type_names(r)
+        assert names.index("SLOTH") < names.index("CFE")
+
+    def test_nom_override_rewrites_cfe_sources(self, make_realization):
+        """nom seen before cfe -> cfe's precip/PET sources switch to the
+        Noah-OWP outputs."""
+        r = make_realization(["sloth", "nom", "cfe"])
+        vmap = _cfe_module(r)["params"]["variables_names_map"]
+        assert vmap["water_potential_evaporation_flux"] == "EVAPOTRANS"
+        assert vmap["atmosphere_water__liquid_equivalent_precipitation_rate"] == "QINSUR"
+
+    def test_casam_can_be_main_model(self, make_realization):
+        """casam has a MAIN_OUTPUT_VARIABLES entry, so it can be the terminal
+        model, and its module appears in the coupled chain."""
+        r = make_realization(["sloth", "nom", "casam"])
+        assert "CASAM" in _model_type_names(r)
+        params = r["global"]["formulations"][0]["params"]
+        assert (
+            params["main_output_variable"]
+            == MODEL_REGISTRY["casam"].main_output_variable
+            == "total_discharge"
+        )
+
+    def test_nom_override_rewrites_casam_pet_source(self, make_realization):
+        """nom seen before casam -> casam's PET source switches to the Noah-OWP
+        output (confirms casam applies its computed map, like cfe)."""
+        r = make_realization(["sloth", "nom", "casam"])
+        casam = next(m for m in _modules_of(r) if m["params"]["model_type_name"] == "CASAM")
+        assert casam["params"]["variables_names_map"]["potential_evapotranspiration_rate"] == (
+            "EVAPOTRANS"
+        )
+
+    def test_override_does_not_fire_when_dependency_seen_later(self, make_realization):
+        """cfe before nom -> cfe keeps its default (sloth/forcing) sources."""
+        r = make_realization(["sloth", "cfe", "nom"])
+        vmap = _cfe_module(r)["params"]["variables_names_map"]
+        assert (
+            vmap["water_potential_evaporation_flux"]
+            == (MODEL_REGISTRY["cfe"].variables_names_map["water_potential_evaporation_flux"])
+        )
+
+    def test_routing_on_adds_troute_block(self, make_realization):
+        """Ensure routing adds the expected TRoute configuration block."""
+        r = make_realization(["sloth", "cfe"], routing=True)
+        assert r["routing"] == {"t_route_config_file_with_path": "./config/troute.yaml"}
+
+    def test_routing_off_omits_routing_block(self, make_realization):
+        """Ensure routing is omitted when routing is disabled."""
+        r = make_realization(["sloth", "cfe"], routing=False)
+        assert "routing" not in r
+
+    def test_missing_config_dir_raises(self, make_realization):
+        """config/ must already exist; the function does not create it."""
+        with pytest.raises(FileNotFoundError):
+            make_realization(["sloth", "cfe"], make_config=False)
+
+    def test_string_time_inputs_now_raise(self, make_realization):
+        """The builder stamps time via datetime.strftime, so it now requires
+        datetime objects -- passing pre-formatted strings raises TypeError.
+        (Matches the datetime contract of make_ngen_realization_json.)"""
+        with pytest.raises(TypeError):
+            make_realization(
+                ["sloth", "cfe"], start="2020-01-01 00:00:00", end="2020-01-02 00:00:00"
+            )
+
+
+# ---------------------------------------------------------------------------
+# create_modular_realization -- calibrated-parameter (gage_id) path
+# ---------------------------------------------------------------------------
+class _FakeResponse:
+    """Minimal stand-in for a ``requests.Response``."""
+
+    def __init__(self, status_code, payload=None):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class TestCreateModularRealizationCalibratedParams:
+    """Validate the gage_id/calibrated-parameter short-circuit path."""
+
+    def test_successful_download_writes_patched_realization_json(
+        self, make_realization, monkeypatch, tmp_path
+    ):
+        """A 200 response must still result in config/realization.json being
+        written, with the placeholder time fields overwritten by the
+        caller-supplied start/end times (not left as the downloaded stub's
+        placeholder values)."""
+        fake_payload = {
+            "time": {
+                "start_time": "1900-01-01 00:00:00",
+                "end_time": "1900-01-02 00:00:00",
+                "output_interval": 3600,
+            },
+            "global": {"formulations": [{"params": {"model_type_name": "CFE"}}]},
+            "output_root": "./outputs/",
+        }
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            return _FakeResponse(200, fake_payload)
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "nom", "cfe"], gage_id="gage-01234567")
+
+        realization_path = tmp_path / "cat-test" / "config" / "realization.json"
+        assert realization_path.exists()
+        assert result["time"]["start_time"] == "2020-01-01 00:00:00"
+        assert result["time"]["end_time"] == "2020-01-02 00:00:00"
+        # Confirms the downloaded template (not the modular-registry template)
+        # was the basis for the written file.
+        assert result["output_root"] == "./outputs/"
+        # The old, dead-end filename should not be produced anymore.
+        assert not (tmp_path / "cat-test" / "config" / "downloaded_params.json").exists()
+
+    def test_failed_download_falls_back_to_modular_template(
+        self, make_realization, monkeypatch, tmp_path
+    ):
+        """A non-200 response must not short-circuit -- the normal modular
+        build (from MODEL_REGISTRY) still runs and produces realization.json."""
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            return _FakeResponse(404)
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "nom", "cfe"], gage_id="gage-01234567")
+
+        realization_path = tmp_path / "cat-test" / "config" / "realization.json"
+        assert realization_path.exists()
+        # The modular build stamps main_output_variable from the registry --
+        # the downloaded-template path would never set this key this way.
+        params = result["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable
+
+    def test_gage_id_ignored_for_non_matching_model_combo(self, make_realization, monkeypatch):
+        """The calibrated-parameter path only triggers for the exact
+        ["sloth", "nom", "cfe"] combination -- requests.get must not even be
+        called for any other model list, even with a gage_id set."""
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            raise AssertionError("requests.get should not be called for this model combo")
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "cfe"], gage_id="gage-01234567")
+        params = result["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable
+
+    def test_no_gage_id_never_calls_requests(self, make_realization, monkeypatch):
+        """Without a gage_id, the calibrated-parameter path must be skipped
+        entirely, regardless of the model combination."""
+
+        def fake_get(url, timeout=10):  # pylint: disable=unused-argument
+            raise AssertionError("requests.get should not be called without a gage_id")
+
+        monkeypatch.setattr(create_realization.requests, "get", fake_get)
+
+        result = make_realization(["sloth", "nom", "cfe"])
+        params = result["global"]["formulations"][0]["params"]
+        assert params["main_output_variable"] == MODEL_REGISTRY["cfe"].main_output_variable

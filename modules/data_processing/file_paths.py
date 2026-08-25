@@ -24,6 +24,7 @@ class FilePaths:
     dhbv_attributes = hf_bucket + resource_key + "dhbv_attrs_sorted.parquet"
     snow17_attributes = hf_bucket + resource_key + "snow17_attributes_sorted.parquet"
     sacsma_attributes = hf_bucket + resource_key + "sacsma_attributes_sorted.parquet"
+    casam_attributes = hf_bucket + resource_key + "casam_attrs_sorted.parquet"
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
@@ -39,6 +40,7 @@ class FilePaths:
     template_snow17_params = template_cat_dir / "snow17-params.txt"
     template_sac_config = template_cat_dir / "sac-init.namelist.input"
     template_sac_params = template_cat_dir / "sac-params.txt"
+    template_casam_config = template_cat_dir / "casam.txt"
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
@@ -52,6 +54,21 @@ class FilePaths:
     template_sac_realization_config = template_realization_dir / "sacsma-nom.json"
 
     summa_file_dir = data_sources / "config" / "SUMMA"
+
+    # Modular realization components
+    modular_realization_dir = data_sources / "config" / "modular_realization"
+    modular_template = modular_realization_dir / "multi-template.json"
+    cfe_modular_config = modular_realization_dir / "cfe.json"
+    nom_modular_config = modular_realization_dir / "nom.json"
+    sloth_modular_config = modular_realization_dir / "sloth.json"
+    casam_modular_config = modular_realization_dir / "casam.json"
+    dhbv2_modular_config = modular_realization_dir / "dhbv2.json"
+    dhbv2_daily_modular_config = modular_realization_dir / "dhbv2_daily.json"
+    lstm_rust_modular_config = modular_realization_dir / "lstm_rust.json"
+    lstm_modular_config = modular_realization_dir / "lstm.json"
+    sac_modular_config = modular_realization_dir / "sac-sma.json"
+    snow17_modular_config = modular_realization_dir / "snow17.json"
+    summa_modular_config = modular_realization_dir / "summa.json"
 
     def __init__(self, folder_name: Optional[str] = None, output_dir: Optional[Path] = None):
         """
@@ -73,7 +90,7 @@ class FilePaths:
                 self.folder_name = folder_path.name
             else:
                 self.folder_name = folder_name
-                self.output_dir = self.root_output_dir() / folder_name
+                self.output_dir = self._root_output_dir() / folder_name
 
         if output_dir:
             self.output_dir = Path(output_dir).expanduser().resolve()
@@ -82,27 +99,26 @@ class FilePaths:
     @classmethod
     def get_working_dir(cls) -> Path | None:
         try:
-            with open(cls.config_file, "r") as f:
+            with open(cls.config_file, "r", encoding="utf-8") as f:
                 return Path(f.readline().strip()).expanduser()
         except FileNotFoundError:
             return None
 
     @classmethod
     def set_working_dir(cls, working_dir: Path) -> None:
-        with open(cls.config_file, "w") as f:
+        with open(cls.config_file, "w", encoding="utf-8") as f:
             f.write(str(working_dir))
 
     @classmethod
-    def root_output_dir(cls) -> Path:
+    def _root_output_dir(cls) -> Path:
         return cls.get_working_dir() or Path(__file__).parent.parent.parent / "output"
 
     @property
     def subset_dir(self) -> Path:
         if self.output_dir:
             return self.output_dir
-        else:
-            self.output_dir = self.root_output_dir() / self.folder_name
-            return self.output_dir
+        self.output_dir = self._root_output_dir() / self.folder_name
+        return self.output_dir
 
     @property
     def config_dir(self) -> Path:
@@ -121,14 +137,14 @@ class FilePaths:
         return self.config_dir / "model_config" / "SUMMA"
 
     @property
-    def metadata_dir(self) -> Path:
+    def _metadata_dir(self) -> Path:
         meta_dir = self.subset_dir / "metadata"
         meta_dir.mkdir(parents=True, exist_ok=True)
         return meta_dir
 
     @property
     def forcing_progress_file(self) -> Path:
-        return self.metadata_dir / "forcing_progress.json"
+        return self._metadata_dir / "forcing_progress.json"
 
     @property
     def geopackage_path(self) -> Path:
@@ -141,13 +157,15 @@ class FilePaths:
     def append_cli_command(self, command: list[str]) -> None:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         command_string = " ".join(command)
-        history_file = self.metadata_dir / "cli_commands_history.txt"
+        history_file = self._metadata_dir / "cli_commands_history.txt"
         if not history_file.parent.exists():
             history_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.metadata_dir / "cli_commands_history.txt", "a") as f:
+        with open(self._metadata_dir / "cli_commands_history.txt", "a", encoding="utf-8") as f:
             f.write(f"{current_time}| {command_string}\n")
 
-    def setup_run_folders(self, extra_folders: list[str] = []) -> None:
+    def setup_run_folders(self, extra_folders: list[str] | None = None) -> None:
+        if extra_folders is None:
+            extra_folders = []
         folders = [
             "outputs",
             "outputs/ngen",

@@ -23,8 +23,10 @@ def load_v3_retrospective_zarr(forcing_vars: Optional[list[str]] = None) -> xr.D
     # default cache is readahead which is detrimental to performance in this case
     fs = S3ParallelFileSystem(anon=True, default_cache_type="none")  # default_block_size
     s3_stores = [s3fs.S3Map(url, s3=fs) for url in s3_urls]
-    # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
-    # most of the data is read once and written to disk but some of the coordinate data is read multiple times
+    # the cache option here just holds accessed data in memory to prevent s3 being queried multiple
+    # times
+    # most of the data is read once and written to disk but some of the coordinate data is read
+    # multiple times
     dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)  # type: ignore
 
     # set the crs attribute to conform with the format
@@ -61,10 +63,10 @@ def load_aorc_zarr(start_year: Optional[int] = None, end_year: Optional[int] = N
     if not end_year:
         end_year = 2023
 
-    logger.info(f"Loading AORC zarr datasets from {start_year} to {end_year}")
+    logger.info("Loading AORC zarr datasets from %s to %s", start_year, end_year)
     estimated_time_s = ((end_year - start_year) * 2.5) + 3.5
     # from testing, it's about 2.1s per year + 3.5s overhead
-    logger.info(f"This should take roughly {estimated_time_s} seconds")
+    logger.info("This should take roughly %s seconds", estimated_time_s)
     fs = S3ParallelFileSystem(anon=True, default_cache_type="none")
     s3_url = "s3://noaa-nws-aorc-v1-1-1km/"
     urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year + 1)]
@@ -86,8 +88,10 @@ def load_swe_zarr() -> xr.Dataset:
     # default cache is readahead which is detrimental to performance in this case
     fs = S3ParallelFileSystem(anon=True, default_cache_type="none")  # default_block_size
     s3_stores = [s3fs.S3Map(url, s3=fs) for url in s3_urls]
-    # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
-    # most of the data is read once and written to disk but some of the coordinate data is read multiple times
+    # the cache option here just holds accessed data in memory to prevent s3 being queried multiple
+    # times
+    # most of the data is read once and written to disk but some of the coordinate data is read
+    # multiple times
     dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)  # type: ignore
 
     # set the crs attribute to conform with the format

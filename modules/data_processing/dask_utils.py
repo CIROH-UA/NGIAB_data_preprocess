@@ -24,7 +24,7 @@ _n_workers = _env_n_workers()
 # set n_workers from CLI or other code
 def set_n_workers(n_workers):
     """Set the number of workers used whenever this package creates a Dask cluster."""
-    global _n_workers
+    global _n_workers  # pylint: disable=global-statement
     _n_workers = n_workers
 
 
@@ -84,9 +84,9 @@ def use_cluster(func):
 
     def wrapper(*args, **kwargs):
         try:
-            client = Client.current()
+            client = Client.current()  # pylint: disable=unused-variable
         except ValueError:
-            client = _new_client()
+            client = _new_client()  # noqa
         result = func(*args, **kwargs)
         return result
 

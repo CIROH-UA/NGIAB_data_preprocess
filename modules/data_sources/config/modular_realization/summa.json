@@ -1,0 +1,14 @@
+{
+    "name": "bmi_fortran",
+    "params": {
+        "model_type_name": "bmi_fortran_summa",
+        "library_file": "/dmod/shared_libs/libsummabmi.so",
+        "forcing_file": "",
+        "init_config": "./config/cat_config/SUMMA/{{id}}.input",
+        "allow_exceed_end_time": true,
+        "main_output_variable": "land_surface_water__runoff_volume_flux",
+        "variables_names_map": {
+        },
+        "uses_forcing_file": false
+    }
+}

@@ -1,7 +1,7 @@
 hru_id {divide_id}
 hru_area {areasqkm}
 latitude {latitude}
-elev {elevation}
+elev {mean_elevation}
 scf {scf}
 mfmax {mfmax}
 mfmin {mfmin}

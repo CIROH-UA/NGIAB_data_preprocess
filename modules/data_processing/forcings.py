@@ -118,7 +118,7 @@ def get_cell_weights(raster: xr.Dataset, gdf: gpd.GeoDataFrame, wkt: str) -> pd.
     return output.set_index("divide_id")
 
 
-def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
+def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:  # pylint: disable=invalid-name
     """Convert precipitation value to correct units."""
     # precip_rate is mm/s
     # cfe says input atmosphere_water__liquid_equivalent_precipitation_rate is mm/h
@@ -133,7 +133,7 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     return dataset
 
 
-def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
+def _add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     # the inverse of the function above
     dataset["precip_rate"] = dataset["APCP_surface"] / 3600
     dataset["precip_rate"].attrs["units"] = "mm s^-1"
@@ -194,7 +194,7 @@ def create_shared_memory(
     np.dtype
         Data type of objects in lazy_array.
     """
-    logger.debug(f"Creating shared memory size {lazy_array.nbytes / 10**6} Mb.")
+    logger.debug("Creating shared memory size %s Mb.", lazy_array.nbytes / 10**6)
     shm = shared_memory.SharedMemory(create=True, size=lazy_array.nbytes)
     shared_array = np.ndarray(lazy_array.shape, dtype=np.float32, buffer=shm.buf)
     # if your data is not float32, xarray will do an automatic conversion here
@@ -203,8 +203,8 @@ def create_shared_memory(
         # copy data from lazy to shared memory one chunk at a time
         shared_array[start:end] = lazy_array[start:end]
 
-    time, x, y = shared_array.shape
-    shared_array = shared_array.reshape(time, -1)
+    timesteps, _, _ = shared_array.shape
+    shared_array = shared_array.reshape(timesteps, -1)
 
     return shm, shared_array.shape, shared_array.dtype
 
@@ -318,7 +318,7 @@ def interpolate_nan_values(
     dim: str = "time",
     method: InterpOptions = "linear",
     fill_value: str = "extrapolate",
-) -> bool:
+) -> None:
     """
     Interpolates NaN values in specified (or all numeric time-dependent)
     variables of an xarray.Dataset. Operates inplace on the dataset.
@@ -374,8 +374,7 @@ def compute_zonal_stats(
     logger.info("Computing zonal stats in parallel for all timesteps")
     timer_start = time.time()
     num_partitions = multiprocessing.cpu_count() - 1
-    if num_partitions > len(gdf):
-        num_partitions = len(gdf)
+    num_partitions = min(num_partitions, len(gdf))
 
     catchments = get_cell_weights_parallel(gdf, gridded_data, num_partitions)
     units = get_units(gridded_data)
@@ -390,10 +389,13 @@ def compute_zonal_stats(
 
     all_steps = len(example_time_chunks) * len(data_vars)
     logger.info(
-        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(data_vars)}"
+        "Total steps: %s, Number of time chunks: %s, Number of variables: %s",
+        all_steps,
+        len(example_time_chunks),
+        len(data_vars),
     )
     steps_completed = 0
-    with open(progress_file, "w") as f:
+    with open(progress_file, "w", encoding="utf-8") as f:
         json.dump({"total_steps": all_steps, "steps_completed": steps_completed}, f)
 
     progress = Progress(
@@ -435,7 +437,7 @@ def compute_zonal_stats(
                 process_chunk_shared, data_var_name, times, shm.name, shape, dtype
             )
 
-            logger.debug(f"Processing variable: {data_var_name}")
+            logger.debug("Processing variable: %s", data_var_name)
             # process the chunks of catchments in parallel
             with multiprocessing.Pool(num_partitions) as pool:
                 variable_data = pool.map(partial_process_chunk, cat_chunks)
@@ -443,19 +445,20 @@ def compute_zonal_stats(
             # clean up the shared memory
             shm.close()
             shm.unlink()
-            logger.debug(f"Processed variable: {data_var_name}")
+            logger.debug("Processed variable: %s", data_var_name)
             concatenated_da = xr.concat(variable_data, dim="catchment")
             # delete the data to free up memory
             del variable_data
-            logger.debug(f"Concatenated variable: {data_var_name}")
+            logger.debug("Concatenated variable: %s", data_var_name)
             # write this to disk now to save memory
-            # xarray will monitor memory usage, but it doesn't account for the shared memory used to store the raster
+            # xarray will monitor memory usage, but it doesn't account for the shared memory used to
+            # store the raster
             # This reduces memory usage by about 60%
             concatenated_da.to_dataset(name=data_var_name).to_netcdf(
                 forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc"
             )
             steps_completed += 1
-            with open(progress_file, "w") as f:
+            with open(progress_file, "w", encoding="utf-8") as f:
                 json.dump({"total_steps": all_steps, "steps_completed": steps_completed}, f)
         # Merge the chunks back together
         datasets = [
@@ -476,7 +479,7 @@ def compute_zonal_stats(
     )
     progress.stop()
     logger.info(
-        f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
+        "Forcing generation complete! Zonal stats computed in %s seconds", time.time() - timer_start
     )
     write_outputs(forcings_dir, units)
     time.sleep(1)  # wait for progress bar to update
@@ -509,13 +512,13 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
         if var in units:
             final_ds[var].attrs["units"] = units[var]
         else:
-            logger.warning(f"Variable {var} has no units")
+            logger.warning("Variable %s has no units", var)
 
     rename_dict = {}
 
     final_ds = final_ds.rename_vars(rename_dict)
     if "APCP_surface" in final_ds.data_vars:
-        final_ds = add_precip_rate_to_dataset(final_ds)
+        final_ds = _add_precip_rate_to_dataset(final_ds)
     elif "precip_rate" in final_ds.data_vars:
         final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
@@ -563,7 +566,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     temp_forcings_dir.rmdir()
 
 
-def setup_directories(cat_id: str) -> FilePaths:
+def _setup_directories(cat_id: str) -> FilePaths:
     forcing_paths = FilePaths(cat_id)
     # delete everything in the forcing folder except the cached nc file
     for file in forcing_paths.forcings_dir.glob("*.*"):
@@ -577,12 +580,12 @@ def setup_directories(cat_id: str) -> FilePaths:
 
 def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     validate_dataset_format(dataset)
-    forcing_paths = setup_directories(output_folder_name)
-    logger.debug(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
+    forcing_paths = _setup_directories(output_folder_name)
+    logger.debug("forcing path %s %s", output_folder_name, forcing_paths.forcings_dir)
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
-    logger.debug(f"gdf  bounds: {gdf.total_bounds}")
+    logger.debug("gdf  bounds: %s", gdf.total_bounds)
     gdf = gdf.to_crs(dataset.crs)
-    dataset = dataset.isel(
-        y=slice(None, None, -1)
-    )  # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
+    # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial
+    # operations expect y to increase from bottom-to-top (increasing latitude).
+    dataset = dataset.isel(y=slice(None, None, -1))
     compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)

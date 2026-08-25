@@ -1,6 +1,7 @@
 from typing import Tuple
 
 import rich.status
+from rich.prompt import Prompt
 
 # add a status bar for these imports so the cli feels more responsive
 with rich.status.Status("loading") as status:
@@ -13,14 +14,6 @@ with rich.status.Status("loading") as status:
     from pathlib import Path
 
     import geopandas as gpd
-    from data_processing.create_realization import (
-        create_dhbv2_realization,
-        create_lstm_realization,
-        create_realization,
-        create_summa_realization,
-        create_snow17_realization,
-        create_sacsma_realization,
-    )
     from data_processing.dask_utils import set_n_workers, shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -28,6 +21,11 @@ with rich.status.Status("loading") as status:
     from data_processing.forcings import create_forcings
     from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
     from data_processing.graph_utils import get_upstream_cats
+    from data_processing.create_realization import (
+        validate_models,
+        create_modular_realization,
+    )
+    from data_processing.create_configs import create_modular_configs
     from data_processing.subset import subset, subset_vpu
     from data_sources.source_validation import validate_hydrofabric, validate_output_dir
     from ngiab_data_cli.arguments import parse_arguments
@@ -39,6 +37,28 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
 
     feature_name = None
     output_folder = None
+
+    if args.models:
+        warnings = validate_models(args.models, args.routing)
+
+        if len(warnings) > 0:
+            warning_message = "Model configuration warnings:\n" + "\n".join(warnings)
+            logging.warning(warning_message)
+
+            if sys.stdin.isatty():
+                response = Prompt.ask(
+                    "Run anyway? (y/n)",
+                    default="n",
+                    choices=["y", "n"],
+                )
+            else:
+                logging.warning(
+                    "Non-interactive session detected, proceeding automatically despite warnings."
+                )
+                response = "y"
+            if response == "n":
+                raise ValueError("Model configuration invalid: " + warning_message)
+            print("Proceeding with data preprocessing despite warnings: " + warning_message)
 
     if args.vpu:
         if not args.output_name:
@@ -59,7 +79,7 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
                 args.gage = True
             elif prefix.lower() == "wb":
                 logging.warning("Waterbody IDs are no longer supported!")
-                logging.warning(f"Automatically converting {input_feature} to catid")
+                logging.warning("Automatically converting %s to catid", input_feature)
                 time.sleep(2)
 
         # always add or replace the prefix with cat if it is not a lat lon or gage
@@ -72,11 +92,11 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
         if args.latlon:
             validate_hydrofabric()
             feature_name = get_cat_id_from_lat_lon(input_feature)
-            logging.info(f"Found {feature_name} from {input_feature}")
+            logging.info("Found %s from %s", feature_name, input_feature)
         elif args.gage:
             validate_hydrofabric()
             feature_name = get_cat_from_gage_id(input_feature)
-            logging.info(f"Found {feature_name} from {input_feature}")
+            logging.info("Found %s from %s", feature_name, input_feature)
         else:
             feature_name = input_feature
 
@@ -90,7 +110,7 @@ def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
             output_folder = feature_name
             validate_output_dir()
 
-    return feature_name, output_folder
+    return feature_name, output_folder  # type: ignore
 
 
 def get_cat_id_from_lat_lon(input_feature: str) -> str:
@@ -102,11 +122,11 @@ def get_cat_id_from_lat_lon(input_feature: str) -> str:
         raise ValueError("Lat Lon input must be comma separated e.g. -l 54.33,-69.4")
 
 
-def set_dependent_flags(args, paths: FilePaths):
+def _set_dependent_flags(args, paths: FilePaths):
     # if validate is set, run everything that is missing
     if args.validate:
         logging.info("Running all missing steps required to run ngiab.")
-        args = validate_run_directory(args, paths)
+        args = _validate_run_directory(args, paths)
 
     # realization and forcings require subset to have been run at least once
     if args.realization or args.forcings:
@@ -118,14 +138,16 @@ def set_dependent_flags(args, paths: FilePaths):
 
     if (args.forcings or args.realization) and not (args.start_date and args.end_date):
         raise ValueError(
-            "Both --start and --end are required for forcings generation or realization creation. YYYY-MM-DD"
+            "Both --start and --end are required for forcings generation or realization "
+            + "creation. YYYY-MM-DD"
         )
 
     return args
 
 
-def validate_run_directory(args, paths: FilePaths):
-    # checks the folder that is going to be run, enables steps that are needed to populate the folder
+def _validate_run_directory(args, paths: FilePaths):
+    # checks the folder that is going to be run, enables steps that are needed to populate the
+    # folder
     if not paths.config_dir.exists():
         logging.info("Subset folder does not exist, enabling subset, forcings, and realization.")
         args.subset = True
@@ -154,10 +176,10 @@ def main() -> None:
             set_n_workers(args.dask_workers)
 
         if args.output_root:
-            with open(FilePaths.config_file, "w") as config_file:
+            with open(FilePaths.config_file, "w", encoding="utf-8") as config_file:
                 config_file.write(str(Path(args.output_root).expanduser().absolute()))
             logging.info(
-                f"Changed default directory where outputs are stored to {args.output_root}"
+                "Changed default directory where outputs are stored to %s", args.output_root
             )
 
         feature_to_subset, output_folder = validate_input(args)
@@ -170,12 +192,12 @@ def main() -> None:
 
         paths = FilePaths(output_folder)
         paths.append_cli_command(sys.argv)
-        args = set_dependent_flags(args, paths)  # --validate
+        args = _set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
-            logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
+            logging.info("Processing %s in %s", feature_to_subset, paths.output_dir)
             if not args.vpu:
                 upstream_count = len(get_upstream_cats(feature_to_subset))
-                logging.info(f"Upstream catchments: {upstream_count}")
+                logging.info("Upstream catchments: %s", upstream_count)
                 if upstream_count == 0:
                     # if there are no upstreams, exit
                     logging.error("No upstream catchments found.")
@@ -183,7 +205,7 @@ def main() -> None:
 
         if args.subset:
             if args.vpu:
-                logging.info(f"Subsetting VPU {args.vpu}")
+                logging.info("Subsetting VPU %s", args.vpu)
                 subset_vpu(args.vpu, output_gpkg_path=paths.geopackage_path)
                 logging.info("Subsetting complete.")
             else:
@@ -199,10 +221,10 @@ def main() -> None:
                 logging.info("Subsetting complete.")
 
         if args.forcings:
-            logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
+            logging.info("Generating forcings from %s to %s...", args.start_date, args.end_date)
             if args.source == "aorc":
                 data = load_aorc_zarr(args.start_date.year, args.end_date.year)
-            elif args.source == "nwm":
+            else:
                 data = load_v3_retrospective_zarr()
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
             cached_data = save_and_clip_dataset(
@@ -216,54 +238,46 @@ def main() -> None:
             logging.info("Forcings generation complete.")
 
         if args.realization:
-            logging.info(f"Creating realization from {args.start_date} to {args.end_date}...")
+            logging.info("Creating realization from %s to %s...", args.start_date, args.end_date)
             gage_id = None
             if args.gage:
                 gage_id = args.input_feature
                 if not gage_id.startswith("gage-"):
                     gage_id = "gage-" + gage_id
-            if args.lstm or args.lstm_rust:
-                create_lstm_realization(
+
+            if args.models:
+                create_modular_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
-                    use_rust=args.lstm_rust,
-                )
-            elif args.dhbv2 or args.dhbv2_daily:
-                create_dhbv2_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    daily=args.dhbv2_daily,
-                )
-            elif args.summa:
-                create_summa_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                )
-            elif args.snow17:
-                create_snow17_realization(
-                    output_folder,
-                    start_time=args.start_date,
-                    end_time=args.end_date,
-                    use_nwm_gw=args.nwm_gw,
+                    models=args.models,
+                    routing=args.routing,
                     gage_id=gage_id,
                 )
-            elif args.sacsma:
-                create_sacsma_realization(
+                create_modular_configs(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
-                    gage_id=gage_id,
+                    models=args.models,
+                    routing=args.routing,
                 )
             else:
-                create_realization(
+                # default to SLoTH + NOM + CFE + t-route
+                # default realizations always include t-route regardless of --routing
+                create_modular_realization(
                     output_folder,
                     start_time=args.start_date,
                     end_time=args.end_date,
-                    use_nwm_gw=args.nwm_gw,
+                    models=["sloth", "nom", "cfe"],
+                    routing=True,
                     gage_id=gage_id,
+                )
+                create_modular_configs(
+                    output_folder,
+                    start_time=args.start_date,
+                    end_time=args.end_date,
+                    models=["sloth", "nom", "cfe"],
+                    routing=True,
                 )
             logging.info("Realization creation complete.")
 
@@ -271,55 +285,29 @@ def main() -> None:
             logging.info("Running Next Gen using NGIAB...")
 
             try:
-                subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
-            except:
+                subprocess.run(
+                    "docker pull awiciroh/ciroh-ngen-image:latest", shell=True, check=True
+                )
+            except subprocess.CalledProcessError:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
-                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local'
-                subprocess.run(command, shell=True)
+                command = (
+                    f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" '
+                    + f"awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local"
+                )
+                subprocess.run(command, shell=True, check=True)
                 logging.info("Next Gen run complete.")
-            except:
+            except subprocess.CalledProcessError:
                 logging.error("Next Gen run failed.")
 
-        if args.eval:
-            plot = False
-            try:
-                import matplotlib
-                import seaborn
-
-                plot = True
-            except ImportError:
-                # silently fail as plotting isn't publicly supported
-                pass
-
-            try:
-                from ngiab_eval import evaluate_folder
-
-                if plot:
-                    logging.info("Plotting enabled")
-                logging.info("Evaluating model performance...")
-                evaluate_folder(paths.subset_dir, plot=plot, debug=args.debug)
-            except ImportError:
-                logging.error(
-                    "Evaluation module not found. Please install the ngiab_eval package to evaluate model performance."
-                )
-                args.vis = False
-
-        if args.vis:
-            try:
-                command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:v0.2.1'
-                subprocess.run(command, shell=True)
-            except:
-                logging.error("Failed to launch docker container.")
-
         logging.info("All operations completed successfully.")
-        logging.info(f"Output folder: file:///{paths.subset_dir}")
-        # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
-        # that look like errors
+        logging.info("Output folder: file:///%s", paths.subset_dir)
+        # set logging to ERROR level only as dask distributed can clutter the terminal with INFO
+        # messages that look like errors
         set_logging_to_critical_only()
 
     except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
+        logging.error("An error occurred: %s", str(e))
         raise
     shutdown_cluster()
 
