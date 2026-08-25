@@ -254,12 +254,12 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
     con.commit()
 
 
-def update_geopackage_metadata(gpkg: Path) -> None:
+def update_geopackage_metadata(gpkg: Path, hydrofabric: Path = FilePaths.conus_hydrofabric) -> None:
     """
     Update the contents of the gpkg_contents table in the specified geopackage.
     """
     # table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
-    tables = get_feature_tables(FilePaths.conus_hydrofabric)
+    tables = get_feature_tables(hydrofabric)
     con = sqlite3.connect(gpkg)
     for table in tables:
         min_x = con.execute(f"SELECT MIN(minx) FROM rtree_{table}_geom").fetchone()[0]
@@ -334,7 +334,7 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
 
     insert_data(dest_db, table, contents)
 
-    if table in get_feature_tables(FilePaths.conus_hydrofabric):
+    if table in get_feature_tables(hydrofabric):
         fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 
@@ -387,7 +387,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
 
     insert_data(dest_db, table, contents)
 
-    if table in get_feature_tables(FilePaths.conus_hydrofabric):
+    if table in get_feature_tables(hydrofabric):
         fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 
