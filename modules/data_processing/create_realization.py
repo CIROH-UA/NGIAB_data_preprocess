@@ -2,13 +2,13 @@
 
 import copy
 import json
-from datetime import datetime
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from datetime import datetime
 from pathlib import Path
-import requests
+from typing import Optional
 
+import requests
 from data_processing.file_paths import FilePaths
 
 logger = logging.getLogger(__name__)

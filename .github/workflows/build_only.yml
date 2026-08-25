@@ -1,4 +1,4 @@
-name: Upload Python Package to PyPI when a Release is Created
+name: Build Only
 
 on:
   pull_request:
@@ -24,4 +24,3 @@ jobs:
       - name: Build package
         run: |
           python -m build
-
