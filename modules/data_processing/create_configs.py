@@ -71,6 +71,10 @@ def _get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.D
     lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
     conf_df["longitude"] = lon
     conf_df["latitude"] = lat
+
+    # convert elevation in cm in hf to m
+    conf_df["mean.elevation"] = conf_df["mean.elevation"] / 100
+
     return conf_df
 
 
@@ -302,7 +306,7 @@ def _make_lstm_config(
                     lat=row["latitude"],
                     lon=row["longitude"],
                     slope_mean=row["mean_slope_mpkm"],
-                    elevation_mean=row["mean.elevation"] / 100,  # convert cm in hf to m
+                    elevation_mean=row["mean.elevation"],  # convert cm in hf to m
                 )
             )
 
@@ -490,7 +494,7 @@ def _make_summa_attributes(hru_ids, hydrofabric):
     hru_area = df["areasqkm"].values * 1e6
 
     # Convert elevation from cm to m
-    elevation = df["mean.elevation"].values / 100.0
+    elevation = df["mean.elevation"].values
 
     # Convert mean.slope (degrees, 90=flat 0=vertical) to tan_slope (m/m)
     flipped = np.abs(df["mean.slope"].values - 90)
