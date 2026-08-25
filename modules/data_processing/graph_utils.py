@@ -91,7 +91,7 @@ def create_graph_from_gpkg(hydrofabric: Path) -> ig.Graph:
 @cache
 def get_graph(
     gpkg_path: Path = FilePaths.conus_hydrofabric,
-    pickled_graph_path: Path = FilePaths.hydrofabric_graph
+    pickled_graph_path: Path = FilePaths.hydrofabric_graph,
 ) -> ig.Graph:
     """
     Attempts to load a graph from a pickled file; if unavailable, creates it from the geopackage.
@@ -123,10 +123,10 @@ def get_graph(
 
 
 def get_outlet_id(
-        wb_or_cat_id: str,
-        hydrofabric: Path = FilePaths.conus_hydrofabric,
-        pickled_graph_path: Path = FilePaths.hydrofabric_graph
-        ) -> str | None:
+    wb_or_cat_id: str,
+    hydrofabric: Path = FilePaths.conus_hydrofabric,
+    pickled_graph_path: Path = FilePaths.hydrofabric_graph,
+) -> str | None:
     """
     Retrieves the ID of the node downstream of the given node in the hydrological network.
 
@@ -205,11 +205,11 @@ def get_upstream_cats(names: Union[str, List[str]]) -> Set[str]:
 
 
 def get_upstream_ids(
-        names: Union[str, List[str]],
-        include_outlet: bool = True,
-        gpkg_path: Path = FilePaths.conus_hydrofabric,
-        pickled_graph_path: Path = FilePaths.hydrofabric_graph
-        ) -> Set[str]:
+    names: Union[str, List[str]],
+    include_outlet: bool = True,
+    gpkg_path: Path = FilePaths.conus_hydrofabric,
+    pickled_graph_path: Path = FilePaths.hydrofabric_graph,
+) -> Set[str]:
     """
     Retrieves IDs of all nodes upstream of, and including, the given nodes in the hydrological
     network.
