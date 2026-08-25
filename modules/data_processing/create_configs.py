@@ -75,6 +75,18 @@ def _get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.D
     # convert elevation in cm in hf to m
     conf_df["mean.elevation"] = conf_df["mean.elevation"] / 100
 
+    # prevent the alias columns taking up extra memory
+    pandas.options.mode.copy_on_write = True
+    # add aliases for columns with "." in their name for easier use in the templates
+    special_chars = [".", "="]
+    aliases = {
+        c.replace(".", "_").replace("=", "_"): c
+        for c in conf_df.columns
+        if any(char in c for char in special_chars)
+    }
+    for alias, source in aliases.items():
+        if alias not in conf_df.columns:
+            conf_df[alias] = conf_df[source]
     return conf_df
 
 
@@ -93,29 +105,17 @@ def _make_cfe_config(
     cat_config_dir = files.config_dir / "cat_config" / "CFE"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
+    divide_conf_df["mean_Zmax_m"] = divide_conf_df["mean.Zmax"] / 1000
+
     for _, row in divide_conf_df.iterrows():
         nwm_water_level = water_levels.get(row["divide_id"], None)
         # if we have the nwm output water level for that catchment, use it
         # otherwise, use 5%
         if nwm_water_level is not None:
-            gw_storage_ratio = water_levels[row["divide_id"]] / row["mean.Zmax"]
+            gw_storage_ratio = water_levels[row["divide_id"]] / row["mean_Zmax_m"]
         else:
             gw_storage_ratio = 0.05
-        cat_config = cfe_template.format(
-            bexp=row["mode.bexp_soil_layers_stag=2"],
-            dksat=row["geom_mean.dksat_soil_layers_stag=2"],
-            psisat=row["geom_mean.psisat_soil_layers_stag=2"],
-            slope=row["mean.slope_1km"],
-            smcmax=row["mean.smcmax_soil_layers_stag=2"],
-            smcwlt=row["mean.smcwlt_soil_layers_stag=2"],
-            max_gw_storage=row["mean.Zmax"] / 1000
-            if row["mean.Zmax"] is not None
-            else "0.011[m]",  # mean.Zmax is in mm!
-            gw_Coeff=row["mean.Coeff"] if row["mean.Coeff"] is not None else "0.0018[m h-1]",
-            gw_Expon=row["mode.Expon"],
-            gw_storage=f"{gw_storage_ratio:.5}",
-            refkdt=row["mean.refkdt"],
-        )
+        cat_config = cfe_template.format(**row, gw_storage=f"{gw_storage_ratio:.5}")
         cat_ini_file = cat_config_dir / f"{row['divide_id']}.ini"
         with open(cat_ini_file, "w", encoding="utf-8") as f:
             f.write(cat_config)
@@ -131,21 +131,12 @@ def _make_noahowp_config(
 
     cat_config_dir = base_dir / "cat_config" / "NOAH-OWP-M"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
+    divide_conf_df["start_datetime"] = start_datetime
+    divide_conf_df["end_datetime"] = end_datetime
 
     for _, row in divide_conf_df.iterrows():
         with open(cat_config_dir / f"{row['divide_id']}.input", "w", encoding="utf-8") as file:
-            file.write(
-                template.format(
-                    start_datetime=start_datetime,
-                    end_datetime=end_datetime,
-                    lat=row["latitude"],
-                    lon=row["longitude"],
-                    terrain_slope=row["mean.slope_1km"],
-                    azimuth=row["circ_mean.aspect"],
-                    ISLTYP=int(row["mode.ISLTYP"]),  # type: ignore
-                    IVGTYP=int(row["mode.IVGTYP"]),  # type: ignore
-                )
-            )
+            file.write(template.format(**row))
 
 
 def _make_snow17_config(
@@ -157,7 +148,7 @@ def _make_snow17_config(
     """).df()
 
     merged = snow17_atts.merge(
-        divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]],
+        divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean_elevation"]],
         on="divide_id",
     )
 
@@ -184,36 +175,7 @@ def _make_snow17_config(
 
     for _, row in merged.iterrows():
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w", encoding="utf-8") as file:
-            file.write(
-                params_template.format(
-                    divide_id=row["divide_id"],
-                    areasqkm=row["areasqkm"],
-                    latitude=row["latitude"],
-                    elevation=row["mean.elevation"],
-                    scf=row["scf"],
-                    mfmax=row["mfmax"],
-                    mfmin=row["mfmin"],
-                    uadj=row["uadj"],
-                    si=row["si"],
-                    pxtemp=row["pxtemp"],
-                    nmf=row["nmf"],
-                    tipm=row["tipm"],
-                    mbase=row["mbase"],
-                    plwhc=row["plwhc"],
-                    daygm=row["daygm"],
-                    adc1=row["adc1"],
-                    adc2=row["adc2"],
-                    adc3=row["adc3"],
-                    adc4=row["adc4"],
-                    adc5=row["adc5"],
-                    adc6=row["adc6"],
-                    adc7=row["adc7"],
-                    adc8=row["adc8"],
-                    adc9=row["adc9"],
-                    adc10=row["adc10"],
-                    adc11=row["adc11"],
-                )
-            )
+            file.write(params_template.format(**row))
 
 
 def _make_sacsma_config(
@@ -249,28 +211,7 @@ def _make_sacsma_config(
 
     for _, row in merged.iterrows():
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w", encoding="utf-8") as file:
-            file.write(
-                params_template.format(
-                    divide_id=row["divide_id"],
-                    areasqkm=row["areasqkm"],
-                    uztwm=row["uztwm"],
-                    uzfwm=row["uzfwm"],
-                    lztwm=row["lztwm"],
-                    lzfpm=row["lzfpm"],
-                    lzfsm=row["lzfsm"],
-                    adimp=row["adimp"],
-                    uzk=row["uzk"],
-                    lzpk=row["lzpk"],
-                    lzsk=row["lzsk"],
-                    zperc=row["zperc"],
-                    rexp=row["rexp"],
-                    pctim=row["pctim"],
-                    pfree=row["pfree"],
-                    riva=row["riva"],
-                    side=row["side"],
-                    rserv=row["rserv"],
-                )
-            )
+            file.write(params_template.format(**row))
 
 
 def _make_lstm_config(
@@ -297,18 +238,8 @@ def _make_lstm_config(
         template = file.read()
 
     for _, row in divide_conf_df.iterrows():
-        divide = row["divide_id"]
-        with open(cat_config_dir / f"{divide}.yml", "w", encoding="utf-8") as file:
-            file.write(
-                template.format(
-                    area_sqkm=row["areasqkm"],
-                    divide_id=divide,
-                    lat=row["latitude"],
-                    lon=row["longitude"],
-                    slope_mean=row["mean_slope_mpkm"],
-                    elevation_mean=row["mean.elevation"],  # convert cm in hf to m
-                )
-            )
+        with open(cat_config_dir / f"{row['divide_id']}.yml", "w", encoding="utf-8") as file:
+            file.write(template.format(**row))
 
 
 def _make_dhbv2_config(
@@ -371,11 +302,17 @@ def _make_casam_config(
         WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
     """).df()
 
-    def fmt_list(value) -> str:
-        return ",".join(str(v) for v in value)
+    def fmt_list(col):
+        return [",".join(str(v) for v in row) for row in col]
 
     elapsed_time = end_time - start_time
     elapsed_hours = elapsed_time.total_seconds() / 3600
+
+    # add calculated attributes to dataframe for ease of use in template
+    casam_atts["elapsed_hours"] = elapsed_hours
+    casam_atts["sft_coupled"] = str(sft_coupled).lower()
+    for col in ["layer_soil_type", "layer_thickness", "giuh_ordinates", "soil_z"]:
+        casam_atts[col] = fmt_list(casam_atts[col])
 
     with open(FilePaths.template_casam_config, "r", encoding="utf-8") as config_file:
         config_template = config_file.read()
@@ -387,17 +324,7 @@ def _make_casam_config(
         with open(cat_config_dir / f"{row['divide_id']}.input", "w", encoding="utf-8") as file:
             file.write(
                 config_template.format(
-                    layer_thickness=fmt_list(row["layer_thickness"]),
-                    initial_psi=row["initial_psi"],
-                    ponded_depth_max=row["ponded_depth_max"],
-                    endtime=elapsed_hours,
-                    layer_soil_type=fmt_list(row["layer_soil_type"]),
-                    max_valid_soil_types=row["max_valid_soil_types"],
-                    wilting_point_psi=row["wilting_point_psi"],
-                    field_capacity_psi=row["field_capacity_psi"],
-                    giuh_ordinates=fmt_list(row["giuh_ordinates"]),
-                    sft_coupled=str(sft_coupled).lower(),
-                    soil_z=fmt_list(row["soil_z"]),
+                    **row,
                 )
             )
 

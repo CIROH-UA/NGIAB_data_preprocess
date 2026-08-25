@@ -1,8 +1,8 @@
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import List, Union
-import sys
 
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import (

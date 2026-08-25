@@ -1,5 +1,6 @@
-from typing import Optional
 import asyncio
+from typing import Optional
+
 from s3fs import S3FileSystem
 from s3fs.core import _error_wrapper, version_id_kw
 

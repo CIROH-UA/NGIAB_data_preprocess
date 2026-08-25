@@ -2,10 +2,10 @@ import gzip
 import json
 import os
 import sqlite3
+import sys
 import tarfile
 import warnings
 from time import sleep
-import sys
 
 import boto3
 import botocore

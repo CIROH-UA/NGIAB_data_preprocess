@@ -1,8 +1,8 @@
 import json
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
-import threading
 
 import geopandas as gpd
 from data_processing.create_configs import create_modular_configs

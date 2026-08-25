@@ -1,9 +1,9 @@
 """Command line interface for subsetting geopackages by catchment ID."""
 
 import argparse
+import logging
 import time
 from pathlib import Path
-import logging
 
 from data_processing.subset import subset
 
@@ -54,7 +54,7 @@ def main() -> None:
         "Subset complete for catchment %s from %s. Output saved to %s",
         args.cat_id,
         args.gpkg_path,
-        args.output_path
+        args.output_path,
     )
 
 
