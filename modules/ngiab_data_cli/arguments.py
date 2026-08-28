@@ -25,7 +25,10 @@ def parse_arguments() -> argparse.Namespace:
         "--input_feature",
         "--input_file",
         type=str,
-        help="ID of feature to subset, providing a prefix will automatically convert to catid, \n e.g. cat-5173 or gage-01646500 or wb-1234",
+        nargs='+',
+        help="ID of feature to subset, providing a prefix will automatically convert to catid, \n e.g. cat-5173 or gage-01646500 or wb-1234. \
+May include multiple space-separated IDs as arguments. \
+If exactly one argument is provided and the argument is an existing file, the file will be read and each line must contain a feature ID.",
     )
     group.add_argument(
         "--vpu",
@@ -57,6 +60,13 @@ def parse_arguments() -> argparse.Namespace:
             "18",
         ],
     )
+    group.add_argument(
+        "-b",
+        "--bounds",
+        type=str,
+        nargs=2,
+        help="Two lat,lon corners defining a bounding rectangle inside which to select features"
+    )
 
     parser.add_argument(
         "-l",
@@ -70,6 +80,13 @@ def parse_arguments() -> argparse.Namespace:
         "--gage",
         action="store_true",
         help="Use gage ID instead of catid, expects a single gage ID via the cli \n e.g. python -m ngiab_data_cli -i 01646500 -g -s",
+    )
+    parser.add_argument(
+        "--bounds-operation",
+        type=str,
+        help="The operation to use when selecting features by bounding box (default is \"intersects\")",
+        choices=["intersects","within"],
+        default="intersects"
     )
     parser.add_argument(
         "-s",
