@@ -302,3 +302,6 @@ This tool currently offers three realizations.
 
 ## SUMMA
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/summa.json) will run the [SUMMA](https://github.com/CIROH-UA/ngen/tree/ngiab/extern/summa) model (version linked is what's currently in nextgen in a box).
+
+# Citing this software
+Arpita Patel, James Halgren, Zach Wills, et al. NextGen In A Box (NGIAB): Open-Source Containerization of the NextGen Framework to Enable Community-Driven Hydrology Modeling. Environmental Modelling & Software, page 106666, August 2025. ISSN 1364-8152. doi: 10.1016/j.envsoft.2025.106666. URL https://www.sciencedirect.com/science/article/pii/S1364815225003500.
