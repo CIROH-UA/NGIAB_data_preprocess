@@ -4,6 +4,10 @@ This repository contains tools for preparing data to run a [next gen](https://gi
 
 ![map screenshot](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/map_app/static/resources/screenshot.jpg)
 
+| | |
+| --- | --- |
+| ![CIROH Logo](https://github.com/CIROH-UA/NGIAB-CloudInfra/blob/main/docs/img/ciroh-bgsafe.png) | Funding for this project was provided by the National Oceanic & Atmospheric Administration (NOAA), awarded to the Cooperative Institute for Research to Operations in Hydrology (CIROH) through the NOAA Cooperative Agreement with The University of Alabama (NA22NWS4320003). |
+
 ## Table of Contents
 
 1. [What does this tool do?](#what-does-this-tool-do)
@@ -218,5 +222,6 @@ Once all the steps are finished, you can run NGIAB on the folder shown underneat
    python -m ngiab_data_cli -i cat-5173 -a --start 2022-01-01 --end 2022-02-28
    ```
 
-
+## Citing this software
+Arpita Patel, James Halgren, Zach Wills, et al. NextGen In A Box (NGIAB): Open-Source Containerization of the NextGen Framework to Enable Community-Driven Hydrology Modeling. Environmental Modelling & Software, page 106666, August 2025. ISSN 1364-8152. doi: 10.1016/j.envsoft.2025.106666. URL https://www.sciencedirect.com/science/article/pii/S1364815225003500.
 
