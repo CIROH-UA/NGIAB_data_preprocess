@@ -86,13 +86,12 @@
     }
   },
   "time": {
-    "start_time": "2010-01-01 00:00:00",
-    "end_time": "2010-02-23 00:00:00",
+    "start_time": "2020-01-01 00:00:00",
+    "end_time": "2020-01-02 00:00:00",
     "output_interval": 3600
   },
   "routing": {
     "t_route_config_file_with_path": "./config/troute.yaml"
   },
-  "remotes_enabled": false,
   "output_root": "./outputs/ngen"
 }

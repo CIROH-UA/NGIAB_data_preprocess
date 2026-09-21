@@ -17,6 +17,9 @@ testpaths = ["tests"]
 filterwarnings = [
     'ignore::DeprecationWarning:geopandas._compat'
 ]
+markers = [
+    "integration: end-to-end tests that hit live data sources (S3); non-hermetic",
+]
 [project]
 name = "ngiab_data_preprocess"
 #version = "0.0.1"
@@ -24,7 +27,7 @@ dynamic = ["version"]
 authors = [{ name = "Josh Cunningham", email = "jcunningham8@ua.edu" }]
 description = "Graphical Tools for creating Next Gen Water model input data."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10, <=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -33,26 +36,27 @@ classifiers = [
 dependencies = [
     "pyogrio>=0.7.2",
     "pyproj>=3.6.1",
-    "Flask==3.0.2",
+    "pandas<3.0.0",
+    "Flask==3.1.3",
     "geopandas>=1.0.0",
-    "requests==2.32.4",
+    "requests==2.33.0",
     "igraph==0.11.4",
     "s3fs==2024.3.1",
     "xarray==2024.2.0",
     "zarr==2.17.1",
-    "netCDF4>=1.6.5",
+    "netCDF4>=1.6.5,<1.7.3",
     "dask==2024.4.1",
     "dask[distributed]==2024.4.1",
-    "h5netcdf==1.3.0",
     "exactextract==0.2.0",
     "numpy>=1.26.4",
     "tqdm==4.66.4",
     "rich==13.7.1",
     "colorama==0.4.6",
-    "bokeh==3.5.1",
+    "bokeh==3.8.2",
     "boto3",
     "numcodecs<0.16.0",
     "scipy>=1.15.3",
+    "duckdb>=1.5.2",
 ]
 
 [project.optional-dependencies]
@@ -67,6 +71,7 @@ Issues = "https://github.com/CIROH-UA/NGIAB_data_preprocess/issues"
 cli = "ngiab_data_cli.__main__:main"
 map_app = "map_app.__main__:main"
 forcings = "ngiab_data_cli.forcing_cli:main"
+subset = "ngiab_data_cli.subset_cli:main"
 
 [build-system]
 # scm adds files tracked by git to the package

@@ -2,14 +2,13 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Literal, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
 import xarray as xr
-from xarray.core.types import InterpOptions
-from dask.distributed import Client, progress, Future
-from data_processing.dask_utils import use_cluster
+from dask.distributed import Client, Future, progress
+from data_processing.dask_utils import no_cluster, temp_cluster
 
 logger = logging.getLogger(__name__)
 
@@ -108,66 +107,28 @@ def clip_dataset_to_bounds(
     """
     # check time range here in case just this function is imported and not the whole module
     start_time, end_time = validate_time_range(dataset, start_time, end_time)
+    samplex = dataset.x.values[:2]
+    intervalx = samplex[1] - samplex[0]
+    sampley = dataset.y.values[:2]
+    intervaly = sampley[1] - sampley[0]
     dataset = dataset.sel(
-        x=slice(bounds[0], bounds[2]),
-        y=slice(bounds[1], bounds[3]),
+        x=slice(bounds[0]-intervalx, bounds[2]+intervalx),
+        y=slice(bounds[1]-intervaly, bounds[3]+intervaly),
         time=slice(start_time, end_time),
     )
     logger.info("Selected time range and clipped to bounds")
     return dataset
 
 
-def interpolate_nan_values(
-    dataset: xr.Dataset,
-    variables: Optional[List[str]] = None,
-    dim: str = "time",
-    method: InterpOptions = "nearest",
-    fill_value: str = "extrapolate",
-) -> None:
-    """
-    Interpolates NaN values in specified (or all numeric time-dependent)
-    variables of an xarray.Dataset. Operates inplace on the dataset.
-
-    Parameters
-    ----------
-    dataset : xr.Dataset
-        The input dataset.
-    variables : Optional[List[str]], optional
-        A list of variable names to process. If None (default),
-        all numeric variables containing the specified dimension will be processed.
-    dim : str, optional
-        The dimension along which to interpolate (default is "time").
-    method : str, optional
-        Interpolation method to use (e.g., "linear", "nearest", "cubic").
-        Default is "nearest".
-    fill_value : str, optional
-        Method for filling NaNs at the start/end of the series after interpolation.
-        Set to "extrapolate" to fill with the nearest valid value when using 'nearest' or 'linear'.
-        Default is "extrapolate".
-    """
-    for name, var in dataset.data_vars.items():
-        # if the variable is non-numeric, skip
-        if not np.issubdtype(var.dtype, np.number):
-            continue
-        # if there are no NANs, skip
-        if not var.isnull().any().compute():
-            continue
-
-        dataset[name] = var.interpolate_na(
-            dim=dim,
-            method=method,
-            fill_value=fill_value if method in ["nearest", "linear"] else None,
-        )
-
-
-@use_cluster
+@temp_cluster
 def save_dataset(
     ds_to_save: xr.Dataset,
     target_path: Path,
-    engine: Literal["netcdf4", "scipy", "h5netcdf"] = "h5netcdf",
+    engine: Literal["netcdf4", "scipy"] = "netcdf4",
 ):
     """
-    Helper function to compute and save an xarray.Dataset to a NetCDF file.
+    Helper function to compute and save an xarray.Dataset (specifically, the raw
+    forcing data) to a NetCDF file.
     Uses a temporary file and rename for atomicity.
     """
     if not target_path.parent.exists():
@@ -184,20 +145,19 @@ def save_dataset(
     logger.debug(
         f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
     )
+    logger.info("For more detailed progress, see the Dask dashboard http://localhost:8787/status")
     progress(future)
     future.result()
     os.rename(str(temp_file_path), str(target_path))
     logger.info(f"Successfully saved data to: {target_path}")
 
 
-@use_cluster
-def save_to_cache(
-    stores: xr.Dataset, cached_nc_path: Path, interpolate_nans: bool = True
-) -> xr.Dataset:
+@no_cluster
+def save_to_cache(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     """
     Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
     """
-    logger.info(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
+    logger.debug(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
 
     # lasily cast all numbers to f32
     for name, var in stores.data_vars.items():
@@ -206,13 +166,8 @@ def save_to_cache(
 
     # save dataset locally before manipulating it
     save_dataset(stores, cached_nc_path)
-    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
 
-    if interpolate_nans:
-        interpolate_nan_values(dataset=stores)
-        save_dataset(stores, cached_nc_path)
-        stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
-
+    stores = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
     return stores
 
 
@@ -231,7 +186,11 @@ def check_local_cache(
 
     logger.info("Found cached nc file")
     # open the cached file and check that the time range is correct
-    cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="h5netcdf")
+    try:
+        cached_data = xr.open_mfdataset(cached_nc_path, parallel=True, engine="netcdf4")
+    except:
+        logger.info("Cache produced with outdated backend, redownloading")
+        return
 
     if "name" not in cached_data.attrs or "name" not in remote_dataset.attrs:
         logger.warning("No name attribute found to compare datasets")

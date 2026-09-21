@@ -3,6 +3,7 @@ from datetime import datetime
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
+DATE_FORMAT2 = "%Y-%m-%d %H:%M"  # used for datetime parsing
 DATE_FORMAT_HINT = "YYYY-MM-DD"  # printed in help message
 
 
@@ -11,7 +12,14 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Subsetting hydrofabrics, forcing generation, and realization creation"
     )
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
+
+    parser.add_argument(
+        "--output_root",
+        type=str,
+        help="Path to new default directory where outputs in the future will be stored",
+    )
+
     group.add_argument(
         "-i",
         "--input_feature",
@@ -84,20 +92,28 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--start_date",
         "--start",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT),
+        type=lambda s: (
+            datetime.strptime(s, DATE_FORMAT)
+            if len(s) == 10
+            else datetime.strptime(s, DATE_FORMAT2)
+        ),
         help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
         "--end_date",
         "--end",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT),
+        type=lambda s: (
+            datetime.strptime(s, DATE_FORMAT)
+            if len(s) == 10
+            else datetime.strptime(s, DATE_FORMAT2)
+        ),
         help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
     )
     parser.add_argument(
         "-o",
         "--output_name",
         type=str,
-        help="Name of the output folder",
+        help="Custom data output folder name in lieu of the default, which is the ID of the input feature",
     )
     parser.add_argument(
         "-D",
@@ -105,12 +121,44 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable debug logging",
     )
-    parser.add_argument(
-        "--empirical_model",
-        "--em",
+    models = parser.add_mutually_exclusive_group(required=False)
+
+    models.add_argument(
+        "--lstm",
         action="store_true",
-        help="enable empirical model realization and forcings",
+        help="enable LSTM model realization and forcings",
     )
+    models.add_argument(
+        "--lstm_rust",
+        action="store_true",
+        help="enable experimental high speed Rust bindings of LSTM model realization and forcings",
+    )
+    models.add_argument(
+        "--dhbv2",
+        action="store_true",
+        help="enable hourly dHBV2 model realization and forcings",
+    )
+    models.add_argument(
+        "--dhbv2_daily",
+        action="store_true",
+        help="enable daily dHBV2 model realization and forcings",
+    )
+    models.add_argument(
+        "--summa",
+        action="store_true",
+        help="enable SUMMA model realization and forcings",
+    )
+    models.add_argument(
+        "--snow17",
+        action="store_true",
+        help="enable SNOW-17 model realization and forcings",
+    )
+    models.add_argument(
+        "--sacsma",
+        action="store_true",
+        help="enable SAC-SMA model realization and forcings",
+    )
+
     parser.add_argument(
         "--nwm_gw",
         action="store_true",
@@ -136,10 +184,23 @@ def parse_arguments() -> argparse.Namespace:
         default="nwm",
     )
     parser.add_argument(
+        "--subset_type",
+        type=str,
+        help="By nexus: get everything flowing into the downstream nexus of the selected catchment. By catchment: get everything flowing into the selected catchment.",
+        choices=["nexus", "catchment"],
+        default="nexus",
+    )
+    parser.add_argument(
         "-a",
         "--all",
         action="store_true",
         help="Run all operations: subset, forcings, realization, and run Next Gen",
+    )
+    parser.add_argument(
+        "--dask-workers",
+        type=int,
+        default=None,
+        help="Number of Dask workers for forcings/data processing (default: auto)",
     )
 
     args = parser.parse_args()

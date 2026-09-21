@@ -2,10 +2,8 @@ import logging
 import os
 from pathlib import Path
 from typing import List, Union
-from rich.prompt import Prompt
-from rich.console import Console
 
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import (
     add_triggers_to_gpkg,
     create_empty_gpkg,
@@ -14,6 +12,8 @@ from data_processing.gpkg_utils import (
     update_geopackage_metadata,
 )
 from data_processing.graph_utils import get_upstream_ids
+from rich.console import Console
+from rich.prompt import Prompt
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -32,7 +32,11 @@ subset_tables = [
 
 
 def create_subset_gpkg(
-    ids: Union[List[str], str], hydrofabric: Path, output_gpkg_path: Path, is_vpu: bool = False, override_gpkg: bool = False
+    ids: Union[List[str], str],
+    hydrofabric: Path,
+    output_gpkg_path: Path,
+    is_vpu: bool = False,
+    override_gpkg: bool = True,
 ):
     # ids is a list of nexus and wb ids, or a single vpu id
     if not isinstance(ids, list):
@@ -55,7 +59,7 @@ def create_subset_gpkg(
     else:
         if os.path.exists(output_gpkg_path):
             os.remove(output_gpkg_path)
-            
+
     create_empty_gpkg(output_gpkg_path)
     logger.info(f"Subsetting tables: {subset_tables}")
     for table in subset_tables:
@@ -65,11 +69,11 @@ def create_subset_gpkg(
             subset_table(table, ids, hydrofabric, output_gpkg_path)
 
     add_triggers_to_gpkg(output_gpkg_path)
-    update_geopackage_metadata(output_gpkg_path)
+    update_geopackage_metadata(output_gpkg_path, hydrofabric=hydrofabric)
 
 
 def subset_vpu(
-    vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_paths.conus_hydrofabric
+    vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = FilePaths.conus_hydrofabric
 ):
     if os.path.exists(output_gpkg_path):
         response = Prompt.ask(
@@ -91,18 +95,22 @@ def subset_vpu(
 
 def subset(
     cat_ids: str | List[str],
-    hydrofabric: Path = file_paths.conus_hydrofabric,
+    hydrofabric: Path = FilePaths.conus_hydrofabric,
     output_gpkg_path: Path = Path(),
     include_outlet: bool = True,
-    override_gpkg: bool = False # only gets set to true through map app
+    override_gpkg: bool = True,
 ):
-    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet))
+    if hydrofabric != FilePaths.conus_hydrofabric:
+        pickled_graph_path = hydrofabric.parent / "hydrofabric_graph.gpickle"
+    else:
+        pickled_graph_path = FilePaths.hydrofabric_graph
+    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet, hydrofabric, pickled_graph_path))
 
     if not output_gpkg_path:
         # if the name isn't provided, use the first upstream id
         upstream_ids = sorted(upstream_ids)
         output_folder_name = upstream_ids[0]
-        paths = file_paths(output_folder_name)
+        paths = FilePaths(output_folder_name)
         output_gpkg_path = paths.geopackage_path
 
     create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path, override_gpkg=override_gpkg)

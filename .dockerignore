@@ -1,0 +1,6 @@
+.venv
+.github
+*.png
+*.svg
+*.md
+*.cff

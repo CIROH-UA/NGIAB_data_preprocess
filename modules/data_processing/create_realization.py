@@ -1,24 +1,24 @@
 import json
 import logging
 import multiprocessing
+import os
 import shutil
 import sqlite3
 from datetime import datetime
+from itertools import chain
 from pathlib import Path
 from typing import Dict, Optional
 
+import duckdb
+import numpy as np
 import pandas
+import psutil
 import requests
 import s3fs
 import xarray as xr
 from data_processing.dask_utils import temp_cluster
-from data_processing.file_paths import file_paths
-from data_processing.gpkg_utils import (
-    GeoPackage,
-    get_cat_to_nex_flowpairs,
-    get_cat_to_nhd_feature_id,
-    get_table_crs_short,
-)
+from data_processing.file_paths import FilePaths
+from data_processing.gpkg_utils import get_cat_to_nhd_feature_id, get_table_crs_short
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @temp_cluster
-def get_approximate_gw_storage(paths: file_paths, start_date: datetime) -> Dict[str, int]:
+def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[str, int]:
     # get the gw levels from the NWM output on a given start date
     # this kind of works in place of warmstates for now
     year = start_date.strftime("%Y")
@@ -49,11 +49,9 @@ def get_approximate_gw_storage(paths: file_paths, start_date: datetime) -> Dict[
     return water_levels
 
 
-def make_cfe_config(
-    divide_conf_df: pandas.DataFrame, files: file_paths, water_levels: dict
-) -> None:
+def make_cfe_config(divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: dict) -> None:
     """Parses parameters from NOAHOWP_CFE DataFrame and returns a dictionary of catchment configurations."""
-    with open(file_paths.template_cfe_config, "r") as f:
+    with open(FilePaths.template_cfe_config, "r") as f:
         cfe_template = f.read()
     cat_config_dir = files.config_dir / "cat_config" / "CFE"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
@@ -89,184 +87,305 @@ def make_cfe_config(
 def make_noahowp_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-    divide_conf_df.set_index("divide_id", inplace=True)
     start_datetime = start_time.strftime("%Y%m%d%H%M")
     end_datetime = end_time.strftime("%Y%m%d%H%M")
-    with open(file_paths.template_noahowp_config, "r") as file:
+    with open(FilePaths.template_noahowp_config, "r") as file:
         template = file.read()
 
     cat_config_dir = base_dir / "cat_config" / "NOAH-OWP-M"
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    for divide in divide_conf_df.index:
-        with open(cat_config_dir / f"{divide}.input", "w") as file:
+    for _, row in divide_conf_df.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 template.format(
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
-                    lat=divide_conf_df.loc[divide, "latitude"],
-                    lon=divide_conf_df.loc[divide, "longitude"],
-                    terrain_slope=divide_conf_df.loc[divide, "mean.slope_1km"],
-                    azimuth=divide_conf_df.loc[divide, "circ_mean.aspect"],
-                    ISLTYP=int(divide_conf_df.loc[divide, "mode.ISLTYP"]),  # type: ignore
-                    IVGTYP=int(divide_conf_df.loc[divide, "mode.IVGTYP"]),  # type: ignore
+                    lat=row["latitude"],
+                    lon=row["longitude"],
+                    terrain_slope=row["mean.slope_1km"],
+                    azimuth=row["circ_mean.aspect"],
+                    ISLTYP=int(row["mode.ISLTYP"]),  # type: ignore
+                    IVGTYP=int(row["mode.IVGTYP"]),  # type: ignore
                 )
             )
 
 
-def get_model_attributes_modspatialite(hydrofabric: Path) -> pandas.DataFrame:
-    # modspatialite is faster than pyproj but can't be added as a pip dependency
-    # This incantation took a while
-    with GeoPackage(hydrofabric) as conn:
-        sql = """WITH source_crs AS (
-        SELECT organization || ':' || organization_coordsys_id AS crs_string
-        FROM gpkg_spatial_ref_sys
-        WHERE srs_id = (
-            SELECT srs_id
-            FROM gpkg_geometry_columns
-            WHERE table_name = 'divides'
-        )
-        )
-        SELECT
-        d.divide_id,
-        d.areasqkm,
-        da."mean.slope",
-        da."mean.slope_1km",
-        da."mean.elevation",
-        ST_X(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
-            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
-        ST_Y(Transform(MakePoint(da.centroid_x, da.centroid_y), 4326, NULL,
-            (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude
-        FROM divides AS d
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
-        """
-        divide_conf_df = pandas.read_sql_query(sql, conn)
-    divide_conf_df.set_index("divide_id", inplace=True)
-    return divide_conf_df
+def make_snow17_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+    snow17_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.snow17_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
 
-
-def get_model_attributes_pyproj(hydrofabric: Path) -> pandas.DataFrame:
-    # if modspatialite is not available, use pyproj
-    with sqlite3.connect(hydrofabric) as conn:
-        sql = """
-        SELECT
-        d.divide_id,
-        d.areasqkm,
-        da."mean.slope",
-        da."mean.slope_1km",
-        da."mean.elevation",
-        da.centroid_x,
-        da.centroid_y
-        FROM divides AS d
-        JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
-        """
-        divide_conf_df = pandas.read_sql_query(sql, conn)
-
-    source_crs = get_table_crs_short(hydrofabric, "divides")
-
-    transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
-
-    lon, lat = transformer.transform(
-        divide_conf_df["centroid_x"].values, divide_conf_df["centroid_y"].values
+    merged = snow17_atts.merge(
+        divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]],
+        on="divide_id",
     )
 
-    divide_conf_df["longitude"] = lon
-    divide_conf_df["latitude"] = lat
+    start_datetime = start_time.strftime("%Y%m%d%H")
+    end_datetime = end_time.strftime("%Y%m%d%H")
+    with open(FilePaths.template_snow17_config, "r") as config_file:
+        config_template = config_file.read()
 
-    divide_conf_df.drop(columns=["centroid_x", "centroid_y"], axis=1, inplace=True)
-    divide_conf_df.set_index("divide_id", inplace=True)
+    cat_config_dir = base_dir / "cat_config" / "SNOW17"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    return divide_conf_df
-
-
-def get_model_attributes(hydrofabric: Path) -> pandas.DataFrame:
-    try:
-        with GeoPackage(hydrofabric) as conn:
-            conf_df = pandas.read_sql_query(
-                """WITH source_crs AS (
-            SELECT organization || ':' || organization_coordsys_id AS crs_string
-            FROM gpkg_spatial_ref_sys
-            WHERE srs_id = (
-                SELECT srs_id
-                FROM gpkg_geometry_columns
-                WHERE table_name = 'divides'
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+            file.write(
+                config_template.format(
+                    divide_id=row["divide_id"],
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                )
             )
+
+    with open(FilePaths.template_snow17_params, "r") as params_file:
+        params_template = params_file.read()
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+            file.write(
+                params_template.format(
+                    divide_id=row["divide_id"],
+                    areasqkm=row["areasqkm"],
+                    latitude=row["latitude"],
+                    elevation=row["mean.elevation"] / 100,  # convert cm in hf to m
+                    scf=row["scf"],
+                    mfmax=row["mfmax"],
+                    mfmin=row["mfmin"],
+                    uadj=row["uadj"],
+                    si=row["si"],
+                    pxtemp=row["pxtemp"],
+                    nmf=row["nmf"],
+                    tipm=row["tipm"],
+                    mbase=row["mbase"],
+                    plwhc=row["plwhc"],
+                    daygm=row["daygm"],
+                    adc1=row["adc1"],
+                    adc2=row["adc2"],
+                    adc3=row["adc3"],
+                    adc4=row["adc4"],
+                    adc5=row["adc5"],
+                    adc6=row["adc6"],
+                    adc7=row["adc7"],
+                    adc8=row["adc8"],
+                    adc9=row["adc9"],
+                    adc10=row["adc10"],
+                    adc11=row["adc11"],
+                )
             )
+
+
+def make_sacsma_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+    sacsma_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.sacsma_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
+
+    merged = sacsma_atts.merge(divide_conf_df[["divide_id", "areasqkm"]], on="divide_id")
+
+    start_datetime = start_time.strftime("%Y%m%d%H")
+    end_datetime = end_time.strftime("%Y%m%d%H")
+    with open(FilePaths.template_sac_config, "r") as config_file:
+        config_template = config_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "SAC-SMA"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
+            file.write(
+                config_template.format(
+                    divide_id=row["divide_id"],
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                )
+            )
+
+    with open(FilePaths.template_sac_params, "r") as params_file:
+        params_template = params_file.read()
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
+            file.write(
+                params_template.format(
+                    divide_id=row["divide_id"],
+                    areasqkm=row["areasqkm"],
+                    uztwm=row["uztwm"],
+                    uzfwm=row["uzfwm"],
+                    lztwm=row["lztwm"],
+                    lzfpm=row["lzfpm"],
+                    lzfsm=row["lzfsm"],
+                    adimp=row["adimp"],
+                    uzk=row["uzk"],
+                    lzpk=row["lzpk"],
+                    lzsk=row["lzsk"],
+                    zperc=row["zperc"],
+                    rexp=row["rexp"],
+                    pctim=row["pctim"],
+                    pfree=row["pfree"],
+                    riva=row["riva"],
+                    side=row["side"],
+                    rserv=row["rserv"],
+                )
+            )
+
+
+def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
+    with sqlite3.connect(hydrofabric) as conn:
+        conf_df = pandas.read_sql_query(
+            """
             SELECT
-            *,
-            ST_X(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
-                (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS longitude,
-            ST_Y(Transform(MakePoint(centroid_x, centroid_y), 4326, NULL,
-                (SELECT crs_string FROM source_crs), 'EPSG:4326')) AS latitude FROM 'divide-attributes';""",
-                conn,
-            )
-    except sqlite3.OperationalError:
-        with sqlite3.connect(hydrofabric) as conn:
-            conf_df = pandas.read_sql_query(
-                "SELECT* FROM 'divide-attributes';",
-                conn,
-            )
-        source_crs = get_table_crs_short(hydrofabric, "divides")
-        transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
-        lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
-        conf_df["longitude"] = lon
-        conf_df["latitude"] = lat
-
-        conf_df.drop(columns=["centroid_x", "centroid_y"], axis=1, inplace=True)
+            d.areasqkm,
+            d.lengthkm,
+            da.*
+            FROM divides AS d
+            JOIN 'divide-attributes' AS da ON d.divide_id = da.divide_id
+            """,
+            conn,
+        )
+    source_crs = get_table_crs_short(hydrofabric, layer)
+    transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+    lon, lat = transformer.transform(conf_df["centroid_x"].values, conf_df["centroid_y"].values)
+    conf_df["longitude"] = lon
+    conf_df["latitude"] = lat
     return conf_df
 
 
-def make_em_config(
+def make_lstm_config(
     hydrofabric: Path,
     output_dir: Path,
-    template_path: Path = file_paths.template_em_config,
+    template_path: Path = FilePaths.template_lstm_config,
 ):
-    # test if modspatialite is available
-    try:
-        divide_conf_df = get_model_attributes_modspatialite(hydrofabric)
-    except Exception as e:
-        logger.warning(f"mod_spatialite not available, using pyproj instead: {e}")
-        logger.warning("Install mod_spatialite for improved performance")
-        divide_conf_df = get_model_attributes_pyproj(hydrofabric)
+    divide_conf_df = get_model_attributes(hydrofabric)
 
-    cat_config_dir = output_dir / "cat_config" / "empirical_model"
+    cat_config_dir = output_dir / "cat_config" / "lstm"
     if cat_config_dir.exists():
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
+    # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
+    # flip 0 and 90 degree values
+    divide_conf_df["flipped_mean_slope"] = abs(divide_conf_df["mean.slope"] - 90)
+    # Convert degrees to meters per kmmeter
+    divide_conf_df["mean_slope_mpkm"] = (
+        np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
+    )
+
     with open(template_path, "r") as file:
         template = file.read()
 
-    for divide in divide_conf_df.index:
+    for _, row in divide_conf_df.iterrows():
+        divide = row["divide_id"]
         with open(cat_config_dir / f"{divide}.yml", "w") as file:
             file.write(
                 template.format(
-                    area_sqkm=divide_conf_df.loc[divide, "areasqkm"],
+                    area_sqkm=row["areasqkm"],
                     divide_id=divide,
-                    lat=divide_conf_df.loc[divide, "latitude"],
-                    lon=divide_conf_df.loc[divide, "longitude"],
-                    slope_mean=divide_conf_df.loc[divide, "mean.slope"],
-                    elevation_mean=divide_conf_df.loc[divide, "mean.slope"],
+                    lat=row["latitude"],
+                    lon=row["longitude"],
+                    slope_mean=row["mean_slope_mpkm"],
+                    elevation_mean=row["mean.elevation"] / 100,  # convert cm in hf to m
                 )
             )
+
+
+def make_dhbv2_config(
+    hydrofabric: Path,
+    output_dir: Path,
+    start_time: datetime,
+    end_time: datetime,
+    template_path: Path = FilePaths.template_dhbv2_config,
+    output_suffix: str = "",
+    clear_dir: bool = True,
+):
+    divide_conf_df = get_model_attributes(hydrofabric)
+    dhbv_atts = duckdb.sql(f"""
+        SELECT * FROM '{FilePaths.dhbv_attributes}'
+        WHERE divide_id IN {tuple(divide_conf_df["divide_id"])}
+    """).df()
+    if template_path == FilePaths.template_dhbv2_daily_config:
+        cat_config_dir = output_dir / "cat_config" / "dhbv2_daily"
+    else:
+        cat_config_dir = output_dir / "cat_config" / "dhbv2"
+    if cat_config_dir.exists() and clear_dir:
+        shutil.rmtree(cat_config_dir)
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    template = template_path.read_text()
+    merged = dhbv_atts.merge(
+        divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude"]], on="divide_id"
+    )
+
+    for _, row in merged.iterrows():
+        (cat_config_dir / f"{row['divide_id']}{output_suffix}.yml").write_text(
+            template.format(
+                **row,
+                start_time=start_time,
+                end_time=end_time,
+                start_date=start_time.strftime("%Y/%m/%d"),
+                start_time_str=start_time.strftime("%Y/%m/%d %H"),
+            )
+        )
+
+
+def make_summa_config(hru_ids: list[int], output_dir: Path):
+    with open(FilePaths.template_summa_config, "r") as file:
+        template = file.read()
+    cat_config_dir = output_dir / "cat_config" / "SUMMA"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+    for i, id in enumerate(hru_ids):
+        divide = f"cat-{id}"
+        with open(cat_config_dir / f"{divide}.input", "w") as file:
+            # + 1 because fortran's first index is 1 not 0
+            file.write(template.format(divide_index=i + 1))
 
 
 def configure_troute(
     cat_id: str, config_dir: Path, start_time: datetime, end_time: datetime
 ) -> None:
-    with open(file_paths.template_troute_config, "r") as file:
+    with open(FilePaths.template_troute_config, "r") as file:
         troute_template = file.read()
     time_step_size = 300
+    output_name = Path(cat_id).name
+    gpkg_file_path = config_dir / f"{output_name}_subset.gpkg"
     nts = (end_time - start_time).total_seconds() / time_step_size
+    with sqlite3.connect(gpkg_file_path) as conn:
+        ncats_df = pandas.read_sql_query("SELECT COUNT(id) FROM 'divides';", conn)
+        ncats = ncats_df["COUNT(id)"][0]
+
+    est_bytes_required = nts * ncats * 45  # extremely rough calculation based on about 3 tests :)
+    local_ram_available = (
+        0.8 * psutil.virtual_memory().available
+    )  # buffer to not accidentally explode machine
+
+    if est_bytes_required > local_ram_available:
+        max_loop_size = nts // (est_bytes_required // local_ram_available)
+        binary_nexus_file_folder_comment = ""
+        parent_dir = config_dir.parent
+        output_parquet_path = Path(f"{parent_dir}/outputs/parquet/")
+
+        if not output_parquet_path.exists():
+            os.makedirs(output_parquet_path)
+    else:
+        max_loop_size = nts
+        binary_nexus_file_folder_comment = "#"
+
     filled_template = troute_template.format(
         # hard coded to 5 minutes
         time_step_size=time_step_size,
         # troute seems to be ok with setting this to your cpu_count
         cpu_pool=multiprocessing.cpu_count(),
-        geo_file_path=f"./config/{cat_id}_subset.gpkg",
+        geo_file_path=f"./config/{output_name}_subset.gpkg",
         start_datetime=start_time.strftime("%Y-%m-%d %H:%M:%S"),
         nts=nts,
-        max_loop_size=nts,
+        max_loop_size=max_loop_size,
+        binary_nexus_file_folder_comment=binary_nexus_file_folder_comment,
     )
 
     with open(config_dir / "troute.yaml", "w") as file:
@@ -274,35 +393,374 @@ def configure_troute(
 
 
 def make_ngen_realization_json(
-    config_dir: Path, template_path: Path, start_time: datetime, end_time: datetime
+    config_dir: Path,
+    template_path: Path,
+    start_time: datetime,
+    end_time: datetime,
+    output_interval: int = 3600,
 ) -> None:
     with open(template_path, "r") as file:
         realization = json.load(file)
 
     realization["time"]["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
     realization["time"]["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-    realization["time"]["output_interval"] = 3600
+    realization["time"]["output_interval"] = output_interval
 
     with open(config_dir / "realization.json", "w") as file:
         json.dump(realization, file, indent=4)
 
 
-def create_em_realization(cat_id: str, start_time: datetime, end_time: datetime):
-    paths = file_paths(cat_id)
-    template_path = file_paths.template_em_realization_config
-    em_config = file_paths.template_em_model_config
-    # move em_config to paths.config_dir
-    with open(em_config, "r") as f:
-        em_config = f.read()
-    with open(paths.config_dir / "em-config.yml", "w") as f:
-        f.write(em_config)
-
+def create_lstm_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False
+):
+    paths = FilePaths(cat_id)
+    realization_path = paths.config_dir / "realization.json"
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
-    make_ngen_realization_json(paths.config_dir, template_path, start_time, end_time)
-    make_em_config(paths.geopackage_path, paths.config_dir)
-    # create some partitions for parallelization
+    # python version of the lstm
+    python_template_path = FilePaths.template_lstm_realization_config
+    make_ngen_realization_json(paths.config_dir, python_template_path, start_time, end_time)
+    realization_path.rename(paths.config_dir / "python_lstm_real.json")
+    # rust version of the lstm
+    rust_template_path = FilePaths.template_lstm_rust_realization_config
+    make_ngen_realization_json(paths.config_dir, rust_template_path, start_time, end_time)
+    realization_path.rename(paths.config_dir / "rust_lstm_real.json")
+
+    if use_rust:
+        (paths.config_dir / "rust_lstm_real.json").rename(realization_path)
+    else:
+        (paths.config_dir / "python_lstm_real.json").rename(realization_path)
+
+    make_lstm_config(paths.geopackage_path, paths.config_dir)
     paths.setup_run_folders()
-    create_partitions(paths)
+
+
+def create_dhbv2_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, daily: bool = False
+):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+
+    if daily:
+        make_ngen_realization_json(
+            paths.config_dir,
+            FilePaths.template_dhbv2_daily_realization_config,
+            start_time,
+            end_time,
+        )
+        make_dhbv2_config(
+            paths.geopackage_path,
+            paths.config_dir,
+            start_time,
+            end_time,
+            template_path=FilePaths.template_dhbv2_daily_config,
+        )
+    else:
+        make_ngen_realization_json(
+            paths.config_dir,
+            FilePaths.template_dhbv2_realization_config,
+            start_time,
+            end_time,
+        )
+        make_dhbv2_config(paths.geopackage_path, paths.config_dir, start_time, end_time)
+
+    paths.setup_run_folders()
+
+
+def get_hru_order(forcing_path: Path) -> list[int]:
+    # the SUMMA hru (hydrologic response unit) is like a nextgen hydrofabric catchment
+    # to correctly format the input data we need the order of these ids to be consistent
+    if not forcing_path.exists():
+        raise FileNotFoundError(
+            f"Unable to create SUMMA configuration without forcing file {forcing_path}"
+        )
+    forcings = xr.open_dataset(forcing_path)
+    return [int(s.split("-")[-1]) for s in forcings.ids.values]
+
+
+def make_summa_attributes(hru_ids, hydrofabric):
+    cat_ids = [f"cat-{id}" for id in hru_ids]
+    divide_conf_df = get_model_attributes(hydrofabric)
+    divide_conf_df = divide_conf_df.set_index("divide_id")
+
+    # Validate all IDs exist
+    for hid in cat_ids:
+        if hid not in divide_conf_df.index:
+            raise ValueError(f"HRU ID {hid} is not present in hydrofabric model attributes")
+
+    # Subset and preserve order
+    df = divide_conf_df.loc[cat_ids]
+
+    n_hru = len(hru_ids)
+    hru_id_array = np.array(hru_ids, dtype=np.int32)
+
+    # Convert area from sq km to sq m
+    hru_area = df["areasqkm"].values * 1e6
+
+    # Convert elevation from cm to m
+    elevation = df["mean.elevation"].values / 100.0
+
+    # Convert mean.slope (degrees, 90=flat 0=vertical) to tan_slope (m/m)
+    flipped = np.abs(df["mean.slope"].values - 90)
+    tan_slope = np.tan(np.radians(flipped))
+
+    ds = xr.Dataset(
+        {
+            "hruId": xr.DataArray(
+                data=hru_id_array,
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
+            ),
+            "gruId": xr.DataArray(
+                data=hru_id_array.copy(),
+                dims=["gru"],
+                attrs={"units": "-", "long_name": "Index of grouped response unit (GRU)"},
+            ),
+            "hru2gruId": xr.DataArray(
+                data=hru_id_array.copy(),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of GRU to which the HRU belongs"},
+            ),
+            "downHRUindex": xr.DataArray(
+                data=np.full(n_hru, 0, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of downslope HRU (0 = basin outlet)"},
+            ),
+            "longitude": xr.DataArray(
+                data=df["longitude"].values.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "Decimal degree east", "long_name": "Longitude of HRUs centroid"},
+            ),
+            "latitude": xr.DataArray(
+                data=df["latitude"].values.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "Decimal degree north", "long_name": "Latitude of HRUs centroid"},
+            ),
+            "elevation": xr.DataArray(
+                data=elevation.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "m", "long_name": "Mean HRU elevation"},
+            ),
+            "HRUarea": xr.DataArray(
+                data=hru_area.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "m^2", "long_name": "Area of HRU"},
+            ),
+            "tan_slope": xr.DataArray(
+                data=tan_slope.astype(np.float64),
+                dims=["hru"],
+                attrs={"units": "m m-1", "long_name": "Average tangent slope of HRU"},
+            ),
+            "contourLength": xr.DataArray(
+                data=np.full(n_hru, 100.0, dtype=np.float64),
+                dims=["hru"],
+                attrs={"units": "m", "long_name": "Contour length of HRU"},
+            ),
+            "slopeTypeIndex": xr.DataArray(
+                data=np.full(n_hru, 1, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index defining slope"},
+            ),
+            "soilTypeIndex": xr.DataArray(
+                data=df["mode.ISLTYP"].values.astype(np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index defining soil type"},
+            ),
+            "vegTypeIndex": xr.DataArray(
+                data=df["mode.IVGTYP"].values.astype(np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index defining vegetation type"},
+            ),
+            "mHeight": xr.DataArray(
+                data=np.full(n_hru, 1.5, dtype=np.float64),
+                dims=["hru"],
+                attrs={"units": "m", "long_name": "Measurement height above bare ground"},
+            ),
+        },
+        attrs={
+            "Author": "Created by ngiab preprocessor SUMMA workflow script",
+            "History": f"Created {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+        },
+    )
+
+    return ds
+
+
+def make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:
+    ds = xr.Dataset(
+        {
+            "hruId": xr.DataArray(
+                data=np.array(hru_ids, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
+            ),
+            "maxstep": xr.DataArray(
+                data=np.full(len(hru_ids), timesteps * 3600, dtype=np.float64),
+                dims=["hru"],
+            ),
+        },
+        attrs={
+            "Author": "Created by ngiab preprocessor SUMMA workflow script",
+            "History": f"Created {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            "Purpose": "Create a trial parameter .nc file for initial SUMMA runs",
+        },
+    )
+    return ds
+
+
+def make_summa_coldState(hru_ids):
+    n_hru = len(hru_ids)
+    n_midToto = 3
+    n_ifcToto = 4
+
+    def scalar_var(fill_val, dtype=np.float64):
+        return xr.DataArray(
+            data=np.full((1, n_hru), fill_val, dtype=dtype),
+            dims=["scalarv", "hru"],
+        )
+
+    def layer_var(fill_val, dim_name, dim_size):
+        return xr.DataArray(
+            data=np.full((dim_size, n_hru), fill_val, dtype=np.float64),
+            dims=[dim_name, "hru"],
+        )
+
+    iLayerHeight_data = np.broadcast_to(
+        np.array([0.0, 0.2, 0.5, 1.0])[:, np.newaxis],
+        (n_ifcToto, n_hru),
+    ).copy()
+
+    mLayerDepth_data = np.broadcast_to(
+        np.array([0.2, 0.3, 0.5])[:, np.newaxis],
+        (n_midToto, n_hru),
+    ).copy()
+
+    ds = xr.Dataset(
+        {
+            "hruId": xr.DataArray(
+                data=np.array(hru_ids, dtype=np.int32),
+                dims=["hru"],
+                attrs={"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
+            ),
+            "dt_init": scalar_var(3600.0),
+            "nSoil": scalar_var(3, dtype=np.int32),
+            "nSnow": scalar_var(0, dtype=np.int32),
+            "scalarCanopyIce": scalar_var(0.0),
+            "scalarCanopyLiq": scalar_var(0.0),
+            "scalarSnowDepth": scalar_var(0.0),
+            "scalarSWE": scalar_var(0.0),
+            "scalarSfcMeltPond": scalar_var(0.0),
+            "scalarAquiferStorage": scalar_var(2.5),
+            "scalarSnowAlbedo": scalar_var(0.0),
+            "scalarCanairTemp": scalar_var(283.16),
+            "scalarCanopyTemp": scalar_var(283.16),
+            "mLayerTemp": layer_var(283.16, "midToto", n_midToto),
+            "mLayerVolFracIce": layer_var(0.0, "midToto", n_midToto),
+            "mLayerVolFracLiq": layer_var(0.2, "midToto", n_midToto),
+            "mLayerMatricHead": layer_var(-1.0, "midToto", n_midToto),
+            "iLayerHeight": xr.DataArray(data=iLayerHeight_data, dims=["ifcToto", "hru"]),
+            "mLayerDepth": xr.DataArray(data=mLayerDepth_data, dims=["midToto", "hru"]),
+        },
+        attrs={
+            "Author": "Created by SUMMA workflow scripts",
+            "History": f"Created {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            "Purpose": "Create a cold state .nc file for initial SUMMA runs",
+        },
+    )
+
+    # Add midSoil dimension (SUMMA expects it even though no variable uses it)
+    ds = ds.assign_coords(midSoil=np.arange(n_midToto))
+
+    # Build encoding to suppress _FillValue on all variables
+    encoding = {var: {"_FillValue": None} for var in ds.data_vars}
+
+    return ds, encoding
+
+
+def create_summa_realization(cat_id: str, start_time: datetime, end_time: datetime):
+    paths = FilePaths(cat_id)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_summa_realization_config,
+        start_time,
+        end_time,
+    )
+    paths.summa_model_config.mkdir(parents=True, exist_ok=True)
+
+    files = chain(
+        FilePaths.summa_file_dir.glob("*.txt"),
+        FilePaths.summa_file_dir.glob("*.TBL"),
+        FilePaths.summa_file_dir.glob("*.md"),
+    )
+    for file in files:
+        if file.name == "fileManager.txt":
+            with open(file, "r") as f:
+                template = f.read()
+            with open(paths.summa_model_config / file.name, "w") as f:
+                f.write(template.format(start_time=start_time, end_time=end_time))
+        else:
+            shutil.copy(file, paths.summa_model_config)
+
+    max_timesteps = int((end_time - start_time).total_seconds() / 3600)
+    hru_ids = get_hru_order(paths.forcings_file)
+    make_summa_attributes(hru_ids, FilePaths.conus_hydrofabric).to_netcdf(
+        paths.summa_model_config / "attributes.nc"
+    )
+    make_summa_trialParams(hru_ids, max_timesteps).to_netcdf(
+        paths.summa_model_config / "trialParams.nc"
+    )
+    ds, encoding = make_summa_coldState(hru_ids)
+    ds.to_netcdf(paths.summa_model_config / "coldState.nc", encoding=encoding)
+    make_summa_config(hru_ids, paths.config_dir)
+    paths.setup_run_folders(["outputs/summa"])
+
+
+def create_snow17_realization(
+    cat_id: str,
+    start_time: datetime,
+    end_time: datetime,
+    use_nwm_gw: bool = False,
+    gage_id: Optional[str] = None,
+):
+    paths = FilePaths(cat_id)
+
+    conf_df = get_model_attributes(paths.geopackage_path)
+    if use_nwm_gw:
+        gw_levels = get_approximate_gw_storage(paths, start_time)
+    else:
+        gw_levels = dict()
+
+    make_cfe_config(conf_df, paths, gw_levels)
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_snow17_config(paths.config_dir, conf_df, start_time, end_time)
+
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_snow17_realization_config,
+        start_time,
+        end_time,
+    )
+    paths.setup_run_folders()
+
+
+def create_sacsma_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, gage_id: Optional[str] = None
+):
+    paths = FilePaths(cat_id)
+
+    conf_df = get_model_attributes(paths.geopackage_path)
+
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+    make_sacsma_config(paths.config_dir, conf_df, start_time, end_time)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_sac_realization_config,
+        start_time,
+        end_time,
+    )
+    paths.setup_run_folders()
 
 
 def create_realization(
@@ -312,7 +770,7 @@ def create_realization(
     use_nwm_gw: bool = False,
     gage_id: Optional[str] = None,
 ):
-    paths = file_paths(cat_id)
+    paths = FilePaths(cat_id)
 
     template_path = paths.template_cfe_nowpm_realization_config
 
@@ -327,6 +785,8 @@ def create_realization(
             with open(template_path, "w") as f:
                 json.dump(new_template, f)
             logger.info(f"downloaded calibrated parameters for {gage_id}")
+        else:
+            logger.warning(f"could not download parameters for {gage_id}, using default template")
 
     conf_df = get_model_attributes(paths.geopackage_path)
 
@@ -345,48 +805,3 @@ def create_realization(
 
     # create some partitions for parallelization
     paths.setup_run_folders()
-    create_partitions(paths)
-
-
-def create_partitions(paths: file_paths, num_partitions: Optional[int] = None) -> None:
-    if num_partitions is None:
-        num_partitions = multiprocessing.cpu_count()
-
-    cat_to_nex_pairs = get_cat_to_nex_flowpairs(hydrofabric=paths.geopackage_path)
-    # nexus = defaultdict(list)
-
-    # for cat, nex in cat_to_nex_pairs:
-    #     nexus[nex].append(cat)
-
-    num_partitions = min(num_partitions, len(cat_to_nex_pairs))
-    # partition_size = ceil(len(nexus) / num_partitions)
-    # num_nexus = len(nexus)
-    # nexus = list(nexus.items())
-    # partitions = []
-    # for i in range(0, num_nexus, partition_size):
-    #     part = {}
-    #     part["id"] = i // partition_size
-    #     part["cat-ids"] = []
-    #     part["nex-ids"] = []
-    #     part["remote-connections"] = []
-    #     for j in range(i, i + partition_size):
-    #         if j < num_nexus:
-    #             part["cat-ids"].extend(nexus[j][1])
-    #             part["nex-ids"].append(nexus[j][0])
-    #     partitions.append(part)
-
-    # with open(paths.subset_dir / f"partitions_{num_partitions}.json", "w") as f:
-    #     f.write(json.dumps({"partitions": partitions}, indent=4))
-
-    # write this to a metadata file to save on repeated file io to recalculate
-    with open(paths.metadata_dir / "num_partitions", "w") as f:
-        f.write(str(num_partitions))
-
-
-if __name__ == "__main__":
-    cat_id = "cat-1643991"
-    start_time = datetime(2010, 1, 1, 0, 0, 0)
-    end_time = datetime(2010, 1, 2, 0, 0, 0)
-    # output_interval = 3600
-    # nts = 2592
-    create_realization(cat_id, start_time, end_time)

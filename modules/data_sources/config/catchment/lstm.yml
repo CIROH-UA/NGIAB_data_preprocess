@@ -1,0 +1,17 @@
+time_step: "1 hour"
+area_sqkm: {area_sqkm} # areasqkm
+basin_id: {divide_id}
+basin_name: {divide_id}
+elev_mean: {elevation_mean} # mean.elevation
+initial_state: zero
+lat: {lat} # needs calulating
+lon: {lon} # needs calulating
+slope_mean: {slope_mean} # mean.slope
+train_cfg_file:
+  - /ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_7/config.yml
+  - /ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_8/config.yml
+  - /ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_9/config.yml
+  - /ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed101_0701_143442/config.yml
+  - /ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed103_2701_171540/config.yml
+  - /ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_slope_elev_precip_temp_seq999_seed101_2801_191806/config.yml
+verbose: 0

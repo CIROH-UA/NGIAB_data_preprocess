@@ -62,7 +62,7 @@ compute_parameters:
         qlat_input_folder: ./outputs/ngen/
         qlat_file_pattern_filter: "nex-*"
 
-        #binary_nexus_file_folder: ./outputs/parquet/ # if nexus_file_pattern_filter="nex-*" and you want it to reformat them as parquet, you need this
+        {binary_nexus_file_folder_comment}binary_nexus_file_folder: ./outputs/parquet/ # if nexus_file_pattern_filter="nex-*" and you want it to reformat them as parquet, you need this
         #coastal_boundary_input_file : channel_forcing/schout_1.nc
         nts: {nts} #288 for 1day
         max_loop_size: {max_loop_size} # [number of timesteps]

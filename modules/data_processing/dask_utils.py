@@ -1,8 +1,39 @@
 import logging
+import os
 
 from dask.distributed import Client
 
 logger = logging.getLogger(__name__)
+
+
+def _env_n_workers():
+    # Set workers from an environment variable, if it is a valid integer.
+    value = os.environ.get("NGIAB_DASK_WORKERS")
+    if value:
+        try:
+            return int(value)
+        except ValueError:
+            logger.warning("Invalid NGIAB_DASK_WORKERS=%r, ignoring", value)
+    return None
+
+
+# Variable to store the number of workers
+_n_workers = _env_n_workers()
+
+
+# set n_workers from CLI or other code
+def set_n_workers(n_workers):
+    """Set the number of workers used whenever this package creates a Dask cluster."""
+    global _n_workers
+    _n_workers = n_workers
+
+
+# replace of Client()
+def _new_client():
+    # If not set from the environment, the number of workers will be determined by Dask's defaults.
+    if _n_workers is not None:
+        logger.info("Starting Dask cluster with %d workers", _n_workers)
+    return Client(n_workers=_n_workers)
 
 
 def shutdown_cluster():
@@ -55,7 +86,7 @@ def use_cluster(func):
         try:
             client = Client.current()
         except ValueError:
-            client = Client()
+            client = _new_client()
         result = func(*args, **kwargs)
         return result
 
@@ -83,7 +114,7 @@ def temp_cluster(func):
             client = Client.current()
         except ValueError:
             cluster_was_running = False
-            client = Client()
+            client = _new_client()
         result = func(*args, **kwargs)
         if not cluster_was_running:
             client.shutdown()

@@ -1,3 +1,4 @@
+import json
 import logging
 import multiprocessing
 import os
@@ -16,7 +17,7 @@ import psutil
 import xarray as xr
 from data_processing.dask_utils import no_cluster, use_cluster
 from data_processing.dataset_utils import validate_dataset_format
-from data_processing.file_paths import file_paths
+from data_processing.file_paths import FilePaths
 from exactextract import exact_extract
 from exactextract.raster import NumPyRasterSource
 from rich.progress import (
@@ -26,6 +27,7 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+from xarray.core.types import InterpOptions
 
 logger = logging.getLogger(__name__)
 # Suppress the specific warning from numpy to keep the cli output clean
@@ -63,10 +65,16 @@ def weighted_sum_of_cells(
         Each element contains the averaged forcing value for the whole catchment
         over one timestep.
     """
-    result = np.zeros(flat_raster.shape[0])
+    # early exit for divide by zero
+    if np.all(factors == 0):
+        return np.zeros(flat_raster.shape[0])
+
+    selected_cells = flat_raster[:, cell_ids]
+    has_nan = np.isnan(selected_cells).any(axis=1)
     result = np.sum(flat_raster[:, cell_ids] * factors, axis=1)
     sum_of_weights = np.sum(factors)
     result /= sum_of_weights
+    result[has_nan] = np.nan
     return result
 
 
@@ -305,6 +313,46 @@ def get_units(dataset: xr.Dataset) -> dict:
     return units
 
 
+def interpolate_nan_values(
+    dataset: xr.Dataset,
+    dim: str = "time",
+    method: InterpOptions = "linear",
+    fill_value: str = "extrapolate",
+) -> bool:
+    """
+    Interpolates NaN values in specified (or all numeric time-dependent)
+    variables of an xarray.Dataset. Operates inplace on the dataset.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The input dataset.
+    dim : str, optional
+        The dimension along which to interpolate (default is "time").
+    method : str, optional
+        Interpolation method to use (e.g., "linear", "nearest", "cubic").
+        Default is "linear".
+    fill_value : str, optional
+        Method for filling NaNs at the start/end of the series after interpolation.
+        Set to "extrapolate" to fill with the nearest valid value when using 'nearest' or 'linear'.
+        Default is "extrapolate".
+    """
+    for name, var in dataset.data_vars.items():
+        # if the variable is non-numeric, skip
+        if not np.issubdtype(var.dtype, np.number):
+            continue
+        # if there are no NANs, skip
+        if not var.isnull().any().compute():
+            continue
+        logger.info("Interpolating NaN values in %s", name)
+        var = var.compute()
+        dataset[name] = var.interpolate_na(
+            dim=dim,
+            method=method,
+            fill_value=fill_value if method in ["nearest", "linear"] else None,
+        )
+
+
 @no_cluster
 def compute_zonal_stats(
     gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path
@@ -334,6 +382,20 @@ def compute_zonal_stats(
 
     cat_chunks: List[pd.DataFrame] = np.array_split(catchments, num_partitions)  # type: ignore
 
+    progress_file = FilePaths(output_dir=forcings_dir.parent).forcing_progress_file
+    ex_var_name = list(gridded_data.data_vars)[0]
+    example_time_chunks = get_index_chunks(gridded_data[ex_var_name])
+
+    data_vars = gridded_data.data_vars
+
+    all_steps = len(example_time_chunks) * len(data_vars)
+    logger.info(
+        f"Total steps: {all_steps}, Number of time chunks: {len(example_time_chunks)}, Number of variables: {len(data_vars)}"
+    )
+    steps_completed = 0
+    with open(progress_file, "w") as f:
+        json.dump({"total_steps": all_steps, "steps_completed": steps_completed}, f)
+
     progress = Progress(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
@@ -348,10 +410,11 @@ def compute_zonal_stats(
 
     timer = time.perf_counter()
     variable_task = progress.add_task(
-        "[cyan]Processing variables...", total=len(gridded_data.data_vars), elapsed=0
+        "[cyan]Processing variables...", total=len(data_vars), elapsed=0
     )
     progress.start()
-    for data_var_name in list(gridded_data.data_vars):
+
+    for data_var_name in list(data_vars):
         data_var_name: str
         progress.update(variable_task, advance=1)
         progress.update(variable_task, description=f"Processing {data_var_name}")
@@ -391,6 +454,9 @@ def compute_zonal_stats(
             concatenated_da.to_dataset(name=data_var_name).to_netcdf(
                 forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc"
             )
+            steps_completed += 1
+            with open(progress_file, "w") as f:
+                json.dump({"total_steps": all_steps, "steps_completed": steps_completed}, f)
         # Merge the chunks back together
         datasets = [
             xr.open_dataset(forcings_dir / "temp" / f"{data_var_name}_timechunk_{i}.nc")
@@ -413,6 +479,8 @@ def compute_zonal_stats(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
     write_outputs(forcings_dir, units)
+    time.sleep(1)  # wait for progress bar to update
+    progress_file.unlink()
 
 
 @use_cluster
@@ -455,7 +523,6 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     for var in final_ds.data_vars:
         final_ds[var] = final_ds[var].astype(np.float32)
 
-    logger.info("Saving to disk")
     # The format for the netcdf is to support a legacy format
     # which is why it's a little "unorthodox"
     # There are no coordinates, just dimensions, catchment ids are stored in a 1d data var
@@ -463,6 +530,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     # time is stored as unix timestamps, units have to be set
     # add the catchment ids as a 1d data var
     final_ds["ids"] = final_ds["catchment"].astype(str)
+
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -481,7 +549,9 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     final_ds["Time"].attrs["epoch_start"] = (
         "01/01/1970 00:00:00"  # not needed but suppresses the ngen warning
     )
+    interpolate_nan_values(final_ds)
 
+    logger.info("Saving to disk")
     final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
     # close the datasets
     _ = [result.close() for result in results]
@@ -493,8 +563,8 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     temp_forcings_dir.rmdir()
 
 
-def setup_directories(cat_id: str) -> file_paths:
-    forcing_paths = file_paths(cat_id)
+def setup_directories(cat_id: str) -> FilePaths:
+    forcing_paths = FilePaths(cat_id)
     # delete everything in the forcing folder except the cached nc file
     for file in forcing_paths.forcings_dir.glob("*.*"):
         if file != forcing_paths.cached_nc_file:
@@ -512,4 +582,7 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
     gdf = gdf.to_crs(dataset.crs)
+    dataset = dataset.isel(
+        y=slice(None, None, -1)
+    )  # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
     compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)

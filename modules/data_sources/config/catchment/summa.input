@@ -1,0 +1,5 @@
+&parameters
+  file_manager          = "./config/model_config/SUMMA/fileManager.txt"
+  attrib_file_HRU_order = {divide_index}
+  restart_print_freq    = "e"
+/
