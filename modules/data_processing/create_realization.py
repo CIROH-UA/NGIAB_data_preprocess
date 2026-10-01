@@ -19,6 +19,7 @@ import xarray as xr
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import get_cat_to_nhd_feature_id, get_table_crs_short
+from numpy.typing import DTypeLike
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 @temp_cluster
-def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[str, int]:
+def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[str, np.ndarray]:
     # get the gw levels from the NWM output on a given start date
     # this kind of works in place of warmstates for now
     year = start_date.strftime("%Y")
@@ -39,7 +40,7 @@ def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[s
     with fs.open(nc_url) as file_obj:
         ds = xr.open_dataset(file_obj)  # type: ignore
 
-        water_levels: Dict[str, int] = dict()
+        water_levels: Dict[str, np.ndarray] = dict()
         for cat, feature in tqdm(cat_to_feature.items()):
             # this value is in CM, we need meters to match max_gw_depth
             # xarray says it's in mm, with 0.1 scale factor. calling .values doesn't apply the scale
@@ -49,7 +50,7 @@ def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[s
     return water_levels
 
 
-def make_cfe_config(divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: dict) -> None:
+def make_cfe_config(divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: Dict[str, np.ndarray]) -> None:
     """Parses parameters from NOAHOWP_CFE DataFrame and returns a dictionary of catchment configurations."""
     with open(FilePaths.template_cfe_config, "r") as f:
         cfe_template = f.read()
@@ -261,7 +262,7 @@ def make_lstm_config(
     hydrofabric: Path,
     output_dir: Path,
     template_path: Path = FilePaths.template_lstm_config,
-):
+) -> None:
     divide_conf_df = get_model_attributes(hydrofabric)
 
     cat_config_dir = output_dir / "cat_config" / "lstm"
@@ -303,7 +304,7 @@ def make_dhbv2_config(
     template_path: Path = FilePaths.template_dhbv2_config,
     output_suffix: str = "",
     clear_dir: bool = True,
-):
+) -> None:
     divide_conf_df = get_model_attributes(hydrofabric)
     dhbv_atts = duckdb.sql(f"""
         SELECT * FROM '{FilePaths.dhbv_attributes}'
@@ -334,7 +335,7 @@ def make_dhbv2_config(
         )
 
 
-def make_summa_config(hru_ids: list[int], output_dir: Path):
+def make_summa_config(hru_ids: list[int], output_dir: Path) -> None:
     with open(FilePaths.template_summa_config, "r") as file:
         template = file.read()
     cat_config_dir = output_dir / "cat_config" / "SUMMA"
@@ -412,7 +413,7 @@ def make_ngen_realization_json(
 
 def create_lstm_realization(
     cat_id: str, start_time: datetime, end_time: datetime, use_rust: bool = False
-):
+) -> None:
     paths = FilePaths(cat_id)
     realization_path = paths.config_dir / "realization.json"
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
@@ -436,7 +437,7 @@ def create_lstm_realization(
 
 def create_dhbv2_realization(
     cat_id: str, start_time: datetime, end_time: datetime, daily: bool = False
-):
+) -> None:
     paths = FilePaths(cat_id)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
 
@@ -477,7 +478,7 @@ def get_hru_order(forcing_path: Path) -> list[int]:
     return [int(s.split("-")[-1]) for s in forcings.ids.values]
 
 
-def make_summa_attributes(hru_ids, hydrofabric):
+def make_summa_attributes(hru_ids: list[int], hydrofabric: Path) -> xr.Dataset:
     cat_ids = [f"cat-{id}" for id in hru_ids]
     divide_conf_df = get_model_attributes(hydrofabric)
     divide_conf_df = divide_conf_df.set_index("divide_id")
@@ -607,18 +608,18 @@ def make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:
     return ds
 
 
-def make_summa_coldState(hru_ids):
+def make_summa_coldState(hru_ids: list[int]) -> tuple[xr.Dataset, Dict[str, Dict[str, None]]]:
     n_hru = len(hru_ids)
     n_midToto = 3
     n_ifcToto = 4
 
-    def scalar_var(fill_val, dtype=np.float64):
+    def scalar_var(fill_val: int | float, dtype: DTypeLike = np.float64) -> xr.DataArray:
         return xr.DataArray(
             data=np.full((1, n_hru), fill_val, dtype=dtype),
             dims=["scalarv", "hru"],
         )
 
-    def layer_var(fill_val, dim_name, dim_size):
+    def layer_var(fill_val: int | float, dim_name: str, dim_size: int) -> xr.DataArray:
         return xr.DataArray(
             data=np.full((dim_size, n_hru), fill_val, dtype=np.float64),
             dims=[dim_name, "hru"],
@@ -676,7 +677,7 @@ def make_summa_coldState(hru_ids):
     return ds, encoding
 
 
-def create_summa_realization(cat_id: str, start_time: datetime, end_time: datetime):
+def create_summa_realization(cat_id: str, start_time: datetime, end_time: datetime) -> None:
     paths = FilePaths(cat_id)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(
@@ -721,7 +722,7 @@ def create_snow17_realization(
     end_time: datetime,
     use_nwm_gw: bool = False,
     gage_id: Optional[str] = None,
-):
+) -> None:
     paths = FilePaths(cat_id)
 
     conf_df = get_model_attributes(paths.geopackage_path)
@@ -746,7 +747,7 @@ def create_snow17_realization(
 
 def create_sacsma_realization(
     cat_id: str, start_time: datetime, end_time: datetime, gage_id: Optional[str] = None
-):
+) -> None:
     paths = FilePaths(cat_id)
 
     conf_df = get_model_attributes(paths.geopackage_path)
@@ -769,7 +770,7 @@ def create_realization(
     end_time: datetime,
     use_nwm_gw: bool = False,
     gage_id: Optional[str] = None,
-):
+) -> None:
     paths = FilePaths(cat_id)
 
     template_path = paths.template_cfe_nowpm_realization_config
