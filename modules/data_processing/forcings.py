@@ -313,11 +313,29 @@ def get_units(dataset: xr.Dataset) -> dict:
     return units
 
 
+# Interpolating precipitation intensity across a long gap adds rain no source reports, so
+# precipitation is interpolated only across short gaps and is zero across longer ones (#236).
+PRECIPITATION_VARIABLES = ("precip_rate", "APCP_surface")
+
+
+def long_gaps(var: xr.DataArray, dim: str, max_gap: int) -> xr.DataArray:
+    """True where a value is missing in a run of more than max_gap steps along dim, or in a run
+    at the start or end of the series."""
+    var = var.transpose(..., dim)
+    valid = var.notnull().values
+    steps = np.arange(valid.shape[-1])
+    before = np.maximum.accumulate(np.where(valid, steps, -1), axis=-1)
+    after = np.minimum.accumulate(np.where(valid, steps, steps.size)[..., ::-1], axis=-1)[..., ::-1]
+    long = ~valid & ((before < 0) | (after == steps.size) | (after - before - 1 > max_gap))
+    return var.copy(data=long)
+
+
 def interpolate_nan_values(
     dataset: xr.Dataset,
     dim: str = "time",
     method: InterpOptions = "linear",
     fill_value: str = "extrapolate",
+    precip_max_gap: int = 6,
 ) -> bool:
     """
     Interpolates NaN values in specified (or all numeric time-dependent)
@@ -336,6 +354,12 @@ def interpolate_nan_values(
         Method for filling NaNs at the start/end of the series after interpolation.
         Set to "extrapolate" to fill with the nearest valid value when using 'nearest' or 'linear'.
         Default is "extrapolate".
+    precip_max_gap : int, optional
+        The most missing steps in a row that precipitation is interpolated across (6 hours on
+        hourly forcing). Precipitation in longer gaps, or missing at the start or end of the
+        series, is set to zero. Default is 6.
+
+    Each variable's missing steps are logged, and each gap where precipitation is set to zero.
     """
     for name, var in dataset.data_vars.items():
         # if the variable is non-numeric, skip
@@ -344,8 +368,36 @@ def interpolate_nan_values(
         # if there are no NANs, skip
         if not var.isnull().any().compute():
             continue
-        logger.info("Interpolating NaN values in %s", name)
         var = var.compute()
+        times = var[dim].values
+        if np.issubdtype(times.dtype, np.datetime64):
+            times = np.datetime_as_string(times, unit="s")
+        others = [d for d in var.dims if d != dim]
+        steps = np.flatnonzero(var.isnull().any(others).values)
+        logger.warning(
+            "%s is missing at %d of %d %s steps, first at %s, last at %s",
+            name,
+            steps.size,
+            times.size,
+            dim,
+            times[steps[0]],
+            times[steps[-1]],
+        )
+        if name in PRECIPITATION_VARIABLES:
+            long = long_gaps(var, dim, precip_max_gap)
+            zeroed = long.any(others).values
+            edges = np.flatnonzero(np.diff(zeroed, prepend=False, append=False))
+            for start, stop in zip(edges[::2], edges[1::2]):
+                logger.warning(
+                    "%s is set to zero from %s to %s, %d %s steps",
+                    name,
+                    times[start],
+                    times[stop - 1],
+                    stop - start,
+                    dim,
+                )
+            dataset[name] = var.interpolate_na(dim=dim, method=method).where(~long, 0.0)
+            continue
         dataset[name] = var.interpolate_na(
             dim=dim,
             method=method,
@@ -355,7 +407,7 @@ def interpolate_nan_values(
 
 @no_cluster
 def compute_zonal_stats(
-    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path
+    gdf: gpd.GeoDataFrame, gridded_data: xr.Dataset, forcings_dir: Path, precip_max_gap: int = 6
 ) -> None:
     """
     Compute zonal statistics in parallel for all timesteps over all desired
@@ -478,13 +530,13 @@ def compute_zonal_stats(
     logger.info(
         f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
     )
-    write_outputs(forcings_dir, units)
+    write_outputs(forcings_dir, units, precip_max_gap)
     time.sleep(1)  # wait for progress bar to update
     progress_file.unlink()
 
 
 @use_cluster
-def write_outputs(forcings_dir: Path, units: dict) -> None:
+def write_outputs(forcings_dir: Path, units: dict, precip_max_gap: int = 6) -> None:
     """
     Write outputs to disk in the form of a NetCDF file, using dask clusters to
     facilitate parallel computing.
@@ -523,6 +575,9 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     for var in final_ds.data_vars:
         final_ds[var] = final_ds[var].astype(np.float32)
 
+    # fill missing steps while time is still a coordinate, so the log names times
+    interpolate_nan_values(final_ds, precip_max_gap=precip_max_gap)
+
     # The format for the netcdf is to support a legacy format
     # which is why it's a little "unorthodox"
     # There are no coordinates, just dimensions, catchment ids are stored in a 1d data var
@@ -549,8 +604,6 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
     final_ds["Time"].attrs["epoch_start"] = (
         "01/01/1970 00:00:00"  # not needed but suppresses the ngen warning
     )
-    interpolate_nan_values(final_ds)
-
     logger.info("Saving to disk")
     final_ds.to_netcdf(forcings_dir / "forcings.nc", engine="netcdf4")
     # close the datasets
@@ -575,7 +628,7 @@ def setup_directories(cat_id: str) -> FilePaths:
     return forcing_paths
 
 
-def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
+def create_forcings(dataset: xr.Dataset, output_folder_name: str, precip_max_gap: int = 6) -> None:
     validate_dataset_format(dataset)
     forcing_paths = setup_directories(output_folder_name)
     logger.debug(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
@@ -585,4 +638,4 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     dataset = dataset.isel(
         y=slice(None, None, -1)
     )  # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
-    compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
+    compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir, precip_max_gap)

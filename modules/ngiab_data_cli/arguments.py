@@ -184,6 +184,12 @@ def parse_arguments() -> argparse.Namespace:
         default="nwm",
     )
     parser.add_argument(
+        "--precip_max_gap",
+        type=int,
+        default=6,
+        help="Most missing time steps in a row to interpolate precipitation across; longer gaps are set to zero (default: 6)",
+    )
+    parser.add_argument(
         "--subset_type",
         type=str,
         help="By nexus: get everything flowing into the downstream nexus of the selected catchment. By catchment: get everything flowing into the selected catchment.",

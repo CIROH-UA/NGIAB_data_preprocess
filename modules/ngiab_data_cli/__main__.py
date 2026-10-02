@@ -212,6 +212,7 @@ def main() -> None:
             create_forcings(
                 cached_data,
                 output_folder_name=output_folder,
+                precip_max_gap=args.precip_max_gap,
             )
             logging.info("Forcings generation complete.")
 
@@ -272,20 +273,20 @@ def main() -> None:
 
             try:
                 subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
-            except:
+            except Exception:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
                 command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
-            except:
+            except Exception:
                 logging.error("Next Gen run failed.")
 
         if args.eval:
             plot = False
             try:
-                import matplotlib
-                import seaborn
+                import matplotlib  # noqa: F401
+                import seaborn  # noqa: F401
 
                 plot = True
             except ImportError:
@@ -309,7 +310,7 @@ def main() -> None:
             try:
                 command = f'docker run --rm -it -p 3000:3000 -v "{str(paths.subset_dir)}:/ngen/ngen/data/" joshcu/ngiab_grafana:v0.2.1'
                 subprocess.run(command, shell=True)
-            except:
+            except Exception:
                 logging.error("Failed to launch docker container.")
 
         logging.info("All operations completed successfully.")

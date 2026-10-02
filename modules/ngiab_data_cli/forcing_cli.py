@@ -59,6 +59,12 @@ def parse_arguments() -> argparse.Namespace:
         default="nwm",
     )
     parser.add_argument(
+        "--precip_max_gap",
+        type=int,
+        default=6,
+        help="Most missing time steps in a row to interpolate precipitation across; longer gaps are set to zero (default: 6)",
+    )
+    parser.add_argument(
         "-D",
         "--debug",
         action="store_true",
@@ -112,7 +118,7 @@ def main() -> None:
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-    compute_zonal_stats(gdf, cached_data, forcing_working_dir)
+    compute_zonal_stats(gdf, cached_data, forcing_working_dir, args.precip_max_gap)
 
     shutil.copy(forcing_working_dir / "forcings.nc", args.output_file)
     logging.info(f"Created forcings file: {args.output_file}")

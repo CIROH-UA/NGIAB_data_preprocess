@@ -103,3 +103,46 @@ class TestInterpolation:
         assert test_ds["non_numeric_var"].equals(
             test_datasets["ds_with_nans"]["non_numeric_var"]
         ), "Non-numeric variable was incorrectly modified"
+
+
+def test_precipitation_is_interpolated_across_short_gaps_and_zero_across_long_ones(caplog):
+    times = pd.date_range("2024-06-17 22:00", periods=34, freq="h")
+    rain = np.zeros((2, len(times)))
+    rain[:, 1] = 12.5 / 3600  # raining in the last hour before the gap
+    rain[:, 2:26] = np.nan  # a missing day
+    rain[:, 27] = 4.0 / 3600
+    rain[:, 28:31] = np.nan  # three missing hours inside a storm
+    rain[:, 31] = 1.0 / 3600
+    temperature = np.tile(np.linspace(280.0, 313.0, len(times)), (2, 1))
+    temperature[:, 2:26] = np.nan
+    temperature[:, 28:31] = np.nan
+    ds = xr.Dataset(
+        {
+            "precip_rate": (("catchment", "time"), rain.copy()),
+            "APCP_surface": (("catchment", "time"), rain * 3600),
+            "TMP_2maboveground": (("catchment", "time"), temperature),
+        },
+        coords={"catchment": ["cat-1", "cat-2"], "time": times},
+    )
+    ds["precip_rate"].attrs["units"] = "mm s^-1"
+    with caplog.at_level(logging.WARNING):
+        interpolate_nan_values(ds)
+    assert not ds.to_array().isnull().any()
+    # No rain is added across the missing day; a linear fill would put some 150 mm there.
+    assert float(ds["precip_rate"][:, 2:26].sum()) == 0.0
+    assert float(ds["APCP_surface"][:, 2:26].sum()) == 0.0
+    # The three missing hours are interpolated between 4 and 1 mm/h.
+    np.testing.assert_allclose(ds["APCP_surface"][:, 28:31], [[3.25, 2.5, 1.75]] * 2)
+    np.testing.assert_allclose(ds["precip_rate"][:, 28:31] * 3600, [[3.25, 2.5, 1.75]] * 2)
+    assert ds["precip_rate"].attrs["units"] == "mm s^-1"
+    # Temperature is interpolated across both gaps.
+    np.testing.assert_allclose(ds["TMP_2maboveground"][0], np.linspace(280.0, 313.0, len(times)))
+    assert "precip_rate is missing at 27 of 34 time steps" in caplog.text
+    assert "first at 2024-06-18T00:00:00, last at 2024-06-19T04:00:00" in caplog.text
+    # Only the missing day is set to zero, and it is named.
+    zeroed = [
+        r.getMessage() for r in caplog.records if "precip_rate is set to zero" in r.getMessage()
+    ]
+    assert zeroed == [
+        "precip_rate is set to zero from 2024-06-18T00:00:00 to 2024-06-18T23:00:00, 24 time steps"
+    ]
