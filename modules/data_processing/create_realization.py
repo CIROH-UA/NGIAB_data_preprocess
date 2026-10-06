@@ -7,7 +7,6 @@ import sqlite3
 from datetime import datetime
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Optional
 
 import duckdb
 import numpy as np
@@ -27,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @temp_cluster
-def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[str, np.ndarray]:
+def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> dict[str, np.ndarray]:
     # get the gw levels from the NWM output on a given start date
     # this kind of works in place of warmstates for now
     year = start_date.strftime("%Y")
@@ -40,7 +39,7 @@ def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[s
     with fs.open(nc_url) as file_obj:
         ds = xr.open_dataset(file_obj)  # type: ignore
 
-        water_levels: Dict[str, np.ndarray] = dict()
+        water_levels: dict[str, np.ndarray] = dict()
         for cat, feature in tqdm(cat_to_feature.items()):
             # this value is in CM, we need meters to match max_gw_depth
             # xarray says it's in mm, with 0.1 scale factor. calling .values doesn't apply the scale
@@ -50,7 +49,7 @@ def get_approximate_gw_storage(paths: FilePaths, start_date: datetime) -> Dict[s
     return water_levels
 
 
-def make_cfe_config(divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: Dict[str, np.ndarray]) -> None:
+def make_cfe_config(divide_conf_df: pandas.DataFrame, files: FilePaths, water_levels: dict[str, np.ndarray]) -> None:
     """Parses parameters from NOAHOWP_CFE DataFrame and returns a dictionary of catchment configurations."""
     with open(FilePaths.template_cfe_config, "r") as f:
         cfe_template = f.read()
@@ -608,18 +607,18 @@ def make_summa_trialParams(hru_ids: list[int], timesteps: int) -> xr.Dataset:
     return ds
 
 
-def make_summa_coldState(hru_ids: list[int]) -> tuple[xr.Dataset, Dict[str, Dict[str, None]]]:
+def make_summa_coldState(hru_ids: list[int]) -> tuple[xr.Dataset, dict[str, dict[str, None]]]:
     n_hru = len(hru_ids)
     n_midToto = 3
     n_ifcToto = 4
 
-    def scalar_var(fill_val: int | float, dtype: DTypeLike = np.float64) -> xr.DataArray:
+    def scalar_var(fill_val: float, dtype: DTypeLike = np.float64) -> xr.DataArray:
         return xr.DataArray(
             data=np.full((1, n_hru), fill_val, dtype=dtype),
             dims=["scalarv", "hru"],
         )
 
-    def layer_var(fill_val: int | float, dim_name: str, dim_size: int) -> xr.DataArray:
+    def layer_var(fill_val: float, dim_name: str, dim_size: int) -> xr.DataArray:
         return xr.DataArray(
             data=np.full((dim_size, n_hru), fill_val, dtype=np.float64),
             dims=[dim_name, "hru"],
@@ -721,7 +720,7 @@ def create_snow17_realization(
     start_time: datetime,
     end_time: datetime,
     use_nwm_gw: bool = False,
-    gage_id: Optional[str] = None,
+    gage_id: str | None = None,
 ) -> None:
     paths = FilePaths(cat_id)
 
@@ -746,7 +745,7 @@ def create_snow17_realization(
 
 
 def create_sacsma_realization(
-    cat_id: str, start_time: datetime, end_time: datetime, gage_id: Optional[str] = None
+    cat_id: str, start_time: datetime, end_time: datetime, gage_id: str | None = None
 ) -> None:
     paths = FilePaths(cat_id)
 
@@ -769,7 +768,7 @@ def create_realization(
     start_time: datetime,
     end_time: datetime,
     use_nwm_gw: bool = False,
-    gage_id: Optional[str] = None,
+    gage_id: str | None = None,
 ) -> None:
     paths = FilePaths(cat_id)
 
