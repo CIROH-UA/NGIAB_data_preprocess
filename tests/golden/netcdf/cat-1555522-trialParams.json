@@ -1,0 +1,28 @@
+{
+  "attrs": {
+    "Author": "Created by ngiab preprocessor SUMMA workflow script",
+    "Purpose": "Create a trial parameter .nc file for initial SUMMA runs"
+  },
+  "coords": {},
+  "data_vars": {
+    "hruId": {
+      "data": [
+        1555522
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "maxstep": {
+      "data": [
+        86400.0
+      ],
+      "dims": [
+        "hru"
+      ]
+    }
+  },
+  "dims": {
+    "hru": 1
+  }
+}

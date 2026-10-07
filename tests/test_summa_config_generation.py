@@ -5,6 +5,7 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
+import os
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,7 @@ GOLDEN_GPKG_DIR = Path(__file__).parent / "golden" / "geopackage"
 GOLDEN_CONFIG_DIR = Path(__file__).parent / "golden" / "config"
 GOLDEN_SUMMA_FILE = GOLDEN_CONFIG_DIR / "cat-1555522-summa.json"
 GOLDEN_GAGE_SUMMA_FILE = GOLDEN_CONFIG_DIR / "gage-10109001-summa.json"
+GOLDEN_NC_DIR = Path(__file__).parent / "golden" / "netcdf"
 GEOPACKAGE_FIXTURES = {
     "cat-1555522": GOLDEN_GPKG_DIR / "cat-1555522_subset.gpkg",
     "gage-10109001": GOLDEN_GPKG_DIR / "gage-10109001_subset.gpkg",
@@ -33,170 +35,49 @@ END_DATE = "2020-01-02"
 FIXED_START = datetime(2020, 1, 1, 0, 0, 0)
 FIXED_END = datetime(2020, 1, 2, 0, 0, 0)
 
+UPDATE_GOLDEN = os.environ.get("UPDATE_GOLDEN") == "1"
+
 
 def _normalize(text: str, output_dir: Path) -> str:
     return text.replace(str(output_dir), "<OUTPUT_DIR>")
 
 
-EXPECTED_SUMMA_ATTRIBUTES = {
-    "coords": {},
-    "attrs": {
-        "Author": "Created by ngiab preprocessor SUMMA workflow script",
-        "History": "Created 2026/06/23 11:08:48",
-    },
-    "dims": {"hru": 1, "gru": 1},
-    "data_vars": {
-        "hruId": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
-            "data": [1555522],
-        },
-        "gruId": {
-            "dims": ("gru",),
-            "attrs": {"units": "-", "long_name": "Index of grouped response unit (GRU)"},
-            "data": [1555522],
-        },
-        "hru2gruId": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index of GRU to which the HRU belongs"},
-            "data": [1555522],
-        },
-        "downHRUindex": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index of downslope HRU (0 = basin outlet)"},
-            "data": [0],
-        },
-        "longitude": {
-            "dims": ("hru",),
-            "attrs": {"units": "Decimal degree east", "long_name": "Longitude of HRUs centroid"},
-            "data": [-95.61994939481728],
-        },
-        "latitude": {
-            "dims": ("hru",),
-            "attrs": {"units": "Decimal degree north", "long_name": "Latitude of HRUs centroid"},
-            "data": [39.14351071467262],
-        },
-        "elevation": {
-            "dims": ("hru",),
-            "attrs": {"units": "m", "long_name": "Mean HRU elevation"},
-            "data": [305.94258126046924],
-        },
-        "HRUarea": {
-            "dims": ("hru",),
-            "attrs": {"units": "m^2", "long_name": "Area of HRU"},
-            "data": [9761400.035999982],
-        },
-        "tan_slope": {
-            "dims": ("hru",),
-            "attrs": {"units": "m m-1", "long_name": "Average tangent slope of HRU"},
-            "data": [0.32140451308275],
-        },
-        "contourLength": {
-            "dims": ("hru",),
-            "attrs": {"units": "m", "long_name": "Contour length of HRU"},
-            "data": [100.0],
-        },
-        "slopeTypeIndex": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index defining slope"},
-            "data": [1],
-        },
-        "soilTypeIndex": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index defining soil type"},
-            "data": [9],
-        },
-        "vegTypeIndex": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index defining vegetation type"},
-            "data": [5],
-        },
-        "mHeight": {
-            "dims": ("hru",),
-            "attrs": {"units": "m", "long_name": "Measurement height above bare ground"},
-            "data": [1.5],
-        },
-    },
-}
+def _check_against_golden(produced: dict, golden_file: Path, label: str) -> None:
+    """Compare produced config text to a golden JSON, or rewrite it if UPDATE_GOLDEN=1."""
+    if UPDATE_GOLDEN:
+        golden_file.parent.mkdir(parents=True, exist_ok=True)
+        golden_file.write_text(json.dumps(produced, indent=2, sort_keys=True) + "\n")
+        pytest.skip(f"UPDATE_GOLDEN=1: rewrote {golden_file}")
 
-EXPECTED_SUMMA_COLD_STATE = {
-    "coords": {
-        "midSoil": {"dims": ("midSoil",), "attrs": {}, "data": [0, 1, 2]},
-    },
-    "attrs": {
-        "Author": "Created by SUMMA workflow scripts",
-        "History": "Created 2026/06/23 11:08:48",
-        "Purpose": "Create a cold state .nc file for initial SUMMA runs",
-    },
-    "dims": {"hru": 1, "scalarv": 1, "midToto": 3, "ifcToto": 4, "midSoil": 3},
-    "data_vars": {
-        "hruId": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
-            "data": [1555522],
-        },
-        "dt_init": {
-            "dims": ("scalarv", "hru"),
-            "attrs": {},
-            "data": [[3600.0]],
-        },
-        "nSoil": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[3]]},
-        "nSnow": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[0]]},
-        "scalarCanopyIce": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[0.0]]},
-        "scalarCanopyLiq": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[0.0]]},
-        "scalarSnowDepth": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[0.0]]},
-        "scalarSWE": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[0.0]]},
-        "scalarSfcMeltPond": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[0.0]]},
-        "scalarAquiferStorage": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[2.5]]},
-        "scalarSnowAlbedo": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[0.0]]},
-        "scalarCanairTemp": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[283.16]]},
-        "scalarCanopyTemp": {"dims": ("scalarv", "hru"), "attrs": {}, "data": [[283.16]]},
-        "mLayerTemp": {
-            "dims": ("midToto", "hru"),
-            "attrs": {},
-            "data": [[283.16], [283.16], [283.16]],
-        },
-        "mLayerVolFracIce": {
-            "dims": ("midToto", "hru"),
-            "attrs": {},
-            "data": [[0.0], [0.0], [0.0]],
-        },
-        "mLayerVolFracLiq": {
-            "dims": ("midToto", "hru"),
-            "attrs": {},
-            "data": [[0.2], [0.2], [0.2]],
-        },
-        "mLayerMatricHead": {
-            "dims": ("midToto", "hru"),
-            "attrs": {},
-            "data": [[-1.0], [-1.0], [-1.0]],
-        },
-        "iLayerHeight": {
-            "dims": ("ifcToto", "hru"),
-            "attrs": {},
-            "data": [[0.0], [0.2], [0.5], [1.0]],
-        },
-        "mLayerDepth": {"dims": ("midToto", "hru"), "attrs": {}, "data": [[0.2], [0.3], [0.5]]},
-    },
-}
+    assert golden_file.exists(), (
+        f"missing golden {golden_file}. Generate it with: "
+        "UPDATE_GOLDEN=1 uv run pytest tests/test_summa_config_generation.py"
+    )
+    golden = json.loads(golden_file.read_text())
 
-EXPECTED_SUMMA_TRIAL_PARAMS = {
-    "coords": {},
-    "attrs": {
-        "Author": "Created by ngiab preprocessor SUMMA workflow script",
-        "History": "Created 2026/06/23 11:08:48",
-        "Purpose": "Create a trial parameter .nc file for initial SUMMA runs",
-    },
-    "dims": {"hru": 1},
-    "data_vars": {
-        "hruId": {
-            "dims": ("hru",),
-            "attrs": {"units": "-", "long_name": "Index of hydrological response unit (HRU)"},
-            "data": [1555522],
-        },
-        "maxstep": {"dims": ("hru",), "attrs": {}, "data": [86400.0]},
-    },
-}
+    missing = sorted(set(golden) - set(produced))
+    extra = sorted(set(produced) - set(golden))
+    assert not missing and not extra, (
+        f"SUMMA config file set changed for {label}.\n  missing: {missing}\n  extra: {extra}"
+    )
+
+    changed = [p for p in sorted(golden) if golden[p] != produced[p]]
+    if changed:
+        first = changed[0]
+        diff = "\n".join(
+            difflib.unified_diff(
+                golden[first].splitlines(),
+                produced[first].splitlines(),
+                fromfile=f"golden/{first}",
+                tofile=f"produced/{first}",
+                lineterm="",
+            )
+        )
+        pytest.fail(
+            f"{len(changed)} SUMMA config file(s) changed for {label}: {changed}\n"
+            f"first diff ({first}):\n{diff}"
+        )
+
 
 GAGE_FORCING_IDS = [
     "cat-2861379",
@@ -290,43 +171,6 @@ GAGE_FORCING_IDS = [
 ]
 GAGE_HRU_IDS = [int(gid.split("-")[1]) for gid in GAGE_FORCING_IDS]
 
-EXPECTED_GAGE_SUMMA_ATTRIBUTE_FIRST_LAST = {
-    "hruId_first": 2861379,
-    "hruId_last": 2861416,
-    "longitude_first": -111.59267938862689,
-    "longitude_last": -111.77737686266926,
-    "latitude_first": 42.00456745631874,
-    "latitude_last": 41.75600498677581,
-    "elevation_first": 2463.9530855860044,
-    "elevation_last": 1712.4208968464359,
-    "HRUarea_first": 16913249.424001046,
-    "HRUarea_last": 6473249.406000818,
-    "tan_slope_first": 0.07485539035668641,
-    "tan_slope_last": 0.06413170338731738,
-    "soilTypeIndex_first": 4,
-    "soilTypeIndex_last": 4,
-    "vegTypeIndex_first": 11,
-    "vegTypeIndex_last": 8,
-}
-
-EXPECTED_GAGE_SUMMA_COLD_STATE = {
-    "attrs": {
-        "Author": "Created by SUMMA workflow scripts",
-        "History": "Created 2026/06/23 12:04:47",
-        "Purpose": "Create a cold state .nc file for initial SUMMA runs",
-    },
-    "dims": {"hru": 88, "scalarv": 1, "midToto": 3, "ifcToto": 4, "midSoil": 3},
-}
-
-EXPECTED_GAGE_SUMMA_TRIAL_PARAMS = {
-    "attrs": {
-        "Author": "Created by ngiab preprocessor SUMMA workflow script",
-        "History": "Created 2026/06/23 12:04:47",
-        "Purpose": "Create a trial parameter .nc file for initial SUMMA runs",
-    },
-    "dims": {"hru": 88},
-}
-
 
 def _filter_dataset_dict(dataset_dict: dict) -> dict:
     filtered = {
@@ -380,6 +224,50 @@ def _assert_dataset_matches_expected(ds: xr.Dataset, expected: dict, rtol=1e-9, 
                 )
             else:
                 assert np.array_equal(got_arr, want_arr), f"{name}: {got_arr} != {want_arr}"
+
+def _json_default(obj):
+    """Serialize numpy scalars/arrays that can appear in netCDF attrs."""
+    if isinstance(obj, np.generic):
+        return obj.item()
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    raise TypeError(f"not JSON serializable: {type(obj)}")
+
+
+def _dataset_to_golden(ds: xr.Dataset) -> dict:
+    """Dataset -> golden dict. History is dropped because it's a generation timestamp."""
+    golden = _filter_dataset_dict(ds.to_dict(data=True))
+    golden["attrs"] = {k: v for k, v in ds.attrs.items() if k != "History"}
+    return golden
+
+
+def _load_dataset_golden(golden_file: Path) -> dict:
+    """Load a golden dict, restoring dims to tuples so they compare equal to xarray's."""
+    golden = json.loads(golden_file.read_text())
+    for section in ("coords", "data_vars"):
+        for var in golden.get(section, {}).values():
+            var["dims"] = tuple(var["dims"])
+    return golden
+
+
+def _check_dataset_against_golden(ds: xr.Dataset, golden_file: Path) -> None:
+    """Compare a dataset to its golden JSON, or rewrite the golden if UPDATE_GOLDEN=1."""
+    if UPDATE_GOLDEN:
+        golden_file.parent.mkdir(parents=True, exist_ok=True)
+        golden_file.write_text(
+            json.dumps(_dataset_to_golden(ds), indent=2, sort_keys=True, default=_json_default)
+            + "\n"
+        )
+        pytest.skip(f"UPDATE_GOLDEN=1: rewrote {golden_file}")
+
+    assert golden_file.exists(), (
+        f"missing golden {golden_file}. Generate it with: "
+        "UPDATE_GOLDEN=1 uv run pytest tests/test_summa_config_generation.py"
+    )
+    expected = _load_dataset_golden(golden_file)
+    _assert_dataset_matches_expected(ds, expected)
+    for key, value in expected.get("attrs", {}).items():
+        assert ds.attrs.get(key) == value, f"attr {key!r}: {ds.attrs.get(key)!r} != {value!r}"
 
 
 def _generate_summa_config(cat_id: str, forcing_path: Path, tmp_root: Path, monkeypatch) -> dict:
@@ -493,35 +381,33 @@ def test_get_hru_order_returns_expected_ids(cat_1555522_forcing_output):
 
 def test_make_summa_attributes_netcdf_matches_expected(tmp_path):
     """Checks attributes.nc."""
-    hru_ids = [1555522]
-    ds = make_summa_attributes(hru_ids, GEOPACKAGE_FIXTURES["cat-1555522"])
+    ds = make_summa_attributes([1555522], GEOPACKAGE_FIXTURES["cat-1555522"])
     output_path = tmp_path / "attributes.nc"
     ds.to_netcdf(output_path)
 
     with xr.open_dataset(output_path) as actual_ds:
-        _assert_dataset_matches_expected(actual_ds, EXPECTED_SUMMA_ATTRIBUTES)
+        _check_dataset_against_golden(actual_ds, GOLDEN_NC_DIR / "cat-1555522-attributes.json")
 
 
 def test_make_summa_coldState_netcdf_matches_expected(tmp_path):  # pylint: disable=invalid-name
     """Checks coldState.nc."""
-    hru_ids = [1555522]
-    ds, encoding = make_summa_coldState(hru_ids)
+    ds, encoding = make_summa_coldState([1555522])
     output_path = tmp_path / "coldState.nc"
     ds.to_netcdf(output_path, encoding=encoding)
 
     with xr.open_dataset(output_path) as actual_ds:
-        _assert_dataset_matches_expected(actual_ds, EXPECTED_SUMMA_COLD_STATE)
+        _check_dataset_against_golden(actual_ds, GOLDEN_NC_DIR / "cat-1555522-coldState.json")
+
 
 
 def test_make_summa_trialParams_netcdf_matches_expected(tmp_path):  # pylint: disable=invalid-name
     """Checks trialParams.nc."""
-    hru_ids = [1555522]
-    ds = make_summa_trialParams(hru_ids, int((FIXED_END - FIXED_START).total_seconds() / 3600))
+    ds = make_summa_trialParams([1555522], int((FIXED_END - FIXED_START).total_seconds() / 3600))
     output_path = tmp_path / "trialParams.nc"
     ds.to_netcdf(output_path)
 
     with xr.open_dataset(output_path) as actual_ds:
-        _assert_dataset_matches_expected(actual_ds, EXPECTED_SUMMA_TRIAL_PARAMS)
+        _check_dataset_against_golden(actual_ds, GOLDEN_NC_DIR / "cat-1555522-trialParams.json")
 
 
 def test_summa_config_generation_matches_golden(cat_1555522_forcing_output, tmp_path, monkeypatch):
@@ -529,34 +415,7 @@ def test_summa_config_generation_matches_golden(cat_1555522_forcing_output, tmp_
     produced = _generate_summa_config(
         "cat-1555522", cat_1555522_forcing_output["forcings_nc"], tmp_path, monkeypatch
     )
-    assert GOLDEN_SUMMA_FILE.exists(), (
-        f"missing golden {GOLDEN_SUMMA_FILE}. Generate it with: "
-        "UPDATE_GOLDEN=1 uv run pytest tests/test_summa_config_generation.py"
-    )
-
-    golden = json.loads(GOLDEN_SUMMA_FILE.read_text())
-
-    missing = sorted(set(golden) - set(produced))
-    extra = sorted(set(produced) - set(golden))
-    assert not missing and not extra, (
-        f"SUMMA config file set changed.\n  missing: {missing}\n  extra: {extra}"
-    )
-
-    changed = [p for p in sorted(golden) if golden[p] != produced[p]]
-    if changed:
-        first = changed[0]
-        diff = "\n".join(
-            difflib.unified_diff(
-                golden[first].splitlines(),
-                produced[first].splitlines(),
-                fromfile=f"golden/{first}",
-                tofile=f"produced/{first}",
-                lineterm="",
-            )
-        )
-        pytest.fail(
-            f"{len(changed)} SUMMA config file(s) changed: {changed}\nfirst diff ({first}):\n{diff}"
-        )
+    _check_against_golden(produced, GOLDEN_SUMMA_FILE, "cat-1555522")
 
 
 def test_summa_config_generation_produces_expected_artifacts(
@@ -586,59 +445,43 @@ def test_gage_get_hru_order_returns_expected_ids(gage_10109001_forcing_output):
     assert ids == GAGE_HRU_IDS
 
 
-def test_gage_make_summa_attributes_first_last(tmp_path):
+def test_gage_make_summa_attributes_matches_golden(tmp_path):
     """Checks attributes.nc for a multi-catchment simulation."""
     ds = make_summa_attributes(GAGE_HRU_IDS, GEOPACKAGE_FIXTURES["gage-10109001"])
     output_path = tmp_path / "attributes.nc"
     ds.to_netcdf(output_path)
 
-    e = EXPECTED_GAGE_SUMMA_ATTRIBUTE_FIRST_LAST
     with xr.open_dataset(output_path) as actual:
         assert actual.sizes["hru"] == len(GAGE_HRU_IDS)
         assert actual.sizes["gru"] == len(GAGE_HRU_IDS)
-        assert int(actual["hruId"].values[0]) == e["hruId_first"]
-        assert int(actual["hruId"].values[-1]) == e["hruId_last"]
-        for var in ("longitude", "latitude", "elevation", "HRUarea", "tan_slope"):
-            np.testing.assert_allclose(actual[var].values[0], e[f"{var}_first"], rtol=1e-9)
-            np.testing.assert_allclose(actual[var].values[-1], e[f"{var}_last"], rtol=1e-9)
-        assert int(actual["soilTypeIndex"].values[0]) == e["soilTypeIndex_first"]
-        assert int(actual["soilTypeIndex"].values[-1]) == e["soilTypeIndex_last"]
-        assert int(actual["vegTypeIndex"].values[0]) == e["vegTypeIndex_first"]
-        assert int(actual["vegTypeIndex"].values[-1]) == e["vegTypeIndex_last"]
+        assert actual["hruId"].values.tolist() == GAGE_HRU_IDS
+        _check_dataset_against_golden(actual, GOLDEN_NC_DIR / "gage-10109001-attributes.json")
 
 
-def test_gage_make_summa_coldState_dims_and_structure(tmp_path):  # pylint: disable=invalid-name
+def test_gage_make_summa_coldState_matches_golden(tmp_path):  # pylint: disable=invalid-name
     """Checks coldState.nc for a multi-catchment simulation."""
     ds, encoding = make_summa_coldState(GAGE_HRU_IDS)
     output_path = tmp_path / "coldState.nc"
     ds.to_netcdf(output_path, encoding=encoding)
 
-    expected = EXPECTED_GAGE_SUMMA_COLD_STATE
     with xr.open_dataset(output_path) as actual:
-        assert dict(actual.sizes) == expected["dims"]
-        assert actual.attrs["Author"] == expected["attrs"]["Author"]
-        assert actual.attrs["Purpose"] == expected["attrs"]["Purpose"]
-        assert "History" in actual.attrs  # value is a generation timestamp
-        assert int(actual["hruId"].values[0]) == GAGE_HRU_IDS[0]
-        assert int(actual["hruId"].values[-1]) == GAGE_HRU_IDS[-1]
+        assert actual.sizes["hru"] == len(GAGE_HRU_IDS)
+        assert actual["hruId"].values.tolist() == GAGE_HRU_IDS
+        _check_dataset_against_golden(actual, GOLDEN_NC_DIR / "gage-10109001-coldState.json")
 
 
-def test_gage_make_summa_trialParams_dims_and_structure(tmp_path):  # pylint: disable=invalid-name
-    """Checks trialParams for a multi-catchment simulation."""
+def test_gage_make_summa_trialParams_matches_golden(tmp_path):  # pylint: disable=invalid-name
+    """Checks trialParams.nc for a multi-catchment simulation."""
     timesteps = int((FIXED_END - FIXED_START).total_seconds() / 3600)
     ds = make_summa_trialParams(GAGE_HRU_IDS, timesteps)
     output_path = tmp_path / "trialParams.nc"
     ds.to_netcdf(output_path)
 
-    expected = EXPECTED_GAGE_SUMMA_TRIAL_PARAMS
     with xr.open_dataset(output_path) as actual:
-        assert dict(actual.sizes) == expected["dims"]
-        assert actual.attrs["Author"] == expected["attrs"]["Author"]
-        assert actual.attrs["Purpose"] == expected["attrs"]["Purpose"]
-        assert "History" in actual.attrs
-        assert int(actual["hruId"].values[0]) == GAGE_HRU_IDS[0]
-        assert int(actual["hruId"].values[-1]) == GAGE_HRU_IDS[-1]
+        assert actual.sizes["hru"] == len(GAGE_HRU_IDS)
+        assert actual["hruId"].values.tolist() == GAGE_HRU_IDS
         np.testing.assert_allclose(actual["maxstep"].values, timesteps * 3600)
+        _check_dataset_against_golden(actual, GOLDEN_NC_DIR / "gage-10109001-trialParams.json")
 
 
 def test_gage_summa_config_generation_matches_golden(
@@ -648,33 +491,7 @@ def test_gage_summa_config_generation_matches_golden(
     produced = _generate_summa_config(
         "gage-10109001", gage_10109001_forcing_output["forcings_nc"], tmp_path, monkeypatch
     )
-    assert GOLDEN_GAGE_SUMMA_FILE.exists(), (
-        f"missing golden {GOLDEN_GAGE_SUMMA_FILE}. Save the gage golden there."
-    )
-    golden = json.loads(GOLDEN_GAGE_SUMMA_FILE.read_text())
-
-    missing = sorted(set(golden) - set(produced))
-    extra = sorted(set(produced) - set(golden))
-    assert not missing and not extra, (
-        f"SUMMA config file set changed for gage-10109001.\n  missing: {missing}\n  extra: {extra}"
-    )
-
-    changed = [p for p in sorted(golden) if golden[p] != produced[p]]
-    if changed:
-        first = changed[0]
-        diff = "\n".join(
-            difflib.unified_diff(
-                golden[first].splitlines(),
-                produced[first].splitlines(),
-                fromfile=f"golden/{first}",
-                tofile=f"produced/{first}",
-                lineterm="",
-            )
-        )
-        pytest.fail(
-            f"{len(changed)} SUMMA config file(s) changed for gage-10109001: {changed}\n"
-            f"first diff ({first}):\n{diff}"
-        )
+    _check_against_golden(produced, GOLDEN_GAGE_SUMMA_FILE, "gage-10109001")
 
 
 def test_gage_summa_config_generation_produces_expected_artifacts(
