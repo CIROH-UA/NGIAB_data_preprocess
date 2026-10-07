@@ -225,6 +225,7 @@ def _assert_dataset_matches_expected(ds: xr.Dataset, expected: dict, rtol=1e-9, 
             else:
                 assert np.array_equal(got_arr, want_arr), f"{name}: {got_arr} != {want_arr}"
 
+
 def _json_default(obj):
     """Serialize numpy scalars/arrays that can appear in netCDF attrs."""
     if isinstance(obj, np.generic):
@@ -397,7 +398,6 @@ def test_make_summa_coldState_netcdf_matches_expected(tmp_path):  # pylint: disa
 
     with xr.open_dataset(output_path) as actual_ds:
         _check_dataset_against_golden(actual_ds, GOLDEN_NC_DIR / "cat-1555522-coldState.json")
-
 
 
 def test_make_summa_trialParams_netcdf_matches_expected(tmp_path):  # pylint: disable=invalid-name
