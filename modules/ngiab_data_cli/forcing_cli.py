@@ -7,7 +7,13 @@ from pathlib import Path
 
 import geopandas as gpd
 from data_processing.dask_utils import set_n_workers, shutdown_cluster
-from data_processing.dataset_utils import check_local_cache, clip_dataset_to_bounds, save_to_cache
+from data_processing.dataset_utils import (
+    bbox_contains,
+    check_local_cache,
+    clip_dataset_to_bounds,
+    reproject_bbox,
+    save_to_cache,
+)
 from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.forcings import compute_zonal_stats
 from data_sources.source_validation import validate_all
@@ -70,6 +76,26 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="Number of Dask workers for forcings/data processing (default: auto)",
     )
+    parser.add_argument(
+        "--bbox",
+        type=float,
+        nargs=4,
+        metavar=("XMIN", "YMIN", "XMAX", "YMAX"),
+        default=None,
+        help=(
+            "Custom bounding box for the RAW gridded forcing download instead of the "
+            "geopackage's catchment bounds. Four numbers: XMIN YMIN XMAX YMAX, given in "
+            "--bbox_crs (default EPSG:4326 lon/lat), reprojected internally to the dataset "
+            "CRS. Must fully contain the catchments. Intended for storm transposition: pad "
+            "the catchment box so displaced storms stay inside the downloaded grid."
+        ),
+    )
+    parser.add_argument(
+        "--bbox_crs",
+        type=str,
+        default="EPSG:4326",
+        help="CRS of the --bbox coordinates (default: EPSG:4326). Reprojected to the dataset CRS internally.",
+    )
 
     return parser.parse_args()
 
@@ -98,10 +124,29 @@ def main() -> None:
 
     gdf = gdf.to_crs(data.crs)
 
-    cached_data = check_local_cache(cached_nc_path, start_time, end_time, gdf, data)
+    bounds = gdf.total_bounds
+    if args.bbox:
+        bounds = reproject_bbox(tuple(args.bbox), args.bbox_crs, data.crs)
+        logging.info(
+            f"Using predefined bbox for raw forcing download: {tuple(args.bbox)} "
+            f"[{args.bbox_crs}] -> {bounds} [{data.crs}]"
+        )
+        if not bbox_contains(bounds, gdf.total_bounds):
+            raise ValueError(
+                "The provided --bbox is smaller than the catchments in the geopackage and "
+                "does not fully contain them. A bbox smaller than the catchments is not "
+                "supported (the catchment-averaged forcings would be incomplete). Enlarge "
+                "--bbox so it covers the catchment bounding box.\n"
+                f"  catchment bounds [{data.crs}]: "
+                f"{tuple(round(float(b), 2) for b in gdf.total_bounds)}\n"
+                f"  provided --bbox  [{data.crs}]: "
+                f"{tuple(round(float(b), 2) for b in bounds)}"
+            )
+
+    cached_data = check_local_cache(cached_nc_path, start_time, end_time, gdf, data, bounds)
 
     if not cached_data:
-        clipped_data = clip_dataset_to_bounds(data, gdf.total_bounds, start_time, end_time)
+        clipped_data = clip_dataset_to_bounds(data, bounds, start_time, end_time)
         cached_data = save_to_cache(clipped_data, cached_nc_path)
 
     forcing_working_dir = args.output_file.parent / (args.input_file.stem + "-working-dir")

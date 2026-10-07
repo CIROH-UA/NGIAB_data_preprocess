@@ -222,6 +222,9 @@ Installed with uv: `uv run cli`
 - `--run`: Automatically run [NGIAB's docker distribution](https://github.com/CIROH-UA/NGIAB-CloudInfra) against the output folder.
 - `--validate`: Run every missing step required to run NGIAB.
 - `-a`, `--all`: Run all operations. Equivalent to `-sfr` and `--run`.
+- `--bbox`: Use a bounding box for the raw forcing data download. Expects space-separated values via the CLI, and the order is xmin, ymin, xmax and ymax.
+- `--bbox_crs`: The coordinate reference system of the bounding box. Default is EPSG:4326 (WGS84). If you are using a different CRS, please provide it here.
+- `--dask-workers`: Number of dask workers to use for parallel processing. Default sets the workers automatically, the option is only needed if you want to override the default behavior.
 
 ## Usage notes
 - If your input has a prefix of `gage-`, you do not need to pass `-g`.
