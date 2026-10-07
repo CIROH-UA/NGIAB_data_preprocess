@@ -18,7 +18,7 @@
 &location ! for point runs, needs to be modified for gridded
   lat                = {latitude}                       ! latitude [degrees]
   lon                = {longitude}                       ! longitude [degrees]
-  terrain_slope      = {mean_slope_1km}                         ! terrain slope [degrees]
+  terrain_slope      = {mean_slope_fixed}                         ! terrain slope [degrees]
   azimuth            = {circ_mean_aspect}                         ! terrain azimuth or aspect [degrees clockwise from north]
 /
 

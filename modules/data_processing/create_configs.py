@@ -133,6 +133,9 @@ def _make_noahowp_config(
     cat_config_dir.mkdir(parents=True, exist_ok=True)
     divide_conf_df["start_datetime"] = start_datetime
     divide_conf_df["end_datetime"] = end_datetime
+    divide_conf_df["mean_slope_fixed"] = np.degrees(
+        np.arctan(np.tan(np.radians(divide_conf_df["mean.slope"])) / 100)
+    )
 
     for _, row in divide_conf_df.iterrows():
         with open(cat_config_dir / f"{row['divide_id']}.input", "w", encoding="utf-8") as file:
@@ -226,13 +229,8 @@ def _make_lstm_config(
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
-    # flip 0 and 90 degree values
-    divide_conf_df["flipped_mean_slope"] = abs(divide_conf_df["mean.slope"] - 90)
-    # Convert degrees to meters per kmmeter
-    divide_conf_df["mean_slope_mpkm"] = (
-        np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
-    )
+    # convert the mean.slope from degrees cm/m to m/km
+    divide_conf_df["mean_slope_mpkm"] = np.tan(np.radians(divide_conf_df["mean.slope"])) * 10
 
     with open(template_path, "r", encoding="utf-8") as file:
         template = file.read()
@@ -423,9 +421,8 @@ def _make_summa_attributes(hru_ids, hydrofabric):
     # Convert elevation from cm to m
     elevation = df["mean.elevation"].values
 
-    # Convert mean.slope (degrees, 90=flat 0=vertical) to tan_slope (m/m)
-    flipped = np.abs(df["mean.slope"].values - 90)
-    tan_slope = np.tan(np.radians(flipped))
+    # Convert mean.slope (degrees, cm/m) to tan_slope (m/m)
+    tan_slope = np.tan(np.radians((df["mean.slope"].values))) / 100.0
 
     ds = xr.Dataset(
         {
