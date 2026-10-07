@@ -18,7 +18,11 @@ import xarray as xr
 from data_processing.dask_utils import temp_cluster
 from data_processing.file_paths import FilePaths
 from data_processing.gpkg_utils import get_cat_to_nhd_feature_id, get_table_crs_short
-from data_sources.source_validation import download_dhbv_attributes, download_snow17_attributes, download_sacsma_attributes
+from data_sources.source_validation import (
+    download_dhbv_attributes,
+    download_sacsma_attributes,
+    download_snow17_attributes,
+)
 from pyproj import Transformer
 from tqdm.rich import tqdm
 
@@ -103,22 +107,27 @@ def make_noahowp_config(
                     end_datetime=end_datetime,
                     lat=row["latitude"],
                     lon=row["longitude"],
-                    terrain_slope=row["mean.slope_1km"],
+                    terrain_slope=np.degrees(
+                        np.arctan(np.tan(np.radians(row["mean.slope"])) / 100)
+                    ),
                     azimuth=row["circ_mean.aspect"],
                     ISLTYP=int(row["mode.ISLTYP"]),  # type: ignore
                     IVGTYP=int(row["mode.IVGTYP"]),  # type: ignore
                 )
             )
 
+
 def make_snow17_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-
     download_snow17_attributes()
     snow17_atts = pandas.read_parquet(FilePaths.snow17_attributes)
     atts_df = snow17_atts.loc[snow17_atts["divide_id"].isin(divide_conf_df["divide_id"])]
 
-    merged = atts_df.merge(divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]], on="divide_id")
+    merged = atts_df.merge(
+        divide_conf_df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation"]],
+        on="divide_id",
+    )
 
     start_datetime = start_time.strftime("%Y%m%d%H")
     end_datetime = end_time.strftime("%Y%m%d%H")
@@ -132,7 +141,7 @@ def make_snow17_config(
         with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 config_template.format(
-                    divide_id=row['divide_id'],
+                    divide_id=row["divide_id"],
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
                 )
@@ -150,10 +159,10 @@ def make_snow17_config(
                 )
             )
 
+
 def make_sacsma_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
-
     download_sacsma_attributes()
     sacsma_atts = pandas.read_parquet(FilePaths.sacsma_attributes)
     atts_df = sacsma_atts.loc[sacsma_atts["divide_id"].isin(divide_conf_df["divide_id"])]
@@ -171,7 +180,7 @@ def make_sacsma_config(
         with open(cat_config_dir / f"{row['divide_id']}.input", "w") as file:
             file.write(
                 config_template.format(
-                    divide_id=row['divide_id'],
+                    divide_id=row["divide_id"],
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
                 )
@@ -184,26 +193,27 @@ def make_sacsma_config(
         with open(cat_config_dir / f"params-{row['divide_id']}.txt", "w") as file:
             file.write(
                 params_template.format(
-                    divide_id=row['divide_id'],
-                    areasqkm=row['areasqkm'],
-                    uztwm=row['uztwm'],
-                    uzfwm=row['uzfwm'],
-                    lztwm=row['lztwm'],
-                    lzfpm=row['lzfpm'],
-                    lzfsm=row['lzfsm'],
-                    adimp=row['adimp'],
-                    uzk=row['uzk'],
-                    lzpk=row['lzpk'],
-                    lzsk=row['lzsk'],
-                    zperc=row['zperc'],
-                    rexp=row['rexp'],
-                    pctim=row['pctim'],
-                    pfree=row['pfree'],
-                    riva=row['riva'],
-                    side=row['side'],
-                    rserv=row['rserv'],
+                    divide_id=row["divide_id"],
+                    areasqkm=row["areasqkm"],
+                    uztwm=row["uztwm"],
+                    uzfwm=row["uzfwm"],
+                    lztwm=row["lztwm"],
+                    lzfpm=row["lzfpm"],
+                    lzfsm=row["lzfsm"],
+                    adimp=row["adimp"],
+                    uzk=row["uzk"],
+                    lzpk=row["lzpk"],
+                    lzsk=row["lzsk"],
+                    zperc=row["zperc"],
+                    rexp=row["rexp"],
+                    pctim=row["pctim"],
+                    pfree=row["pfree"],
+                    riva=row["riva"],
+                    side=row["side"],
+                    rserv=row["rserv"],
                 )
             )
+
 
 def get_model_attributes(hydrofabric: Path, layer: str = "divides") -> pandas.DataFrame:
     with sqlite3.connect(hydrofabric) as conn:
@@ -238,13 +248,8 @@ def make_lstm_config(
         shutil.rmtree(cat_config_dir)
     cat_config_dir.mkdir(parents=True, exist_ok=True)
 
-    # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
-    # flip 0 and 90 degree values
-    divide_conf_df["flipped_mean_slope"] = abs(divide_conf_df["mean.slope"] - 90)
-    # Convert degrees to meters per kmmeter
-    divide_conf_df["mean_slope_mpkm"] = (
-        np.tan(np.radians(divide_conf_df["flipped_mean_slope"])) * 1000
-    )
+    # convert the mean.slope from degrees cm/m to m/km
+    divide_conf_df["mean_slope_mpkm"] = np.tan(np.radians(divide_conf_df["mean.slope"])) * 10
 
     with open(template_path, "r") as file:
         template = file.read()
@@ -293,7 +298,7 @@ def make_dhbv2_config(
                 start_time=start_time,
                 end_time=end_time,
                 start_date=start_time.strftime("%Y/%m/%d"),
-                start_time_str=start_time.strftime("%Y/%m/%d %H")
+                start_time_str=start_time.strftime("%Y/%m/%d %H"),
             )
         )
 
@@ -462,9 +467,8 @@ def make_summa_attributes(hru_ids, hydrofabric):
     # Convert elevation from cm to m
     elevation = df["mean.elevation"].values / 100.0
 
-    # Convert mean.slope (degrees, 90=flat 0=vertical) to tan_slope (m/m)
-    flipped = np.abs(df["mean.slope"].values - 90)
-    tan_slope = np.tan(np.radians(flipped))
+    # Convert mean.slope (degrees, cm/m) to tan_slope (m/m)
+    tan_slope = np.tan(np.radians((df["mean.slope"].values))) / 100.0
 
     ds = xr.Dataset(
         {
@@ -677,8 +681,14 @@ def create_summa_realization(cat_id: str, start_time: datetime, end_time: dateti
     make_summa_config(hru_ids, paths.config_dir)
     paths.setup_run_folders(["outputs/summa"])
 
-def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datetime,
-    use_nwm_gw: bool = False, gage_id: Optional[str] = None):
+
+def create_snow17_realization(
+    cat_id: str,
+    start_time: datetime,
+    end_time: datetime,
+    use_nwm_gw: bool = False,
+    gage_id: Optional[str] = None,
+):
     paths = FilePaths(cat_id)
 
     conf_df = get_model_attributes(paths.geopackage_path)
@@ -700,9 +710,10 @@ def create_snow17_realization(cat_id: str, start_time: datetime, end_time: datet
     )
     paths.setup_run_folders()
 
-def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datetime,
-    gage_id: Optional[str] = None):
 
+def create_sacsma_realization(
+    cat_id: str, start_time: datetime, end_time: datetime, gage_id: Optional[str] = None
+):
     paths = FilePaths(cat_id)
 
     conf_df = get_model_attributes(paths.geopackage_path)
@@ -717,6 +728,7 @@ def create_sacsma_realization(cat_id: str, start_time: datetime, end_time: datet
         end_time,
     )
     paths.setup_run_folders()
+
 
 def create_realization(
     cat_id: str,
