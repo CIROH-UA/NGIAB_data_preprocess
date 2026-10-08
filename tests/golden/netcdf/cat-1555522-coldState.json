@@ -1,0 +1,272 @@
+{
+  "attrs": {
+    "Author": "Created by SUMMA workflow scripts",
+    "Purpose": "Create a cold state .nc file for initial SUMMA runs"
+  },
+  "coords": {
+    "midSoil": {
+      "data": [
+        0,
+        1,
+        2
+      ],
+      "dims": [
+        "midSoil"
+      ]
+    }
+  },
+  "data_vars": {
+    "dt_init": {
+      "data": [
+        [
+          3600.0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "hruId": {
+      "data": [
+        1555522
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "iLayerHeight": {
+      "data": [
+        [
+          0.0
+        ],
+        [
+          0.2
+        ],
+        [
+          0.5
+        ],
+        [
+          1.0
+        ]
+      ],
+      "dims": [
+        "ifcToto",
+        "hru"
+      ]
+    },
+    "mLayerDepth": {
+      "data": [
+        [
+          0.2
+        ],
+        [
+          0.3
+        ],
+        [
+          0.5
+        ]
+      ],
+      "dims": [
+        "midToto",
+        "hru"
+      ]
+    },
+    "mLayerMatricHead": {
+      "data": [
+        [
+          -1.0
+        ],
+        [
+          -1.0
+        ],
+        [
+          -1.0
+        ]
+      ],
+      "dims": [
+        "midToto",
+        "hru"
+      ]
+    },
+    "mLayerTemp": {
+      "data": [
+        [
+          283.16
+        ],
+        [
+          283.16
+        ],
+        [
+          283.16
+        ]
+      ],
+      "dims": [
+        "midToto",
+        "hru"
+      ]
+    },
+    "mLayerVolFracIce": {
+      "data": [
+        [
+          0.0
+        ],
+        [
+          0.0
+        ],
+        [
+          0.0
+        ]
+      ],
+      "dims": [
+        "midToto",
+        "hru"
+      ]
+    },
+    "mLayerVolFracLiq": {
+      "data": [
+        [
+          0.2
+        ],
+        [
+          0.2
+        ],
+        [
+          0.2
+        ]
+      ],
+      "dims": [
+        "midToto",
+        "hru"
+      ]
+    },
+    "nSnow": {
+      "data": [
+        [
+          0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "nSoil": {
+      "data": [
+        [
+          3
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarAquiferStorage": {
+      "data": [
+        [
+          2.5
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarCanairTemp": {
+      "data": [
+        [
+          283.16
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarCanopyIce": {
+      "data": [
+        [
+          0.0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarCanopyLiq": {
+      "data": [
+        [
+          0.0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarCanopyTemp": {
+      "data": [
+        [
+          283.16
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarSWE": {
+      "data": [
+        [
+          0.0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarSfcMeltPond": {
+      "data": [
+        [
+          0.0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarSnowAlbedo": {
+      "data": [
+        [
+          0.0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    },
+    "scalarSnowDepth": {
+      "data": [
+        [
+          0.0
+        ]
+      ],
+      "dims": [
+        "scalarv",
+        "hru"
+      ]
+    }
+  },
+  "dims": {
+    "hru": 1,
+    "ifcToto": 4,
+    "midSoil": 3,
+    "midToto": 3,
+    "scalarv": 1
+  }
+}

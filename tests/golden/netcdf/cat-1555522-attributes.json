@@ -1,0 +1,124 @@
+{
+  "attrs": {
+    "Author": "Created by ngiab preprocessor SUMMA workflow script"
+  },
+  "coords": {},
+  "data_vars": {
+    "HRUarea": {
+      "data": [
+        9761400.035999982
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "contourLength": {
+      "data": [
+        100.0
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "downHRUindex": {
+      "data": [
+        0
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "elevation": {
+      "data": [
+        305.94258126046924
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "gruId": {
+      "data": [
+        1555522
+      ],
+      "dims": [
+        "gru"
+      ]
+    },
+    "hru2gruId": {
+      "data": [
+        1555522
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "hruId": {
+      "data": [
+        1555522
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "latitude": {
+      "data": [
+        39.14351071467262
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "longitude": {
+      "data": [
+        -95.61994939481728
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "mHeight": {
+      "data": [
+        1.5
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "slopeTypeIndex": {
+      "data": [
+        1
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "soilTypeIndex": {
+      "data": [
+        9
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "tan_slope": {
+      "data": [
+        0.031113439895678625
+      ],
+      "dims": [
+        "hru"
+      ]
+    },
+    "vegTypeIndex": {
+      "data": [
+        5
+      ],
+      "dims": [
+        "hru"
+      ]
+    }
+  },
+  "dims": {
+    "gru": 1,
+    "hru": 1
+  }
+}
