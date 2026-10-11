@@ -184,6 +184,27 @@ def parse_arguments() -> argparse.Namespace:
         default="nwm",
     )
     parser.add_argument(
+        "--bbox",
+        type=float,
+        nargs=4,
+        metavar=("XMIN", "YMIN", "XMAX", "YMAX"),
+        default=None,
+        help=(
+            "Custom bounding box for the RAW gridded forcing download (forcings/raw_gridded_data.nc)"
+            "instead of the subset-catchment bounding box. it should be four numbers: "
+            "XMIN YMIN XMAX YMAX, and the CRS of these coordinated can be provided "
+            "with --bbox_crs (default EPSG:4326 lon/lat). The coordinates will be reprojected "
+            "internally to the dataset CRS, so the same bbox can be used for both "
+            "--source aorc and --source nwm."
+        ),
+    )
+    parser.add_argument(
+        "--bbox_crs",
+        type=str,
+        default="EPSG:4326",
+        help="CRS of the --bbox coordinates (default: EPSG:4326). Reprojected to the dataset CRS internally.",
+    )
+    parser.add_argument(
         "--subset_type",
         type=str,
         help="By nexus: get everything flowing into the downstream nexus of the selected catchment. By catchment: get everything flowing into the selected catchment.",
