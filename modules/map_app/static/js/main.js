@@ -140,7 +140,7 @@ function update_map(cat_id, e) {
   console.log('subset_type:', subset_type);
 
   if (subset_type == 'catchment') {
-    fetch('/get_upstream_catids', {
+    fetch('get_upstream_catids', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cat_id),
@@ -156,7 +156,7 @@ function update_map(cat_id, e) {
       }
     });
   } else {
-    fetch('/get_upstream_wbids', {
+    fetch('get_upstream_wbids', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cat_id),

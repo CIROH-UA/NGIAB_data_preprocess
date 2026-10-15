@@ -4,7 +4,7 @@ async function subset() {
         alert('Please select at least one basin in the map before subsetting');
         return;
     }
-    fetch('/subset_check', {
+    fetch('subset_check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([cat_id]),
@@ -28,7 +28,7 @@ async function subset() {
         }
 
         const startTime = performance.now(); // Start the timer
-        fetch('/subset', {
+        fetch('subset', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // body: JSON.stringify([cat_id]),
@@ -60,7 +60,7 @@ function updateProgressBar(percent) {
 
 function pollForcingsProgress(progressFile) {
     const interval = setInterval(() => {
-        fetch('/forcings_progress', {
+        fetch('forcings_progress', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(progressFile),
@@ -92,7 +92,7 @@ function pollForcingsProgress(progressFile) {
 }
 
 async function forcings() {
-    fetch('/subset_check', {
+    fetch('subset_check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([cat_id]),
@@ -121,7 +121,7 @@ async function forcings() {
             var source = nwm_aorc ? 'aorc' : 'nwm';
             console.log('source:', source);
 
-            fetch('/make_forcings_progress_file', {
+            fetch('make_forcings_progress_file', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(forcing_dir),
@@ -130,7 +130,7 @@ async function forcings() {
             .then(progressFile => {
                 pollForcingsProgress(progressFile); // Start polling for progress
             })
-            fetch('/forcings', {
+            fetch('forcings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source}),
@@ -164,7 +164,7 @@ async function realization() {
         return;
     }
     document.getElementById('realization-output-path').textContent = "Generating realization...";
-    fetch('/realization', {
+    fetch('realization', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time }),

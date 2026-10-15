@@ -19,7 +19,7 @@ document.getElementById('toggleConsole').addEventListener('click', function () {
 });
 
 function fetchLogs() {
-    fetch('/logs')
+    fetch('logs')
         .then(response => response.json())
         .then(data => {
             var consoleElement = document.getElementById('logOutput');

@@ -37,6 +37,15 @@ S3_REGION = "us-east-1"
 HYDROFABRIC_URL = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
 
 
+def _ask(prompt, **kwargs):
+    # when launched without a terminal (e.g. by jupyter-server-proxy) accept the default answer
+    if os.environ.get("NGIAB_NONINTERACTIVE"):
+        default = kwargs.get("default", "")
+        console.print(f"{prompt} [non-interactive, using default: {default}]")
+        return default
+    return Prompt.ask(prompt, **kwargs)
+
+
 def _decompress_gzip_tar(file_path, output_dir):
     console.print("Decompressing Hydrofabric...", style="bold green")
     progress = Progress(
@@ -182,7 +191,7 @@ def _download_and_update_hf():
 
 def validate_hydrofabric():
     if not FilePaths.conus_hydrofabric.is_file():
-        response = Prompt.ask(
+        response = _ask(
             "Hydrofabric files are missing. Would you like to download them now?",
             default="y",
             choices=["y", "n"],
@@ -198,7 +207,7 @@ def validate_hydrofabric():
         return
 
     if not FilePaths.hydrofabric_download_log.is_file():
-        response = Prompt.ask(
+        response = _ask(
             "Hydrofabric version information unavailable, Would you like to fetch the updated "
             + "version?",
             default="y",
@@ -235,7 +244,7 @@ def validate_hydrofabric():
             + f"{latest_headers.get('Last-Modified', 'NA')}",
             style="bold yellow",
         )
-        response = Prompt.ask(
+        response = _ask(
             "Would you like to fetch the updated version?",
             default="y",
             choices=["y", "n"],
@@ -269,14 +278,14 @@ def validate_hydrofabric():
 
 def validate_output_dir():
     if not FilePaths.config_file.is_file():
-        response = Prompt.ask(
+        response = _ask(
             "Output directory is not set. Would you like to use the default? "
             + "~/ngiab_preprocess_output/",
             default="y",
             choices=["y", "n"],
         )
         if response.lower() == "n":
-            response = Prompt.ask("Enter the path to the working directory")
+            response = _ask("Enter the path to the working directory")
         if response == "" or response.lower() == "y":
             response = "~/ngiab_preprocess_output/"
         FilePaths.set_working_dir(response)  # type: ignore

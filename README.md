@@ -126,7 +126,7 @@ UV automatically detects any virtual environments in the current directory and w
 # If you're installing this on jupyterhub / 2i2c you HAVE TO DEACTIVATE THE CONDA ENV
 (notebook) jovyan@jupyter-user:~$ conda deactivate
 jovyan@jupyter-user:~$
-# The interactive map won't work on 2i2c
+# To use the interactive map on jupyterhub / 2i2c, see "Running the map in JupyterLab / JupyterHub" below
 ```
 
 ```bash
@@ -138,6 +138,23 @@ pip install 'ngiab_data_preprocess'
 python -m map_app
 # CLI instructions at the bottom of the README
 ```
+</details>
+
+### Running the map in JupyterLab / JupyterHub
+
+<details>
+  <summary>Click here to expand</summary>
+
+Install the `jupyter` extra **into the same environment that runs the Jupyter server**, then restart the server (on JupyterHub: File > Hub Control Panel > Stop My Server, then start it again).
+
+```bash
+pip install 'ngiab_data_preprocess[jupyter]'
+```
+
+An "NGIAB Map App" tile will show up in the JupyterLab launcher (and under New in the classic notebook / JupyterHub file browser). You can also open it directly at `<your jupyter url>/map_app/`, e.g. `https://hub.example.org/user/<username>/map_app/`.
+
+The app launches without a terminal, so any setup prompts automatically take their default answer. If the hydrofabric isn't downloaded yet, the first launch will download it (several GB) before the map loads. To avoid waiting in the browser, run `python -m map_app` in a terminal once first.
+
 </details>
 
 ### Development installation

@@ -1,5 +1,6 @@
 ## This file is run when the python -m map_app command is run
 ## It is the entry point for the application and is equivalent to run.sh
+import argparse
 import logging
 import webbrowser
 from pathlib import Path
@@ -35,11 +36,40 @@ def set_logs_to_warning():
     console_handler.setLevel(logging.DEBUG)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run the NGIAB data preprocess map app")
+    parser.add_argument("--host", default="0.0.0.0", help="Interface to bind to")
+    parser.add_argument("--port", type=int, help="Port to listen on (default: random free port)")
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Don't open the app in a web browser"
+    )
+    parser.add_argument(
+        "--behind-proxy",
+        action="store_true",
+        help="Trust the X-Forwarded-Prefix header, e.g. when served by jupyter-server-proxy",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     # call this once to cache the graph
     Timer(1, get_graph).start()
 
-    if FilePaths.dev_file.is_file():
+    if args.behind_proxy:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        # only trust the prefix header so url_for generates urls under the proxy path
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=0, x_host=0, x_prefix=1)
+
+    if args.port is not None or args.no_browser:
+        if not args.no_browser:
+            Timer(1, open_browser).start()
+        else:
+            Timer(2, set_logs_to_warning).start()
+        app.run(host=args.host, port=args.port or 0)
+    elif FilePaths.dev_file.is_file():
         Timer(2, set_logs_to_warning).start()
         with open(LOG_PATH, "a") as f:
             f.write("Running in debug mode\n")
