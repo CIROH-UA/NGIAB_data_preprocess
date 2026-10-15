@@ -145,15 +145,32 @@ python -m map_app
 <details>
   <summary>Click here to expand</summary>
 
-Install the `jupyter` extra **into the same environment that runs the Jupyter server**, then restart the server (on JupyterHub: File > Hub Control Panel > Stop My Server, then start it again).
+This adds an "NGIAB Map App" tile to the JupyterLab launcher (and under New in the classic notebook / JupyterHub file browser). You can also open it directly at `<your jupyter url>/map_app/`, e.g. `https://hub.example.org/user/<username>/map_app/`. It needs [jupyter-server-proxy](https://github.com/jupyterhub/jupyter-server-proxy), which many JupyterHub images (including 2i2c) already include.
+
+**With uvx (recommended, avoids package conflicts with the Jupyter environment)**
+
+The app runs in its own uv-managed environment, only a launcher config is added to `~/.jupyter/jupyter_server_config.json`.
+
+```bash
+# install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uvx --from ngiab-data-preprocess map_app_jupyter_install
+# use --from to pin a version, e.g. --from 'ngiab-data-preprocess==<version>'
+# to remove the launcher
+uvx --from ngiab-data-preprocess map_app_jupyter_install --uninstall
+```
+
+**Without uvx**
+
+Install the `jupyter` extra into the same environment that runs the Jupyter server.
 
 ```bash
 pip install 'ngiab_data_preprocess[jupyter]'
 ```
 
-An "NGIAB Map App" tile will show up in the JupyterLab launcher (and under New in the classic notebook / JupyterHub file browser). You can also open it directly at `<your jupyter url>/map_app/`, e.g. `https://hub.example.org/user/<username>/map_app/`.
+Either way, restart the Jupyter server afterwards (on JupyterHub: File > Hub Control Panel > Stop My Server, then start it again).
 
-The app launches without a terminal, so any setup prompts automatically take their default answer. If the hydrofabric isn't downloaded yet, the first launch will download it (several GB) before the map loads. To avoid waiting in the browser, run `python -m map_app` in a terminal once first.
+The app launches without a terminal, so any setup prompts automatically take their default answer. If the hydrofabric isn't downloaded yet, the first launch will download it (several GB) before the map loads. To avoid waiting in the browser, run `uvx --from ngiab-data-preprocess map_app` in a terminal once first.
 
 </details>
 

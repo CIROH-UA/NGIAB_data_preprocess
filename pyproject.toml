@@ -73,9 +73,10 @@ cli = "ngiab_data_cli.__main__:main"
 map_app = "map_app.__main__:main"
 forcings = "ngiab_data_cli.forcing_cli:main"
 subset = "ngiab_data_cli.subset_cli:main"
+map_app_jupyter_install = "map_app_jupyter:main"
 
 [project.entry-points.jupyter_serverproxy_servers]
-map_app = "map_app.jupyter_proxy:setup_map_app"
+map_app = "map_app_jupyter:setup_map_app"
 
 [build-system]
 # scm adds files tracked by git to the package
