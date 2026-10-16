@@ -25,6 +25,7 @@ scalarCanopyTranspiration | 24
 scalarCanopyEvaporation | 24
 scalarGroundEvaporation | 24
 scalarCanopySublimation | 24
+scalarGroundSublimation | 24
 mLayerDepth | 24
 mLayerVolFracLiq | 24
 scalarTotalET | 24
