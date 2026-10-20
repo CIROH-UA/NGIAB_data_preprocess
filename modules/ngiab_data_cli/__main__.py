@@ -22,7 +22,11 @@ with rich.status.Status("loading") as status:
         create_sacsma_realization,
     )
     from data_processing.dask_utils import set_n_workers, shutdown_cluster
-    from data_processing.dataset_utils import save_and_clip_dataset
+    from data_processing.dataset_utils import (
+        bbox_contains,
+        reproject_bbox,
+        save_and_clip_dataset,
+    )
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
     from data_processing.file_paths import FilePaths
     from data_processing.forcings import create_forcings
@@ -205,8 +209,33 @@ def main() -> None:
             elif args.source == "nwm":
                 data = load_v3_retrospective_zarr()
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
+
+            bounds = None
+            if args.bbox:
+                bounds = reproject_bbox(tuple(args.bbox), args.bbox_crs, data.crs)
+                logging.info(
+                    f"Using predefined bbox for raw forcing download: {tuple(args.bbox)} "
+                    + (
+                        f"predefined CRS: EPSG:4326 (lon/lat)."
+                        if args.bbox_crs is None
+                        else f"using CRS: {args.bbox_crs}."
+                    )
+                )
+                cat_bounds = gdf.to_crs(data.crs).total_bounds
+                if not bbox_contains(bounds, cat_bounds):
+                    raise ValueError(
+                        "The provided --bbox is smaller than the subset catchments and does "
+                        "not fully contain them. A bbox smaller than the catchments is not "
+                        "supported (the catchment-averaged forcings.nc would be incomplete). "
+                        "Enlarge --bbox so it covers the catchment bounding box.\n"
+                        f"  catchment bounds [{data.crs}]: "
+                        f"{tuple(round(float(b), 2) for b in cat_bounds)}\n"
+                        f"  provided --bbox  [{data.crs}]: "
+                        f"{tuple(round(float(b), 2) for b in bounds)}"
+                    )
+
             cached_data = save_and_clip_dataset(
-                data, gdf, args.start_date, args.end_date, paths.cached_nc_file
+                data, gdf, args.start_date, args.end_date, paths.cached_nc_file, bounds=bounds
             )
 
             create_forcings(
