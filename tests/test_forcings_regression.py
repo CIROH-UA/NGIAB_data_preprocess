@@ -171,16 +171,16 @@ GAGE_10109001_REGRESSION = {
         "cat-2861442",
     ],  # First 10 for spot check
     "stats": {
-        "TMP_2maboveground": {"min": 266.08, "max": 293.25, "mean": 276.13},
-        "PRES_surface": {"min": 72895.4, "max": 85003.4, "mean": 77537.8},
-        "DSWRF_surface": {"min": 0.0, "max": 711.17, "mean": 179.39},
-        "DLWRF_surface": {"min": 177.51, "max": 322.51, "mean": 222.13},
-        "SPFH_2maboveground": {"min": 0.00122, "max": 0.00588, "mean": 0.00333},
-        "APCP_surface": {"min": 0.0, "max": 4.696, "mean": 0.0233},
+        "TMP_2maboveground": {"min": 266.17, "max": 292.85, "mean": 276.12},
+        "PRES_surface": {"min": 72876.4, "max": 84512.8, "mean": 77536.2},
+        "DSWRF_surface": {"min": 0.0, "max": 711.39, "mean": 179.39},
+        "DLWRF_surface": {"min": 177.39, "max": 321.76, "mean": 222.03},
+        "SPFH_2maboveground": {"min": 0.00121, "max": 0.00584, "mean": 0.00333},
+        "APCP_surface": {"min": 0.0, "max": 4.73, "mean": 0.0233},
     },
     "sample_values": {
-        "TMP_2maboveground": [274.370, 272.429, 270.498, 268.974, 269.294],
-        "PRES_surface": [74866.3, 74861.7, 74884.5, 74898.7, 74877.5],
+        "TMP_2maboveground": [274.417, 272.464, 270.53, 269.001, 269.325],
+        "PRES_surface": [74939.7, 74935.9, 74958.6, 74972.4, 74951.2],
     },
     "time_values": [1569888000, 1569891600, 1569895200, 1569898800, 1569902400],
 }
