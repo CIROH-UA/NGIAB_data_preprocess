@@ -319,8 +319,8 @@ PRECIPITATION_VARIABLES = ("precip_rate", "APCP_surface")
 
 
 def long_gaps(var: xr.DataArray, dim: str, max_gap: int) -> xr.DataArray:
-    """True where a value is missing in a run of more than max_gap steps along dim, or in a run
-    at the start or end of the series."""
+    """Return a boolean mask with var's dimensions, dim last: True where a value is missing in a
+    run of more than max_gap steps along dim, or in a run at the start or end of the series."""
     var = var.transpose(..., dim)
     valid = var.notnull().values
     steps = np.arange(valid.shape[-1])
