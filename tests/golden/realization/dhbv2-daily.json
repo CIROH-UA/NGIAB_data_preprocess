@@ -15,7 +15,7 @@
               "params": {
                 "python_type": "dhbv2.bmi.DeltaModelBmi",
                 "model_type_name": "DeltaModelBmi",
-                "init_config": "./config/cat_config/dhbv2/{{id}}.yml",
+                "init_config": "./config/cat_config/dhbv2_daily/{{id}}.yml",
                 "allow_exceed_end_time": true,
                 "main_output_variable": "land_surface_water__runoff_volume_flux",
                 "fixed_time_step": true,
