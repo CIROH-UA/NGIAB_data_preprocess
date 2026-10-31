@@ -34,7 +34,7 @@ This repository contains tools for preparing data to run a [NextGen](https://git
    - [NOAH + CFE](#noah--cfe-default)
    - [LSTM (Python)](#lstm-python)
    - [LSTM (Rust)](#lstm-rust)
-   - [dHBV2.1 (hourly)](#dhbv21-hourly-mts)
+   - [dHBV2.1-MTS (hourly)](#dhbv21-mts-hourly)
    - [dHBV2.0 (daily)](#dhbv20-daily)
    - [SUMMA](#summa)
 
