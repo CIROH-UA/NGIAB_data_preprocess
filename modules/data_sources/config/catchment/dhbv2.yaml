@@ -34,20 +34,21 @@ uparea: {uparea}
 catchsize: {areasqkm}
 lengthkm: {lengthkm}
 
+# BMI
 model_dir: /ngen/ngen/extern/dhbv2/ngen_resources/data/dhbv_2_mts/model/dhbv_2_mts
-stepwise: True  # True: stepwise inference, False: Single forward simulation on all data in one go
-initial_state: zero  # zero: set initial states of the model to zero
 dtype: float32
-verbose: 1  # 0: no output, 1: print output
-
-# Simulation window
-time_step: 1 hour
-start_time: {start_time}
-end_time: {end_time}
-
-start_date: {start_date}
-start_hour: 0
+verbose: false
 
 # PET calculation method: 'penman_monteith' (default) or 'hargreaves'
-pet_method: 'penman_monteith'
+pet_method: penman_monteith
 latitude: {latitude}
+
+warmup:
+  # Daily->hourly handoff cadence (how long the hourly model runs before
+  # retrieving states from the daily model)
+  cycle_days: 14
+
+  daily_mode: periodic  # options: periodic, once, cold
+  daily_warmup_days: 351  # Inactive if daily_mode=cold
+  hourly_mode: periodic  # options: periodic, cold
+  hourly_warmup_hours: 336  # Inactive if hourly_mode=cold

@@ -323,9 +323,6 @@ def make_dhbv2_config(
         (cat_config_dir / f"{row['divide_id']}{output_suffix}.yml").write_text(
             template.format(
                 **row,
-                start_time=start_time,
-                end_time=end_time,
-                start_date=start_time.strftime("%Y/%m/%d"),
                 start_time_str=start_time.strftime("%Y/%m/%d %H"),
             )
         )
