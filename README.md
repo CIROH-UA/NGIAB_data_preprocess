@@ -34,7 +34,7 @@ This repository contains tools for preparing data to run a [NextGen](https://git
    - [NOAH + CFE](#noah--cfe-default)
    - [LSTM (Python)](#lstm-python)
    - [LSTM (Rust)](#lstm-rust)
-   - [dHBV2.0 (hourly)](#dhbv20-hourly-mts)
+   - [dHBV2.1 (hourly)](#dhbv21-hourly-mts)
    - [dHBV2.0 (daily)](#dhbv20-daily)
    - [SUMMA](#summa)
 
@@ -294,11 +294,11 @@ This tool currently offers three realizations.
 ## LSTM (Rust)
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/lstm-rs.json) will run the [rust port](https://github.com/CIROH-UA/rust-lstm-1025/tree/main) of the python lstm above. It's an experimental drop in replacement that should produce identical results with a ~2-5x speedup depending on your setup.
 
-## dHBV2.0 (Hourly MTS)
-[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2.json) will run the [multi-timescale dHBV2.0 model](https://github.com/mhpi/dhbv2/tree/39379fd435747a3f765d1a2201d613f9f0087448). Weights and model attributes developed by Penn State's MHPI group.
+## dHBV2.1-MTS (Hourly)
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2.json) will run the [multi-timescale dHBV2.1 model](https://github.com/mhpi/dhbv2/tree/v0.6.2) ([Yang et al., 2026](https://arxiv.org/abs/2609.06794)). Weights and model attributes developed by Penn State's MHPI group.
 
 ## dHBV2.0 (Daily)
-[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2-daily.json) will run the [daily dHBV2.0 model](https://github.com/mhpi/dhbv2/tree/39379fd435747a3f765d1a2201d613f9f0087448). Weights and model attributes developed by Penn State's MHPI group.
+[This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/dhbv2-daily.json) will run the [daily dHBV2.0 model](https://github.com/mhpi/dhbv2/tree/v0.6.2) ([Song et al., 2025](https://doi.org/10.1029/2024WR038928)). Weights and model attributes developed by Penn State's MHPI group. The daily model returns zero runoff for the first 365 days while it fills its warmup buffer, so start the simulation at least one year before the period of interest.
 
 ## SUMMA
 [This realization](https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_sources/config/realization/summa.json) will run the [SUMMA](https://github.com/CIROH-UA/ngen/tree/ngiab/extern/summa) model (version linked is what's currently in nextgen in a box).
