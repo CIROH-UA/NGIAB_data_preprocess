@@ -748,6 +748,7 @@ def create_sacsma_realization(
     conf_df = get_model_attributes(paths.geopackage_path)
 
     make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+    make_snow17_config(paths.config_dir, conf_df, start_time, end_time)
     make_sacsma_config(paths.config_dir, conf_df, start_time, end_time)
     configure_troute(cat_id, paths.config_dir, start_time, end_time)
     make_ngen_realization_json(
