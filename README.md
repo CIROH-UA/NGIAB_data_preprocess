@@ -211,8 +211,8 @@ Installed with uv: `uv run cli`
 - `--dhbv2`: Configures the data for the hourly [dHBV2](https://github.com/mhpi/dhbv2).
 - `--dhbv2_daily`: Configures the data for the daily [dHBV2](https://github.com/mhpi/dhbv2).
 - `--summa`: Configures the data for the [SUMMA](https://github.com/CH-Earth/summa) model.
-- `--snow17`: Configures the data for the [SNOW17](https://github.com/NOAA-OWP/snow17) model.
-- `--sacsma`: Configures the data for the [SAC-SMA](https://github.com/NOAA-OWP/sac-sma) model.
+- `--snow17`: Configures the data for the [SNOW17](https://github.com/NOAA-OWP/snow17) model. CFE takes SNOW17's rain plus snowmelt (`raim`) as its precipitation input.
+- `--sacsma`: Configures the data for the [SAC-SMA](https://github.com/NOAA-OWP/sac-sma) model, with SNOW17 in front of it: SAC-SMA takes SNOW17's rain plus snowmelt (`raim`) as its precipitation input. SAC-SMA starts with empty soil moisture storages, so start the run several months before the period you want to look at; the first weeks can have little or no streamflow.
 - `--start_date START_DATE`, `--start START_DATE`: Start date for forcings/realization (format YYYY-MM-DD).
 - `--end_date END_DATE`, `--end END_DATE`: End date for forcings/realization (format YYYY-MM-DD).
 - `-o OUTPUT_NAME`, `--output_name OUTPUT_NAME`: Name of the output folder.
