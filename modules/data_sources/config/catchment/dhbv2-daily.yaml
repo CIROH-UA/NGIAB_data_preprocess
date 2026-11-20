@@ -32,17 +32,15 @@ T_silt: {T_silt}
 Porosity: {Porosity}
 uparea: {uparea}
 
+# BMI
 model_dir: /ngen/ngen/extern/dhbv2/ngen_resources/data/dhbv_2/model/dhbv_2
-stepwise: True  # True: stepwise inference, False: Single forward simulation on all data in one go
-initial_state: zero  # zero: set initial states of the model to zero
 dtype: float32
-verbose: 1  # 0: no output, 1: print output
+verbose: false
 
-# Simulation window
-time_step: 1 day
-start_time: {start_time_str}
-end_time: {end_time}
+# Simulation start (YYYY/MM/DD HH); aligns hourly forcing to calendar days.
+start_time: '{start_time_str}'
 
 # PET calculation method: 'penman_monteith' (default) or 'hargreaves'
+# When 'hargreaves', latitude (deg) is required.
 pet_method: 'hargreaves'
 latitude: {latitude}
