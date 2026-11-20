@@ -1,33 +1,39 @@
+// Toggle the log console and adjust the bottom padding so the manual workflow 
+// remains visible when the console is expanded.
 document.getElementById('toggleConsole').addEventListener('click', function () {
-    var consoleElement = document.getElementById('console');
-    // this is the element at the bottom of the page we need to pad so it's not hidden by the console
-    var realizationElement = document.getElementById('realization');
+    const consoleElement = document.getElementById('console');
+    const bottomElement = document.getElementById('manual-workflow');
+
     consoleElement.classList.toggle('minimized');
+
     if (consoleElement.classList.contains('minimized')) {
         this.textContent = 'Show Console';
-        realizationElement.style.transition = 'padding-bottom 0.5s ease';
-        realizationElement.style.paddingBottom = '40px';
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+        if (bottomElement) {
+            bottomElement.style.transition = 'padding-bottom 0.5s ease';
+            bottomElement.style.paddingBottom = '40px';
         }
-        }
-        else {
+    } else {
         this.textContent = 'Hide Console';
-        realizationElement.style.transition = 'padding-bottom 0.5s ease';
-        realizationElement.style.paddingBottom = '20vh';
+
+        if (bottomElement) {
+            bottomElement.style.transition = 'padding-bottom 0.5s ease';
+            bottomElement.style.paddingBottom = '20vh';
+        }
     }
 });
 
+// Periodically refresh the application logs displayed in the console.
 function fetchLogs() {
     fetch('/logs')
         .then(response => response.json())
         .then(data => {
-            var consoleElement = document.getElementById('logOutput');
+            const consoleElement = document.getElementById('logOutput');
+            if (!consoleElement || !data.logs) return;
+
             consoleElement.innerHTML = data.logs.join('<br>');
             consoleElement.scrollTop = consoleElement.scrollHeight;
-        }
-        );
-
+        });
 }
 
-setInterval(fetchLogs, 1000); // Fetch logs every second
+setInterval(fetchLogs, 1000);  // Fetch logs every second
