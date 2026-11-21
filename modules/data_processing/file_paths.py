@@ -27,6 +27,10 @@ class FilePaths:
     hydrofabric_graph = hydrofabric_dir / "conus_igraph_network.gpickle"
     dev_file = Path(__file__).parent.parent.parent / ".dev"
     template_troute_config = data_sources / "ngen-routing-template.yaml"
+    
+    topmodel_attributes =  '~/TOPMODEL/tempdata/' + "topmodel_attributes.parquet"  # Replace with a global source (hf_bucket + resource_key)
+
+    #---------------------------------------------------------------
     # Cat configs
     template_cat_dir = data_sources / "config" / "catchment"
     template_noahowp_config = template_cat_dir / "noah-owp-modular-init.namelist.input"
@@ -39,6 +43,11 @@ class FilePaths:
     template_snow17_params = template_cat_dir / "snow17-params.txt"
     template_sac_config = template_cat_dir / "sac-init.namelist.input"
     template_sac_params = template_cat_dir / "sac-params.txt"
+    # topmodel
+    template_topmodel_run = template_cat_dir / "topmodel.run"
+    template_topmodel_subcat = template_cat_dir / "topmodel_subcat.dat"
+    template_topmodel_params = template_cat_dir / "topmodel_params.dat"
+    #------------------------------------------------------------------
 
     # Realizations
     template_realization_dir = data_sources / "config" / "realization"
@@ -50,6 +59,12 @@ class FilePaths:
     template_summa_realization_config = template_realization_dir / "summa.json"
     template_snow17_realization_config = template_realization_dir / "snow17-nom-cfe.json"
     template_sac_realization_config = template_realization_dir / "sacsma-nom.json"
+
+    # 
+
+    template_topmodel_realization_config = template_realization_dir / "topmodel-nom.json"
+
+    #______________________________________________________________________
 
     summa_file_dir = data_sources / "config" / "SUMMA"
 

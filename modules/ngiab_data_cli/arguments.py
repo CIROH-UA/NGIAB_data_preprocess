@@ -153,6 +153,11 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="enable SNOW-17 model realization and forcings",
     )
+    models.add_argument(                                                    
+        "--TOPMODEL",
+        action="store_true",
+        help="enable TOPMODEL model realization and forcings",
+    )
     models.add_argument(
         "--sacsma",
         action="store_true",

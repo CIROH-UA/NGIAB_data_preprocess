@@ -181,6 +181,69 @@ def make_snow17_config(
             )
 
 
+def make_topmodel_config(
+    base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
+) -> None:
+
+    # Format TWI to write to subcat.dat
+    def format_twi(df: pandas.DataFrame) -> pandas.DataFrame:    
+        for idx, row in df.iterrows():
+            obj = json.loads(row["dist_30.twi"])
+            rep = [round(x-y, 10) for x, y in zip(obj["area_frc"][:-1], obj["area_frc"][1:])]
+            rep.insert(0,0)
+            rep[len(rep)-1] = rep[len(rep)-1] + obj["area_frc"][len(rep)-1]
+            obj["area_frc"] = rep
+            df.loc[idx, "dist_30.twi"] = json.dumps(obj)
+        return df
+    
+    df = format_twi(df=divide_conf_df)
+    merged = df[["divide_id", "areasqkm", "lengthkm", "latitude", "mean.elevation", "dist_30.twi", "distance_cum_area"]]  # update after test run
+    start_datetime = start_time.strftime("%Y%m%d%H")
+    end_datetime = end_time.strftime("%Y%m%d%H")
+    
+    with open(FilePaths.template_topmodel_run, "r") as run_file:   # TOPMODEL .RUN FILE
+        run_template = run_file.read()
+
+    with open(FilePaths.template_topmodel_subcat, "r") as subcat_file:   # SUBCAT .DAT FILE
+        subcat_template = subcat_file.read()
+
+    with open(FilePaths.template_topmodel_params, "r") as params_file:   # PARAMS .DAT FILE
+        params_template = params_file.read()
+
+    cat_config_dir = base_dir / "cat_config" / "TOPMODEL"
+    cat_config_dir.mkdir(parents=True, exist_ok=True)
+
+    for _, row in merged.iterrows():
+        with open(cat_config_dir / f"{row['divide_id']}_topmodel.run", "w") as file:
+            file.write(
+                run_template.format(
+                    divide_id=row["divide_id"],
+                )
+            )
+
+        with open(cat_config_dir / f"{row['divide_id']}_subcat.dat", "w") as file:
+            ls = json.loads(row["dist_30.twi"])
+            ls2 = json.loads(row["distance_cum_area"])
+            
+            file.write(
+                subcat_template.format(
+                    divide_id=row["divide_id"],
+                    TWI = "\n".join([f'{y} {x}' for x, y in zip(ls['twi_thld'], ls['area_frc'])]),
+                    cum_area_dist_from = " ".join([f'{x} {y}' for x, y in ls2]),
+                    n_cha = str(len(ls2)),
+                )
+            )     
+
+        with open(cat_config_dir / f"{row['divide_id']}_params.dat", "w") as file:
+            file.write(
+                params_template.format(
+                    divide_id=row["divide_id"],
+                )
+            )
+
+
+#----------------------------------------------------------------------------
+
 def make_sacsma_config(
     base_dir: Path, divide_conf_df: pandas.DataFrame, start_time: datetime, end_time: datetime
 ) -> None:
@@ -738,6 +801,36 @@ def create_snow17_realization(
         end_time,
     )
     paths.setup_run_folders()
+
+
+def create_topmodel_realization(
+    cat_id: str,
+    start_time: datetime,
+    end_time: datetime,
+    use_nwm_gw: bool = False,  # check if this is needed for topmodel
+    gage_id: Optional[str] = None,
+):
+    paths = FilePaths(cat_id)
+
+    conf_df = get_model_attributes(paths.geopackage_path)
+    if use_nwm_gw:
+        gw_levels = get_approximate_gw_storage(paths, start_time)
+    else:
+        gw_levels = dict()
+
+    make_noahowp_config(paths.config_dir, conf_df, start_time, end_time)
+    configure_troute(cat_id, paths.config_dir, start_time, end_time)
+    make_topmodel_config(paths.config_dir, conf_df, start_time, end_time)
+
+    make_ngen_realization_json(
+        paths.config_dir,
+        FilePaths.template_topmodel_realization_config,
+        start_time,
+        end_time,
+    )
+    paths.setup_run_folders()
+
+#---------------------------------------------------------------------------------
 
 
 def create_sacsma_realization(

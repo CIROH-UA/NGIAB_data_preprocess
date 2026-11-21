@@ -57,10 +57,11 @@ dependencies = [
     "numcodecs<0.16.0",
     "scipy>=1.15.3",
     "duckdb>=1.5.2",
+    "ngiab-eval>=0.1.6",
 ]
 
 [project.optional-dependencies]
-eval = ["ngiab_eval"]
+eval = []
 plot = ["ngiab_eval[plot]"]
 
 [project.urls]

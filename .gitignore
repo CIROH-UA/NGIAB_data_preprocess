@@ -16,3 +16,4 @@ uv.lock
 /build
 *.pmtiles
 *style.json
+.ipynb_checkpoints
